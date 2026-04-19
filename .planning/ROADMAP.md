@@ -32,7 +32,13 @@
   2. Application stores access tokens securely and refreshes them when expired
   3. Application handles expired/invalid tokens gracefully with clear error messages
   4. SQLite database is initialized with proper schema and WAL mode enabled
-**Plans:** TBD
+**Plans:** 5 plans across 3 waves
+Plans:
+- [ ] 01-00-PLAN.md — Test infrastructure (pytest config, test stubs)
+- [ ] 01-01-PLAN.md — Settings module (Pydantic configuration)
+- [ ] 01-02-PLAN.md — Database foundation (connection factory, schema)
+- [ ] 01-03-PLAN.md — OAuth implementation (PKCE flow, token persistence)
+- [ ] 01-04-PLAN.md — CLI entry point (auth and init commands)
 
 ### Phase 2: Bookmark Fetch and Storage
 **Goal:** Users can sync their X bookmarks to local SQLite storage via CLI
@@ -85,7 +91,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation and Authentication | 0/5 | Not started | - |
+| 1. Foundation and Authentication | 5 planned | Planning complete | - |
 | 2. Bookmark Fetch and Storage | 0/8 | Not started | - |
 | 3. Search, Notes, and Import/Export | 0/11 | Not started | - |
 | 4. Topic Organization | 0/5 | Not started | - |
@@ -95,11 +101,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| STOR-01 | Phase 1 | Pending |
-| STOR-02 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Planned (01-03-PLAN.md) |
+| AUTH-02 | Phase 1 | Planned (01-03-PLAN.md) |
+| AUTH-03 | Phase 1 | Planned (01-03-PLAN.md) |
+| STOR-01 | Phase 1 | Planned (01-02-PLAN.md) |
+| STOR-02 | Phase 1 | Planned (01-02-PLAN.md) |
 | DATA-01 | Phase 2 | Pending |
 | DATA-02 | Phase 2 | Pending |
 | DATA-03 | Phase 2 | Pending |
@@ -132,3 +138,4 @@
 
 ---
 *Roadmap created: 2026-04-18*
+*Roadmap updated: 2026-04-18 - Phase 1 plans added*
