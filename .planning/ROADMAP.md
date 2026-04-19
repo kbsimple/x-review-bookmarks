@@ -15,7 +15,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Foundation and Authentication** - OAuth 2.0 PKCE flow and SQLite database setup
+- [x] **Phase 1: Foundation and Authentication** - OAuth 2.0 PKCE flow and SQLite database setup
 - [ ] **Phase 2: Bookmark Fetch and Storage** - X API integration for fetching and persisting bookmarks
 - [ ] **Phase 3: Search, Notes, and Import/Export** - Full-text search, personal notes, and data portability
 - [ ] **Phase 4: Topic Organization** - Tags, topic taxonomy, and hybrid clustering
@@ -50,7 +50,12 @@ Plans:
   3. Publication dates are stored for each post (required for scheduling)
   4. Sync handles rate limits gracefully and can resume from interruption
   5. Incremental sync only fetches new bookmarks (not full re-fetch every time)
-**Plans:** TBD
+**Plans:** 4 plans across 4 waves
+Plans:
+- [ ] 02-01-PLAN.md — Test scaffolding and schema V2 (posts + sync_state tables)
+- [ ] 02-02-PLAN.md — XClient and repositories (API client, PostsRepository, SyncStateRepository)
+- [ ] 02-03-PLAN.md — SyncService (orchestration, incremental sync, rate limits)
+- [ ] 02-04-PLAN.md — CLI sync command (progress bar, summary table)
 
 ### Phase 3: Search, Notes, and Import/Export
 **Goal:** Users can search stored posts, add notes, and export/import their data
@@ -91,8 +96,8 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation and Authentication | 5 planned | Planning complete | - |
-| 2. Bookmark Fetch and Storage | 0/8 | Not started | - |
+| 1. Foundation and Authentication | 5/5 | Complete | 2026-04-18 |
+| 2. Bookmark Fetch and Storage | 0/4 | Planning complete | - |
 | 3. Search, Notes, and Import/Export | 0/11 | Not started | - |
 | 4. Topic Organization | 0/5 | Not started | - |
 | 5. Spaced Repetition Resurfacing | 0/5 | Not started | - |
@@ -101,19 +106,19 @@ Plans:
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Planned (01-03-PLAN.md) |
-| AUTH-02 | Phase 1 | Planned (01-03-PLAN.md) |
-| AUTH-03 | Phase 1 | Planned (01-03-PLAN.md) |
-| STOR-01 | Phase 1 | Planned (01-02-PLAN.md) |
-| STOR-02 | Phase 1 | Planned (01-02-PLAN.md) |
-| DATA-01 | Phase 2 | Pending |
-| DATA-02 | Phase 2 | Pending |
-| DATA-03 | Phase 2 | Pending |
-| DATA-04 | Phase 2 | Pending |
-| DATA-05 | Phase 2 | Pending |
-| STOR-03 | Phase 2 | Pending |
-| CLI-01 | Phase 2 | Pending |
-| CLI-05 | Phase 2 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| STOR-01 | Phase 1 | Complete |
+| STOR-02 | Phase 1 | Complete |
+| DATA-01 | Phase 2 | Planned (02-02-PLAN.md) |
+| DATA-02 | Phase 2 | Planned (02-01-PLAN.md, 02-02-PLAN.md) |
+| DATA-03 | Phase 2 | Planned (02-01-PLAN.md, 02-02-PLAN.md) |
+| DATA-04 | Phase 2 | Planned (02-02-PLAN.md, 02-03-PLAN.md) |
+| DATA-05 | Phase 2 | Planned (02-02-PLAN.md, 02-03-PLAN.md) |
+| STOR-03 | Phase 2 | Planned (02-03-PLAN.md) |
+| CLI-01 | Phase 2 | Planned (02-04-PLAN.md) |
+| CLI-05 | Phase 2 | Planned (02-04-PLAN.md) |
 | SRCH-01 | Phase 3 | Pending |
 | SRCH-02 | Phase 3 | Pending |
 | SRCH-03 | Phase 3 | Pending |
@@ -138,4 +143,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-04-18*
-*Roadmap updated: 2026-04-18 - Phase 1 plans added*
+*Roadmap updated: 2026-04-19 - Phase 2 plans added*
