@@ -401,17 +401,17 @@ def sync():
 
 **If this table is empty:** All claims in this research were verified or cited.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Media URL format:**
    - What we know: `media_fields=url` returns direct URLs to images
    - What's unclear: Whether these are temporary URLs or permanent
-   - Recommendation: Store as-is, refresh on demand if needed later
+   - RESOLVED: Store as-is, refresh on demand if needed later
 
 2. **Bookmarked_at timestamp:**
    - What we know: Tweet `created_at` is publication date
    - What's unclear: Whether X API provides when user bookmarked
-   - Recommendation: Use tweet `created_at` for scheduling, store `fetched_at` as proxy for bookmark time
+   - RESOLVED: Use tweet `created_at` for scheduling, store `fetched_at` as proxy for bookmark time
 
 ## Environment Availability
 
