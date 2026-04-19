@@ -263,3 +263,72 @@ class TestConnectionFactory:
         conn1.close()
         conn2.close()
         db_path.unlink(missing_ok=True)
+
+
+class TestSchemaV2:
+    """Tests for Phase 2 schema additions (posts and sync_state tables)."""
+
+    def test_schema_v2_exports(self):
+        """Verify SCHEMA_V2 is exported from db module."""
+        from src.db import SCHEMA_V2
+
+        assert "posts" in SCHEMA_V2, "SCHEMA_V2 should define posts table"
+        assert "sync_state" in SCHEMA_V2, "SCHEMA_V2 should define sync_state table"
+
+    def test_posts_table_created(self, temp_db):
+        """Verify posts table exists after initialization.
+
+        D-01: Posts table stores full content (text, author, images, links, media).
+        """
+        from src.db.schema import SCHEMA_V1, SCHEMA_V2
+
+        temp_db.executescript(SCHEMA_V1)
+        temp_db.executescript(SCHEMA_V2)
+
+        # Check table exists
+        result = temp_db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='posts'"
+        ).fetchone()
+        assert result is not None, "posts table should exist"
+
+        # Check columns
+        columns = temp_db.execute("PRAGMA table_info(posts)").fetchall()
+        column_names = [col[1] for col in columns]
+        assert "x_post_id" in column_names
+        assert "created_at" in column_names
+        assert "text" in column_names
+        assert "author_id" in column_names
+        assert "author_username" in column_names
+        assert "media_urls" in column_names
+        assert "link_urls" in column_names
+
+    def test_sync_state_table_created(self, temp_db):
+        """Verify sync_state table exists after initialization.
+
+        D-02: sync_state tracks last_sync_bookmark_id for incremental sync.
+        """
+        from src.db.schema import SCHEMA_V1, SCHEMA_V2
+
+        temp_db.executescript(SCHEMA_V1)
+        temp_db.executescript(SCHEMA_V2)
+
+        # Check table exists
+        result = temp_db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='sync_state'"
+        ).fetchone()
+        assert result is not None, "sync_state table should exist"
+
+        # Check columns
+        columns = temp_db.execute("PRAGMA table_info(sync_state)").fetchall()
+        column_names = [col[1] for col in columns]
+        assert "id" in column_names
+        assert "last_sync_bookmark_id" in column_names
+        assert "last_sync_at" in column_names
+        assert "pagination_token" in column_names
+        assert "total_bookmarks" in column_names
+
+    def test_get_schema_version_returns_v2(self):
+        """Verify get_schema_version returns 'v2' after Phase 2."""
+        from src.db.schema import get_schema_version
+
+        assert get_schema_version() == "v2"

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from .connection import get_connection
-from .schema import SCHEMA_V1
+from .schema import SCHEMA_V1, SCHEMA_V2
 
 
 def init_database(db_path: Optional[Union[Path, str]] = None) -> sqlite3.Connection:
@@ -62,11 +62,12 @@ def init_database(db_path: Optional[Union[Path, str]] = None) -> sqlite3.Connect
     # Get connection with PRAGMAs applied
     conn = get_connection(db_path)
 
-    # Apply schema
+    # Apply schema (V1 then V2 for incremental updates)
     conn.executescript(SCHEMA_V1)
+    conn.executescript(SCHEMA_V2)
     conn.commit()
 
     return conn
 
 
-__all__ = ["init_database", "get_connection", "SCHEMA_V1"]
+__all__ = ["init_database", "get_connection", "SCHEMA_V1", "SCHEMA_V2"]

@@ -207,3 +207,47 @@ class TestCliApp:
     def test_rich_markup_enabled(self) -> None:
         """Verify Rich markup is enabled."""
         assert app.rich_markup_mode == "rich", "Rich markup should be enabled"
+
+
+class TestSyncCommand:
+    """Tests for `xbm sync` command.
+
+    Tests for:
+    - CLI-01: Trigger bookmark sync via CLI command
+    - CLI-05: CLI displays rich output with post content, images, and metadata
+    """
+
+    def test_sync_command_placeholder(self):
+        """Placeholder test for sync command.
+
+        This test passes to establish the test scaffold.
+        Real tests will be added when implementing:
+        - CLI-01: User can trigger bookmark sync via CLI command
+        - CLI-05: CLI displays rich output with post content, images, and metadata
+        """
+        # Placeholder - will be replaced with real tests
+        assert True, "Test scaffold passes"
+
+    def test_sync_command_execution(self):
+        """Placeholder: Verify sync command can be invoked.
+
+        CLI-01: User can trigger a bookmark sync via CLI and see progress indication.
+        """
+        # Placeholder - will verify command execution
+        assert True, "Test scaffold passes"
+
+    def test_sync_command_progress_output(self):
+        """Placeholder: Verify sync command shows progress.
+
+        D-04: Progress bar during sync + Rich summary table after.
+        """
+        # Placeholder - will verify progress output
+        assert True, "Test scaffold passes"
+
+    def test_sync_command_summary_table(self):
+        """Placeholder: Verify sync command shows summary table.
+
+        CLI-05: Summary table with counts: total, new, updated, errors.
+        """
+        # Placeholder - will verify summary table
+        assert True, "Test scaffold passes"

@@ -85,3 +85,22 @@ def mock_auth():
         "access_token": "test_access_token",
         "refresh_token": "test_refresh_token",
     }
+
+
+@pytest.fixture
+def mock_tweepy_client():
+    """Create mock tweepy.Client for testing X API calls.
+
+    Yields:
+        MagicMock: Mock client with get_bookmarks method.
+    """
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    client.get_bookmarks = MagicMock()
+    client.last_response = MagicMock()
+    client.last_response.headers = {
+        "x-rate-limit-remaining": "180",
+        "x-rate-limit-reset": "900",
+    }
+    return client
