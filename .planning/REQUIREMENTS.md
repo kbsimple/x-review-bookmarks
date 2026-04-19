@@ -117,43 +117,43 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 1 | Pending |
 | AUTH-02 | Phase 1 | Pending |
 | AUTH-03 | Phase 1 | Pending |
+| STOR-01 | Phase 1 | Pending |
+| STOR-02 | Phase 1 | Pending |
 | DATA-01 | Phase 2 | Pending |
 | DATA-02 | Phase 2 | Pending |
 | DATA-03 | Phase 2 | Pending |
 | DATA-04 | Phase 2 | Pending |
 | DATA-05 | Phase 2 | Pending |
-| STOR-01 | Phase 2 | Pending |
-| STOR-02 | Phase 2 | Pending |
 | STOR-03 | Phase 2 | Pending |
+| CLI-01 | Phase 2 | Pending |
+| CLI-05 | Phase 2 | Pending |
 | SRCH-01 | Phase 3 | Pending |
 | SRCH-02 | Phase 3 | Pending |
 | SRCH-03 | Phase 3 | Pending |
-| ORG-01 | Phase 4 | Pending |
-| ORG-02 | Phase 4 | Pending |
-| ORG-03 | Phase 4 | Pending |
-| ORG-04 | Phase 4 | Pending |
 | NOTE-01 | Phase 3 | Pending |
 | NOTE-02 | Phase 3 | Pending |
-| SPAC-01 | Phase 5 | Pending |
-| SPAC-02 | Phase 5 | Pending |
-| SPAC-03 | Phase 5 | Pending |
-| SPAC-04 | Phase 5 | Pending |
-| CLI-01 | Phase 2 | Pending |
-| CLI-02 | Phase 5 | Pending |
 | CLI-03 | Phase 3 | Pending |
-| CLI-04 | Phase 4 | Pending |
-| CLI-05 | Phase 2 | Pending |
 | IMEX-01 | Phase 3 | Pending |
 | IMEX-02 | Phase 3 | Pending |
 | IMEX-03 | Phase 3 | Pending |
 | MAINT-01 | Phase 3 | Pending |
 | MAINT-02 | Phase 3 | Pending |
+| ORG-01 | Phase 4 | Pending |
+| ORG-02 | Phase 4 | Pending |
+| ORG-03 | Phase 4 | Pending |
+| ORG-04 | Phase 4 | Pending |
+| CLI-04 | Phase 4 | Pending |
+| SPAC-01 | Phase 5 | Pending |
+| SPAC-02 | Phase 5 | Pending |
+| SPAC-03 | Phase 5 | Pending |
+| SPAC-04 | Phase 5 | Pending |
+| CLI-02 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 33 total
-- Mapped to phases: 0 (will be populated during roadmap creation)
-- Unmapped: 33 ⚠️
+- v1 requirements: 34 total
+- Mapped to phases: 34
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-18*
-*Last updated: 2026-04-18 after initial definition*
+*Last updated: 2026-04-18 after roadmap creation*
