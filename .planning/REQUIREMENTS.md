@@ -23,8 +23,8 @@ Requirements for initial release (Milestone 1). Each maps to roadmap phases.
 
 ### Storage
 
-- [ ] **STOR-01**: Application stores posts in SQLite database with WAL mode enabled
-- [ ] **STOR-02**: Application enables foreign key constraints on database connections
+- [x] **STOR-01**: Application stores posts in SQLite database with WAL mode enabled
+- [x] **STOR-02**: Application enables foreign key constraints on database connections
 - [ ] **STOR-03**: Application provides incremental sync (only fetch new bookmarks since last sync)
 
 ### Search
@@ -117,8 +117,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 1 | Pending |
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Pending |
-| STOR-01 | Phase 1 | Pending |
-| STOR-02 | Phase 1 | Pending |
+| STOR-01 | Phase 1 | Complete |
+| STOR-02 | Phase 1 | Complete |
 | DATA-01 | Phase 2 | Pending |
 | DATA-02 | Phase 2 | Pending |
 | DATA-03 | Phase 2 | Pending |

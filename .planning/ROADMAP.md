@@ -36,7 +36,7 @@
 Plans:
 - [x] 01-00-PLAN.md — Test infrastructure (pytest config, test stubs)
 - [x] 01-01-PLAN.md — Settings module (Pydantic configuration)
-- [ ] 01-02-PLAN.md — Database foundation (connection factory, schema)
+- [x] 01-02-PLAN.md — Database foundation (connection factory, schema)
 - [ ] 01-03-PLAN.md — OAuth implementation (PKCE flow, token persistence)
 - [ ] 01-04-PLAN.md — CLI entry point (auth and init commands)
 
