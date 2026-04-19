@@ -9,9 +9,9 @@ Requirements for initial release (Milestone 1). Each maps to roadmap phases.
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can authenticate with X via OAuth 2.0 PKCE flow
+- [x] **AUTH-01**: User can authenticate with X via OAuth 2.0 PKCE flow
 - [x] **AUTH-02**: Application stores and refreshes access tokens securely
-- [ ] **AUTH-03**: Application handles token expiration gracefully
+- [x] **AUTH-03**: Application handles token expiration gracefully
 
 ### Data Collection
 
@@ -114,9 +114,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
-| AUTH-03 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Complete |
 | STOR-01 | Phase 1 | Complete |
 | STOR-02 | Phase 1 | Complete |
 | DATA-01 | Phase 2 | Pending |
