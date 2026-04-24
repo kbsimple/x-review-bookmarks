@@ -3,6 +3,7 @@
 from .search import SearchService, SearchResult
 from .sync import SyncService, SyncResult
 from .export import ExportService, ImportService, ExportResult, ImportResult
+from .link_checker import LinkCheckerService, LinkStatus, CheckResult
 
 __all__ = [
     "SearchService",
@@ -13,4 +14,7 @@ __all__ = [
     "ImportService",
     "ExportResult",
     "ImportResult",
+    "LinkCheckerService",
+    "LinkStatus",
+    "CheckResult",
 ]
