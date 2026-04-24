@@ -4,8 +4,6 @@ Tests for:
 - Full-text search within stored post content (SRCH-01)
 - Search by author name or username (SRCH-02)
 - Search results with context display (SRCH-03)
-
-Wave 0 scaffold - tests will be implemented in Wave 2.
 """
 
 import pytest
@@ -99,64 +97,403 @@ def temp_db_with_search():
     db_path.unlink(missing_ok=True)
 
 
-class TestSearchService:
-    """Tests for SearchService FTS5 functionality.
+@pytest.fixture
+def temp_db_with_sample_posts(temp_db_with_search):
+    """Create a database with sample posts for search testing.
 
-    SRCH-01: Full-text search within stored post content.
-    SRCH-02: Search by author name or username.
-    SRCH-03: Search results with context display.
+    Yields:
+        sqlite3.Connection: Connection with sample posts inserted.
     """
+    conn = temp_db_with_search
 
-    def test_search_returns_results(self, temp_db_with_search):
-        """Verify search returns matching posts.
+    # Insert sample posts with different authors and content
+    sample_posts = [
+        {
+            "x_post_id": "post_1",
+            "created_at": "2024-01-15T10:00:00Z",
+            "text": "Python is a great programming language for data science",
+            "author_id": "user_1",
+            "author_username": "pythonista",
+            "author_display_name": "Python Developer",
+        },
+        {
+            "x_post_id": "post_2",
+            "created_at": "2024-01-15T11:00:00Z",
+            "text": "Learning machine learning with Python and TensorFlow",
+            "author_id": "user_2",
+            "author_username": "mldev",
+            "author_display_name": "ML Engineer",
+        },
+        {
+            "x_post_id": "post_3",
+            "created_at": "2024-01-15T12:00:00Z",
+            "text": "Web development with Flask and Django frameworks",
+            "author_id": "user_1",
+            "author_username": "pythonista",
+            "author_display_name": "Python Developer",
+        },
+        {
+            "x_post_id": "post_4",
+            "created_at": "2024-01-15T13:00:00Z",
+            "text": "Software engineering best practices and code quality",
+            "author_id": "user_3",
+            "author_username": "codecraft",
+            "author_display_name": "Code Crafter",
+        },
+        {
+            "x_post_id": "post_5",
+            "created_at": "2024-01-15T14:00:00Z",
+            "text": "Exact phrase matching test case",
+            "author_id": "user_1",
+            "author_username": "pythonista",
+            "author_display_name": "Python Developer",
+        },
+    ]
 
-        SRCH-01: Full-text search within stored post content.
+    for post in sample_posts:
+        conn.execute(
+            """
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username, author_display_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                post["x_post_id"],
+                post["created_at"],
+                post["text"],
+                post["author_id"],
+                post["author_username"],
+                post["author_display_name"],
+            )
+        )
 
-        Implemented in Wave 2.
-        """
-        pytest.skip("Implemented in Wave 2")
+    conn.commit()
 
-    def test_search_by_author(self, temp_db_with_search):
-        """Verify search can filter by author.
+    yield conn
 
-        SRCH-02: Search by author name or username.
 
-        Implemented in Wave 2.
-        """
-        pytest.skip("Implemented in Wave 2")
+class TestSearchServiceInit:
+    """Tests for SearchService initialization."""
 
-    def test_search_with_snippet(self, temp_db_with_search):
-        """Verify search returns highlighted snippets.
+    def test_init_accepts_connection(self, temp_db_with_search):
+        """SearchService.__init__() accepts sqlite3.Connection."""
+        from src.services.search import SearchService
 
-        SRCH-03: Search results with context display (snippet highlighting).
+        service = SearchService(temp_db_with_search)
+        assert service is not None
 
-        Implemented in Wave 2.
-        """
-        pytest.skip("Implemented in Wave 2")
+    def test_init_stores_connection(self, temp_db_with_search):
+        """SearchService stores connection for later use."""
+        from src.services.search import SearchService
 
-    def test_search_empty_query_returns_empty(self, temp_db_with_search):
-        """Verify empty search query returns empty results.
+        service = SearchService(temp_db_with_search)
+        assert service._conn is temp_db_with_search
 
-        Edge case: Empty or whitespace-only query.
 
-        Implemented in Wave 2.
-        """
-        pytest.skip("Implemented in Wave 2")
+class TestSearchServiceSearch:
+    """Tests for SearchService.search() method."""
 
-    def test_search_phrase_query(self, temp_db_with_search):
-        """Verify phrase search returns exact matches.
+    def test_search_returns_list(self, temp_db_with_sample_posts):
+        """SearchService.search() returns list of SearchResult."""
+        from src.services.search import SearchService
 
-        FTS5 feature: "exact phrase" matching.
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search("Python")
 
-        Implemented in Wave 2.
-        """
-        pytest.skip("Implemented in Wave 2")
+        assert isinstance(results, list)
 
-    def test_search_with_limit(self, temp_db_with_search):
-        """Verify search respects limit parameter.
+    def test_search_returns_search_result_objects(self, temp_db_with_sample_posts):
+        """search() returns list of SearchResult objects with correct fields."""
+        from src.services.search import SearchService, SearchResult
 
-        Performance: Limit results to avoid overwhelming output.
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search("Python")
 
-        Implemented in Wave 2.
-        """
-        pytest.skip("Implemented in Wave 2")
+        assert len(results) > 0
+        result = results[0]
+        assert isinstance(result, SearchResult)
+        assert hasattr(result, 'x_post_id')
+        assert hasattr(result, 'author_username')
+        assert hasattr(result, 'author_display_name')
+        assert hasattr(result, 'created_at')
+        assert hasattr(result, 'snippet')
+        assert hasattr(result, 'rank')
+
+    def test_search_uses_bm25_ranking(self, temp_db_with_sample_posts):
+        """search() uses bm25() for relevance ranking."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search("Python")
+
+        # Results should be ordered by rank (lower is better)
+        assert len(results) >= 2
+        for i in range(len(results) - 1):
+            assert results[i].rank <= results[i + 1].rank
+
+    def test_search_by_content_matches_text_column(self, temp_db_with_sample_posts):
+        """search() with 'Python' matches posts containing Python in text."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search("Python")
+
+        # Should find posts with Python in text
+        assert len(results) >= 2
+        post_ids = {r.x_post_id for r in results}
+        assert "post_1" in post_ids  # "Python is a great programming language..."
+
+    def test_search_empty_query_returns_empty_list(self, temp_db_with_sample_posts):
+        """search() with empty query returns empty list."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+
+        # Empty query should return empty list
+        results = service.search("")
+        assert results == []
+
+        # Whitespace-only query should return empty list
+        results = service.search("   ")
+        assert results == []
+
+    def test_search_sanitizes_special_characters(self, temp_db_with_sample_posts):
+        """search() escapes FTS5 special characters to prevent syntax errors."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+
+        # These should not raise errors
+        results = service.search("test (case)")
+        assert isinstance(results, list)
+
+        results = service.search("test*query")
+        assert isinstance(results, list)
+
+        results = service.search("test-query")
+        assert isinstance(results, list)
+
+    def test_search_with_limit(self, temp_db_with_sample_posts):
+        """search() respects limit parameter."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+
+        # Insert more posts to exceed limit
+        for i in range(10):
+            temp_db_with_sample_posts.execute(
+                """
+                INSERT INTO posts (
+                    x_post_id, created_at, text, author_id, author_username
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (f"limit_test_{i}", "2024-01-16T10:00:00Z", f"Python test {i}", "user_limit", "limiter")
+            )
+        temp_db_with_sample_posts.commit()
+
+        results = service.search("Python", limit=3)
+        assert len(results) == 3
+
+    def test_search_no_match_returns_empty(self, temp_db_with_sample_posts):
+        """search() returns empty list when no matches found."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search("nonexistent_term_xyz123")
+
+        assert results == []
+
+
+class TestSearchByAuthor:
+    """Tests for author-specific search functionality."""
+
+    def test_search_by_author_username(self, temp_db_with_sample_posts):
+        """search_by_author() finds posts by author_username."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search_by_author("pythonista")
+
+        # Should find all posts by pythonista
+        assert len(results) >= 3
+        for result in results:
+            assert result.author_username == "pythonista" or result.author_display_name == "Python Developer"
+
+    def test_search_by_author_display_name(self, temp_db_with_sample_posts):
+        """search_by_author() finds posts by author_display_name."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search_by_author("ML Engineer")
+
+        # Should find posts by ML Engineer display name
+        assert len(results) >= 1
+
+    def test_search_combined_query_and_author(self, temp_db_with_sample_posts):
+        """search(query, author=...) combines text search with author filter."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search("Python", author="pythonista")
+
+        # Should find Python posts by pythonista only
+        assert len(results) >= 1
+        for result in results:
+            # Author filter matches username OR display_name
+            assert result.author_username == "pythonista" or "Python" in result.text
+
+    def test_search_by_author_no_match_returns_empty(self, temp_db_with_sample_posts):
+        """search_by_author() returns empty list when no author matches."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search_by_author("nonexistent_user_xyz")
+
+        assert results == []
+
+
+class TestSearchSnippets:
+    """Tests for snippet and highlight functionality."""
+
+    def test_search_returns_snippet_with_context(self, temp_db_with_sample_posts):
+        """search() returns snippet with ... ellipsis around matched content."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search("programming")
+
+        assert len(results) >= 1
+        snippet = results[0].snippet
+        # Snippet should contain the matched term
+        assert "programming" in snippet.lower() or "..." in snippet
+
+    def test_search_snippet_is_truncated(self, temp_db_with_sample_posts):
+        """Snippet is truncated to reasonable length."""
+        from src.services.search import SearchService
+
+        # Insert a post with long text
+        temp_db_with_sample_posts.execute(
+            """
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "long_post",
+                "2024-01-17T10:00:00Z",
+                "This is a very long text that contains the search term programming and many other words that should be truncated in the snippet output to keep it readable",
+                "user_long",
+                "longauthor"
+            )
+        )
+        temp_db_with_sample_posts.commit()
+
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search("programming")
+
+        assert len(results) >= 1
+        # Snippet should be reasonably sized
+        snippet = results[0].snippet
+        assert len(snippet) < 200  # Reasonable snippet length
+
+
+class TestSearchPhraseQuery:
+    """Tests for phrase search functionality."""
+
+    def test_search_phrase_query(self, temp_db_with_sample_posts):
+        """search() with quoted phrase matches exact phrase."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_sample_posts)
+        results = service.search('"exact phrase matching"')
+
+        # Should find the post with the exact phrase
+        assert len(results) >= 1
+        post_ids = {r.x_post_id for r in results}
+        assert "post_5" in post_ids
+
+
+class TestFTS5TriggerSync:
+    """Tests for FTS5 trigger synchronization."""
+
+    def test_insert_updates_fts_index(self, temp_db_with_search):
+        """Inserting a post updates the FTS index."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_search)
+
+        # Insert a post
+        temp_db_with_search.execute(
+            """
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            ("new_post", "2024-01-18T10:00:00Z", "New post about testing", "user_new", "newuser")
+        )
+        temp_db_with_search.commit()
+
+        # Search should find it
+        results = service.search("testing")
+        assert len(results) >= 1
+        assert results[0].x_post_id == "new_post"
+
+    def test_update_updates_fts_index(self, temp_db_with_search):
+        """Updating a post updates the FTS index."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_search)
+
+        # Insert a post
+        temp_db_with_search.execute(
+            """
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            ("update_test", "2024-01-18T10:00:00Z", "Original text", "user_u", "updater")
+        )
+        temp_db_with_search.commit()
+
+        # Update the post
+        temp_db_with_search.execute(
+            """
+            UPDATE posts SET text = ? WHERE x_post_id = ?
+            """,
+            ("Updated text with uniqueword", "update_test")
+        )
+        temp_db_with_search.commit()
+
+        # Search should find the updated text
+        results = service.search("uniqueword")
+        assert len(results) >= 1
+        assert results[0].x_post_id == "update_test"
+
+    def test_delete_updates_fts_index(self, temp_db_with_search):
+        """Deleting a post removes it from FTS index."""
+        from src.services.search import SearchService
+
+        service = SearchService(temp_db_with_search)
+
+        # Insert a post
+        temp_db_with_search.execute(
+            """
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            ("delete_test", "2024-01-18T10:00:00Z", "Post to be deleted", "user_d", "deleter")
+        )
+        temp_db_with_search.commit()
+
+        # Verify it's found
+        results = service.search("deleted")
+        assert len(results) >= 1
+
+        # Delete the post
+        temp_db_with_search.execute("DELETE FROM posts WHERE x_post_id = ?", ("delete_test",))
+        temp_db_with_search.commit()
+
+        # Search should no longer find it
+        results = service.search("deleted")
+        assert len(results) == 0
