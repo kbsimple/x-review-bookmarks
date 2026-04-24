@@ -217,37 +217,819 @@ class TestSyncCommand:
     - CLI-05: CLI displays rich output with post content, images, and metadata
     """
 
-    def test_sync_command_placeholder(self):
-        """Placeholder test for sync command.
+    def test_sync_command_exists(self) -> None:
+        """Verify sync command is registered in CLI app.
 
-        This test passes to establish the test scaffold.
-        Real tests will be added when implementing:
-        - CLI-01: User can trigger bookmark sync via CLI command
-        - CLI-05: CLI displays rich output with post content, images, and metadata
+        CLI-01: User can trigger bookmark sync via CLI command.
         """
-        # Placeholder - will be replaced with real tests
-        assert True, "Test scaffold passes"
+        # Check that sync command exists in registered commands
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
 
-    def test_sync_command_execution(self):
-        """Placeholder: Verify sync command can be invoked.
+        assert "sync" in command_names, f"sync command should exist, got: {command_names}"
 
-        CLI-01: User can trigger a bookmark sync via CLI and see progress indication.
+    def test_sync_command_help(self) -> None:
+        """Verify sync command shows help.
+
+        Expected behavior:
+        - --help shows usage information
         """
-        # Placeholder - will verify command execution
-        assert True, "Test scaffold passes"
+        result = runner.invoke(app, ["sync", "--help"])
 
-    def test_sync_command_progress_output(self):
-        """Placeholder: Verify sync command shows progress.
+        assert result.exit_code == 0
+        assert "Sync bookmarks" in result.stdout
 
-        D-04: Progress bar during sync + Rich summary table after.
+    def test_sync_command_calls_sync_service(self, tmp_path: Path) -> None:
+        """Verify sync command calls SyncService.sync().
+
+        CLI-01: User can trigger bookmark sync via CLI command.
+
+        Expected behavior:
+        - Command authenticates
+        - Command creates SyncService
+        - Command calls sync()
         """
-        # Placeholder - will verify progress output
-        assert True, "Test scaffold passes"
+        from src.auth.oauth import XAuth
+        from src.services.sync import SyncResult
 
-    def test_sync_command_summary_table(self):
-        """Placeholder: Verify sync command shows summary table.
+        # Create mock auth
+        mock_auth = XAuth(
+            client_id="test_client_id",
+            client_secret="test_client_secret",
+            access_token="test_access",
+            refresh_token="test_refresh",
+        )
+
+        # Create mock result
+        mock_result = SyncResult(
+            total_fetched=10,
+            new_count=5,
+            updated_count=3,
+            error_count=0,
+            rate_limit_waits=0,
+            is_complete=True,
+            warnings=[],
+        )
+
+        # Mock Settings
+        mock_settings = MagicMock()
+        mock_settings.client_id = "test_client_id"
+        mock_settings.client_secret_value = "test_client_secret"
+        mock_settings.token_path = tmp_path / "tokens.json"
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Pre-save tokens
+        mock_settings.token_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(mock_settings.token_path, "w") as f:
+            json.dump(
+                {"access_token": "test_access", "refresh_token": "test_refresh"},
+                f,
+            )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.ensure_authenticated") as mock_ensure_auth:
+                mock_ensure_auth.return_value = mock_auth
+
+                with patch("src.services.sync.SyncService") as mock_sync_class:
+                    mock_sync_instance = MagicMock()
+                    mock_sync_instance.sync.return_value = mock_result
+                    mock_sync_class.return_value = mock_sync_instance
+
+                    result = runner.invoke(app, ["sync"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should have called sync
+                    mock_sync_instance.sync.assert_called_once()
+
+    def test_sync_command_shows_progress(self, tmp_path: Path) -> None:
+        """Verify sync command shows progress during sync.
+
+        D-04: Progress bar during sync.
+
+        Expected behavior:
+        - Progress callback is registered
+        - Progress messages appear in output
+        """
+        from src.auth.oauth import XAuth
+        from src.services.sync import SyncResult
+
+        mock_auth = XAuth(
+            client_id="test_client_id",
+            client_secret="test_client_secret",
+            access_token="test_access",
+            refresh_token="test_refresh",
+        )
+
+        mock_result = SyncResult(
+            total_fetched=50,
+            new_count=50,
+            updated_count=0,
+            error_count=0,
+            rate_limit_waits=0,
+            is_complete=True,
+            warnings=[],
+        )
+
+        mock_settings = MagicMock()
+        mock_settings.client_id = "test_client_id"
+        mock_settings.client_secret_value = "test_client_secret"
+        mock_settings.token_path = tmp_path / "tokens.json"
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_settings.token_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(mock_settings.token_path, "w") as f:
+            json.dump(
+                {"access_token": "test_access", "refresh_token": "test_refresh"},
+                f,
+            )
+
+        progress_callback = None
+
+        def capture_progress_callback(service_instance):
+            """Capture the progress callback from SyncService instantiation."""
+            nonlocal progress_callback
+            # Get the on_progress callback
+            progress_callback = service_instance._on_progress
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.ensure_authenticated") as mock_ensure_auth:
+                mock_ensure_auth.return_value = mock_auth
+
+                with patch("src.services.sync.SyncService") as mock_sync_class:
+                    mock_sync_instance = MagicMock()
+                    mock_sync_instance.sync.return_value = mock_result
+
+                    # Track calls to constructor to capture callbacks
+                    def create_sync_service(*args, **kwargs):
+                        mock_sync_instance._on_progress = kwargs.get("on_progress")
+                        return mock_sync_instance
+
+                    mock_sync_class.side_effect = create_sync_service
+
+                    result = runner.invoke(app, ["sync"])
+
+                    # Verify progress callback was provided
+                    assert mock_sync_instance._on_progress is not None, (
+                        "Progress callback should be provided to SyncService"
+                    )
+
+    def test_sync_command_shows_summary(self, tmp_path: Path) -> None:
+        """Verify sync command shows summary table.
 
         CLI-05: Summary table with counts: total, new, updated, errors.
+
+        Expected behavior:
+        - Summary table displayed after sync
+        - Shows total fetched, new, updated, errors
         """
-        # Placeholder - will verify summary table
-        assert True, "Test scaffold passes"
+        from src.auth.oauth import XAuth
+        from src.services.sync import SyncResult
+
+        mock_auth = XAuth(
+            client_id="test_client_id",
+            client_secret="test_client_secret",
+            access_token="test_access",
+            refresh_token="test_refresh",
+        )
+
+        mock_result = SyncResult(
+            total_fetched=100,
+            new_count=80,
+            updated_count=20,
+            error_count=2,
+            rate_limit_waits=1,
+            is_complete=True,
+            warnings=[],
+        )
+
+        mock_settings = MagicMock()
+        mock_settings.client_id = "test_client_id"
+        mock_settings.client_secret_value = "test_client_secret"
+        mock_settings.token_path = tmp_path / "tokens.json"
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_settings.token_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(mock_settings.token_path, "w") as f:
+            json.dump(
+                {"access_token": "test_access", "refresh_token": "test_refresh"},
+                f,
+            )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.ensure_authenticated") as mock_ensure_auth:
+                mock_ensure_auth.return_value = mock_auth
+
+                with patch("src.services.sync.SyncService") as mock_sync_class:
+                    mock_sync_instance = MagicMock()
+                    mock_sync_instance.sync.return_value = mock_result
+                    mock_sync_class.return_value = mock_sync_instance
+
+                    result = runner.invoke(app, ["sync"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Summary table should show counts
+                    assert "100" in result.stdout, "Total fetched should be in output"
+                    assert "80" in result.stdout, "New count should be in output"
+                    assert "20" in result.stdout, "Updated count should be in output"
+
+    def test_sync_command_shows_warnings(self, tmp_path: Path) -> None:
+        """Verify sync command shows warnings.
+
+        Expected behavior:
+        - Warnings displayed in yellow
+        - Warning message appears in output
+        """
+        from src.auth.oauth import XAuth
+        from src.services.sync import SyncResult
+
+        mock_auth = XAuth(
+            client_id="test_client_id",
+            client_secret="test_client_secret",
+            access_token="test_access",
+            refresh_token="test_refresh",
+        )
+
+        mock_result = SyncResult(
+            total_fetched=100,
+            new_count=100,
+            updated_count=0,
+            error_count=0,
+            rate_limit_waits=0,
+            is_complete=True,
+            warnings=["Approaching API limit: 780/800 bookmarks"],
+        )
+
+        mock_settings = MagicMock()
+        mock_settings.client_id = "test_client_id"
+        mock_settings.client_secret_value = "test_client_secret"
+        mock_settings.token_path = tmp_path / "tokens.json"
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_settings.token_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(mock_settings.token_path, "w") as f:
+            json.dump(
+                {"access_token": "test_access", "refresh_token": "test_refresh"},
+                f,
+            )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.ensure_authenticated") as mock_ensure_auth:
+                mock_ensure_auth.return_value = mock_auth
+
+                with patch("src.services.sync.SyncService") as mock_sync_class:
+                    mock_sync_instance = MagicMock()
+                    mock_sync_instance.sync.return_value = mock_result
+                    mock_sync_class.return_value = mock_sync_instance
+
+                    result = runner.invoke(app, ["sync"])
+
+                    # Warning should appear in output
+                    assert "780/800" in result.stdout or "Approaching" in result.stdout or "Warning" in result.stdout, (
+                        f"Warning should be in output: {result.stdout}"
+                    )
+
+    def test_sync_command_auth_failure(self, tmp_path: Path) -> None:
+        """Verify sync command handles auth failure gracefully.
+
+        AUTH-03: Clear error messages.
+
+        Expected behavior:
+        - Exit code 1
+        - Clear error message
+        """
+        with patch("src.cli.main.Settings") as mock_settings_class:
+            mock_settings = MagicMock()
+            mock_settings.client_id = "test_client_id"
+            mock_settings.client_secret_value = "test_client_secret"
+            mock_settings.token_path = tmp_path / "tokens.json"
+            mock_settings.database_path = tmp_path / "test.db"
+            mock_settings_class.return_value = mock_settings
+
+            with patch("src.cli.main.ensure_authenticated") as mock_ensure_auth:
+                from src.auth.oauth import AuthError
+                mock_ensure_auth.side_effect = AuthError("Authentication failed")
+
+                result = runner.invoke(app, ["sync"])
+
+                # Should fail with exit code 1
+                assert result.exit_code == 1, (
+                    f"Exit code should be 1, got {result.exit_code}"
+                )
+                assert "Authentication" in result.stdout or "failed" in result.stdout.lower()
+
+
+class TestSearchCommand:
+    """Tests for `xbm search` command.
+
+    Tests for:
+    - CLI-03: User can search stored posts via CLI command
+    - SRCH-01: Full-text search within stored post content
+    - SRCH-02: Search by author name or username
+    - SRCH-03: Search results display relevant post content with context
+    """
+
+    def test_search_command_exists(self) -> None:
+        """Verify search command is registered in CLI app.
+
+        CLI-03: User can search stored posts via CLI command.
+        """
+        # Check that search command exists in registered commands
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "search" in command_names, f"search command should exist, got: {command_names}"
+
+    def test_search_command_help(self) -> None:
+        """Verify search command shows help.
+
+        Expected behavior:
+        - --help shows usage information
+        """
+        result = runner.invoke(app, ["search", "--help"])
+
+        assert result.exit_code == 0
+        assert "Search stored posts" in result.stdout
+
+    def test_search_command_returns_results(self, tmp_path: Path) -> None:
+        """Verify search command returns results from SearchService.
+
+        CLI-03: User can search stored posts via CLI command.
+
+        Expected behavior:
+        - Command calls SearchService.search()
+        - Results displayed in Rich table
+        """
+        from src.services.search import SearchResult
+
+        # Mock Settings to use temp database
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Create test database with posts_fts
+        from src.db import init_database
+        db_path = tmp_path / "test.db"
+        conn = init_database(db_path)
+
+        # Insert test post
+        conn.execute("""
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username, author_display_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, ("test_post_1", "2024-01-15T10:00:00Z", "Python is great for data science", "user_1", "pythonista", "Python Developer"))
+        conn.commit()
+        conn.close()
+
+        # Mock SearchService to return test results
+        mock_result = SearchResult(
+            x_post_id="test_post_1",
+            author_username="pythonista",
+            author_display_name="Python Developer",
+            created_at="2024-01-15T10:00:00Z",
+            snippet="Python is great for data science",
+            rank=-1.0,
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.search.SearchService") as mock_search_class:
+                mock_search_instance = MagicMock()
+                mock_search_instance.search.return_value = [mock_result]
+                mock_search_class.return_value = mock_search_instance
+
+                result = runner.invoke(app, ["search", "Python"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should have called search
+                mock_search_instance.search.assert_called_once()
+
+    def test_search_command_with_author_filter(self, tmp_path: Path) -> None:
+        """Verify search command supports --author filter.
+
+        SRCH-02: Search by author name or username.
+
+        Expected behavior:
+        - Command passes author parameter to SearchService
+        """
+        from src.services.search import SearchResult
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_result = SearchResult(
+            x_post_id="test_post_1",
+            author_username="pythonista",
+            author_display_name="Python Developer",
+            created_at="2024-01-15T10:00:00Z",
+            snippet="Python is great for data science",
+            rank=-1.0,
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.search.SearchService") as mock_search_class:
+                mock_search_instance = MagicMock()
+                mock_search_instance.search.return_value = [mock_result]
+                mock_search_class.return_value = mock_search_instance
+
+                result = runner.invoke(app, ["search", "Python", "--author", "pythonista"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should have called search with author filter
+                mock_search_instance.search.assert_called_once()
+                call_kwargs = mock_search_instance.search.call_args[1]
+                assert call_kwargs.get("author") == "pythonista", (
+                    f"Author should be passed to search, got: {call_kwargs}"
+                )
+
+    def test_search_command_with_limit(self, tmp_path: Path) -> None:
+        """Verify search command supports --limit option.
+
+        Expected behavior:
+        - Command passes limit parameter to SearchService
+        """
+        from src.services.search import SearchResult
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_result = SearchResult(
+            x_post_id="test_post_1",
+            author_username="pythonista",
+            author_display_name="Python Developer",
+            created_at="2024-01-15T10:00:00Z",
+            snippet="Python is great for data science",
+            rank=-1.0,
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.search.SearchService") as mock_search_class:
+                mock_search_instance = MagicMock()
+                mock_search_instance.search.return_value = [mock_result]
+                mock_search_class.return_value = mock_search_instance
+
+                result = runner.invoke(app, ["search", "Python", "--limit", "5"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should have called search with limit
+                mock_search_instance.search.assert_called_once()
+                call_kwargs = mock_search_instance.search.call_args[1]
+                assert call_kwargs.get("limit") == 5, (
+                    f"Limit should be passed to search, got: {call_kwargs}"
+                )
+
+    def test_search_command_no_results(self, tmp_path: Path) -> None:
+        """Verify search command handles no results gracefully.
+
+        Expected behavior:
+        - Displays 'No results found' message
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.search.SearchService") as mock_search_class:
+                mock_search_instance = MagicMock()
+                mock_search_instance.search.return_value = []  # No results
+                mock_search_class.return_value = mock_search_instance
+
+                result = runner.invoke(app, ["search", "nonexistent_term"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show no results message
+                assert "No results found" in result.stdout, (
+                    f"Expected 'No results found' in output: {result.stdout}"
+                )
+
+    def test_search_command_displays_rich_table(self, tmp_path: Path) -> None:
+        """Verify search command displays results in Rich table.
+
+        SRCH-03: Search results display relevant post content with context.
+
+        Expected behavior:
+        - Results shown in table format
+        - Shows author, snippet, and date
+        """
+        from src.services.search import SearchResult
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_result = SearchResult(
+            x_post_id="test_post_1",
+            author_username="pythonista",
+            author_display_name="Python Developer",
+            created_at="2024-01-15T10:00:00Z",
+            snippet="Python is great for data science",
+            rank=-1.0,
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.search.SearchService") as mock_search_class:
+                mock_search_instance = MagicMock()
+                mock_search_instance.search.return_value = [mock_result]
+                mock_search_class.return_value = mock_search_instance
+
+                result = runner.invoke(app, ["search", "Python"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show results count
+                assert "1 results" in result.stdout or "Showing 1" in result.stdout, (
+                    f"Expected results count in output: {result.stdout}"
+                )
+
+    def test_search_command_error_handling(self, tmp_path: Path) -> None:
+        """Verify search command handles errors gracefully.
+
+        Expected behavior:
+        - Exit code 1 on error
+        - Error message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.search.SearchService") as mock_search_class:
+                mock_search_instance = MagicMock()
+                mock_search_instance.search.side_effect = Exception("Database error")
+                mock_search_class.return_value = mock_search_instance
+
+                result = runner.invoke(app, ["search", "Python"])
+
+                # Should fail
+                assert result.exit_code == 1, (
+                    f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show error
+                assert "Error" in result.stdout or "failed" in result.stdout.lower(), (
+                    f"Expected error message in output: {result.stdout}"
+                )
+
+
+class TestNoteCommand:
+    """Tests for `xbm note` command.
+
+    Tests for:
+    - NOTE-01: User can add personal notes to bookmarked posts
+    """
+
+    def test_note_command_exists(self) -> None:
+        """Verify note command is registered in CLI app.
+
+        NOTE-01: User can add personal notes to bookmarked posts.
+        """
+        # Check that note command exists in registered commands
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "note" in command_names, f"note command should exist, got: {command_names}"
+
+    def test_note_command_help(self) -> None:
+        """Verify note command shows help.
+
+        Expected behavior:
+        - --help shows usage information
+        """
+        result = runner.invoke(app, ["note", "--help"])
+
+        assert result.exit_code == 0
+        assert "Add, update, or remove a note" in result.stdout
+
+    def test_note_command_shows_existing_note(self, tmp_path: Path) -> None:
+        """Verify note command shows current note when no text provided.
+
+        NOTE-01: User can add personal notes to bookmarked posts.
+
+        Expected behavior:
+        - Command retrieves post
+        - Displays existing note in Rich Panel
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Mock PostsRepository.get_by_id to return post with note
+        mock_post = {
+            "x_post_id": "test_post_1",
+            "note": "This is my note",
+        }
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.repositories.PostsRepository") as mock_repo_class:
+                mock_repo_instance = MagicMock()
+                mock_repo_instance.get_by_id.return_value = mock_post
+                mock_repo_class.return_value = mock_repo_instance
+
+                result = runner.invoke(app, ["note", "test_post_1"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show note
+                assert "This is my note" in result.stdout, (
+                    f"Expected note in output: {result.stdout}"
+                )
+
+    def test_note_command_adds_note(self, tmp_path: Path) -> None:
+        """Verify note command adds note when text provided.
+
+        NOTE-01: User can add personal notes to bookmarked posts.
+
+        Expected behavior:
+        - Command calls PostsRepository.update_note()
+        - Success message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Mock PostsRepository
+        mock_post = {
+            "x_post_id": "test_post_1",
+            "note": None,
+        }
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.repositories.PostsRepository") as mock_repo_class:
+                mock_repo_instance = MagicMock()
+                mock_repo_instance.get_by_id.return_value = mock_post
+                mock_repo_class.return_value = mock_repo_instance
+
+                result = runner.invoke(app, ["note", "test_post_1", "My new note"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should call update_note
+                mock_repo_instance.update_note.assert_called_once_with("test_post_1", "My new note")
+
+                # Should show success message
+                assert "Note added" in result.stdout or "Note added to post" in result.stdout, (
+                    f"Expected success message in output: {result.stdout}"
+                )
+
+    def test_note_command_clears_note(self, tmp_path: Path) -> None:
+        """Verify note command removes note with --clear option.
+
+        NOTE-01: User can add personal notes to bookmarked posts.
+
+        Expected behavior:
+        - Command calls PostsRepository.update_note() with None
+        - Success message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Mock PostsRepository
+        mock_post = {
+            "x_post_id": "test_post_1",
+            "note": "Existing note",
+        }
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.repositories.PostsRepository") as mock_repo_class:
+                mock_repo_instance = MagicMock()
+                mock_repo_instance.get_by_id.return_value = mock_post
+                mock_repo_class.return_value = mock_repo_instance
+
+                result = runner.invoke(app, ["note", "test_post_1", "--clear"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should call update_note with None
+                mock_repo_instance.update_note.assert_called_once_with("test_post_1", None)
+
+                # Should show removal message
+                assert "Note removed" in result.stdout or "removed" in result.stdout.lower(), (
+                    f"Expected removal message in output: {result.stdout}"
+                )
+
+    def test_note_command_post_not_found(self, tmp_path: Path) -> None:
+        """Verify note command handles non-existent post.
+
+        Expected behavior:
+        - Exit code 1
+        - Error message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.repositories.PostsRepository") as mock_repo_class:
+                mock_repo_instance = MagicMock()
+                mock_repo_instance.get_by_id.return_value = None  # Post not found
+                mock_repo_class.return_value = mock_repo_instance
+
+                result = runner.invoke(app, ["note", "nonexistent_post"])
+
+                # Should fail
+                assert result.exit_code == 1, (
+                    f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show error
+                assert "Post not found" in result.stdout or "not found" in result.stdout.lower(), (
+                    f"Expected 'not found' in output: {result.stdout}"
+                )
+
+    def test_note_command_no_note_for_post(self, tmp_path: Path) -> None:
+        """Verify note command handles post without note.
+
+        Expected behavior:
+        - Shows 'No note' message
+        - Suggests adding a note
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Mock PostsRepository
+        mock_post = {
+            "x_post_id": "test_post_1",
+            "note": None,
+        }
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.repositories.PostsRepository") as mock_repo_class:
+                mock_repo_instance = MagicMock()
+                mock_repo_instance.get_by_id.return_value = mock_post
+                mock_repo_class.return_value = mock_repo_instance
+
+                result = runner.invoke(app, ["note", "test_post_1"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show no note message
+                assert "No note" in result.stdout or "no note" in result.stdout.lower(), (
+                    f"Expected 'No note' in output: {result.stdout}"
+                )
+
+    def test_note_command_error_handling(self, tmp_path: Path) -> None:
+        """Verify note command handles errors gracefully.
+
+        Expected behavior:
+        - Exit code 1 on error
+        - Error message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.repositories.PostsRepository") as mock_repo_class:
+                mock_repo_instance = MagicMock()
+                mock_repo_instance.get_by_id.side_effect = Exception("Database error")
+                mock_repo_class.return_value = mock_repo_instance
+
+                result = runner.invoke(app, ["note", "test_post_1"])
+
+                # Should fail
+                assert result.exit_code == 1, (
+                    f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show error
+                assert "Error" in result.stdout or "failed" in result.stdout.lower(), (
+                    f"Expected error message in output: {result.stdout}"
+                )

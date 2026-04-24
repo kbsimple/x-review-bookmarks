@@ -3,10 +3,12 @@
 Provides commands for:
 - auth: Authenticate with X API using OAuth 2.0 PKCE (AUTH-01, AUTH-02, AUTH-03)
 - init: Initialize the SQLite database (STOR-01, STOR-02)
+- sync: Sync bookmarks from X API to local database (CLI-01, CLI-05)
 
 Usage:
     xbm auth     # Authenticate with X
     xbm init     # Initialize database
+    xbm sync     # Sync bookmarks
     xbm --help   # Show all commands
 """
 
@@ -19,11 +21,13 @@ from typing import Optional, Union
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+from rich.table import Table
 from rich.text import Text
 
-from ..auth import ensure_authenticated, AuthError
-from ..db import init_database
+from ..auth import AuthError, ensure_authenticated
 from ..config import Settings
+from ..db import init_database
 
 # Create Typer application with Rich markup support
 app = typer.Typer(
@@ -218,6 +222,319 @@ def verify() -> None:
                 (str(e), "red"),
             ),
             title="[bold red]Verification Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
+@app.command()
+def sync(
+    db_path: Optional[Path] = typer.Option(
+        None,
+        "--db",
+        "-d",
+        help="Path to database file (default: data/bookmarks.db)",
+    ),
+) -> None:
+    """Sync bookmarks from X API to local database.
+
+    CLI-01: User can trigger bookmark sync via CLI command.
+    CLI-05: Rich output with progress bar and summary.
+
+    This command will:
+    1. Authenticate with X API (runs OAuth flow if needed)
+    2. Fetch bookmarks from X API with rate limit handling
+    3. Store bookmarks in SQLite database
+    4. Display progress bar during sync
+    5. Show summary table after completion
+
+    Args:
+        db_path: Optional path to database file.
+
+    Raises:
+        SystemExit: On sync failure (exit code 1).
+    """
+    try:
+        # Load settings and authenticate
+        settings = Settings()
+        auth_data = ensure_authenticated(
+            client_id=settings.client_id,
+            client_secret=settings.client_secret_value,
+            token_path=settings.token_path,
+        )
+
+        # Determine database path
+        if db_path is None:
+            db_path = settings.database_path
+
+        # Initialize database if needed
+        conn = init_database(db_path)
+
+        # Prepare progress tracking
+        warnings_list: list[str] = []
+
+        def on_rate_limit(wait_seconds: float) -> None:
+            """Handle rate limit wait."""
+            console.print(
+                f"[yellow]Rate limit approaching. Waiting {wait_seconds:.0f}s...[/yellow]"
+            )
+
+        def on_warning(message: str) -> None:
+            """Handle warnings."""
+            warnings_list.append(message)
+
+        # D-04: Progress bar during sync
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Fetching bookmarks...", total=None)
+
+            def on_progress(count: int) -> None:
+                """Update progress display."""
+                progress.update(task, description=f"Fetched {count} bookmarks")
+
+            # Create sync service
+            from ..services.sync import SyncService
+
+            sync_service = SyncService(
+                access_token=auth_data.access_token,
+                conn=conn,
+                on_rate_limit=on_rate_limit,
+                on_warning=on_warning,
+                on_progress=on_progress,
+            )
+
+            # Run sync
+            result = sync_service.sync()
+
+            # Update progress to complete
+            progress.update(task, description=f"Complete! {result.total_fetched} bookmarks synced")
+
+        # D-04: Summary table after sync
+        summary_table = Table(title="Sync Summary", show_header=True, header_style="bold cyan")
+        summary_table.add_column("Metric", style="dim")
+        summary_table.add_column("Count", justify="right")
+
+        summary_table.add_row("Total Fetched", str(result.total_fetched))
+        summary_table.add_row("New", str(result.new_count))
+        summary_table.add_row("Updated", str(result.updated_count))
+        if result.error_count > 0:
+            summary_table.add_row("Errors", f"[red]{result.error_count}[/red]")
+        if result.rate_limit_waits > 0:
+            summary_table.add_row("Rate Limit Waits", str(result.rate_limit_waits))
+
+        console.print()
+        console.print(summary_table)
+
+        # Show warnings if any (from callback or from result)
+        all_warnings = warnings_list + (result.warnings or [])
+        if all_warnings:
+            console.print()
+            for warning in all_warnings:
+                console.print(f"[yellow]Warning: {warning}[/yellow]")
+
+        # D-04: Show sample of newly fetched posts
+        if result.new_count > 0:
+            console.print()
+            console.print("[bold]Recent bookmarks:[/bold]")
+
+            # Get recent posts
+            from ..repositories import PostsRepository
+
+            posts_repo = PostsRepository(conn)
+            recent = posts_repo.get_all(limit=5)
+
+            for post in recent:
+                author = post.get('author_username', 'unknown')
+                text = post.get('text', '')
+                preview = text[:80] if text else ''
+                console.print(f"  @{author}: {preview}...")
+
+        # Close connection
+        conn.close()
+
+        # Success message
+        console.print()
+        console.print("[green]Sync complete![/green]")
+
+    except AuthError as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Sync failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Authentication Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Sync failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
+@app.command()
+def search(
+    query: str = typer.Argument(..., help="Search query (supports phrases, prefixes, boolean)"),
+    author: Optional[str] = typer.Option(None, "--author", "-a", help="Filter by author username or display name"),
+    limit: int = typer.Option(20, "--limit", "-l", help="Maximum results to return"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Path to database file"),
+) -> None:
+    """Search stored posts by content and author.
+
+    SRCH-01: User can search within stored post content (full-text search).
+    SRCH-02: User can search by author name or username.
+    SRCH-03: Search results display relevant post content with context.
+    CLI-03: User can search stored posts via CLI command.
+
+    Examples:
+        xbm search python
+        xbm search "machine learning" --author "user123"
+        xbm search python* --limit 50
+    """
+    try:
+        # Get database connection
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+
+        # Create search service
+        from ..services.search import SearchService
+        from ..repositories import PostsRepository
+
+        repo = PostsRepository(conn)
+        search_service = SearchService(conn)
+
+        # Perform search
+        results = search_service.search(query, author=author, limit=limit)
+
+        if not results:
+            console.print("[yellow]No results found[/yellow]")
+            conn.close()
+            return
+
+        # Build results table
+        table = Table(title=f"Search Results for '{query}'" + (f" by @{author}" if author else ""))
+        table.add_column("#", style="dim", width=4)
+        table.add_column("Author", style="cyan")
+        table.add_column("Snippet", style="white")
+        table.add_column("Date", style="dim")
+
+        for i, result in enumerate(results, 1):
+            # Truncate snippet to 80 chars
+            snippet = result.snippet[:80] + "..." if len(result.snippet) > 80 else result.snippet
+            # Remove [match] markers for cleaner display (or style them)
+            snippet = snippet.replace("[match]", "").replace("[/match]", "")
+
+            table.add_row(
+                str(i),
+                f"@{result.author_username}",
+                snippet,
+                result.created_at[:10] if result.created_at else ""
+            )
+
+        console.print(table)
+        console.print(f"[dim]Showing {len(results)} results[/dim]")
+
+        conn.close()
+
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Search failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
+@app.command()
+def note(
+    post_id: str = typer.Argument(..., help="X post ID"),
+    text: Optional[str] = typer.Argument(None, help="Note text (omit to show, use --clear to remove)"),
+    clear: bool = typer.Option(False, "--clear", "-c", help="Remove note from post"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Path to database file"),
+) -> None:
+    """Add, update, or remove a note on a post.
+
+    NOTE-01: User can add personal notes to bookmarked posts.
+    NOTE-02: Notes are displayed when post is resurfaced for review (Phase 5).
+
+    Examples:
+        xbm note 1234567890 "Remember to check this article"
+        xbm note 1234567890                    # Show current note
+        xbm note 1234567890 --clear            # Remove note
+    """
+    try:
+        # Get database connection
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+        from ..repositories import PostsRepository
+
+        repo = PostsRepository(conn)
+
+        # Check if post exists
+        post = repo.get_by_id(post_id)
+        if not post:
+            console.print(f"[red]Post not found: {post_id}[/red]")
+            raise typer.Exit(1)
+
+        if clear:
+            # Remove note
+            repo.update_note(post_id, None)
+            console.print(f"[green]Note removed from post {post_id}[/green]")
+        elif text is None:
+            # Show existing note
+            current_note = post.get('note')
+            if current_note:
+                console.print(Panel(
+                    current_note,
+                    title=f"[bold]Note for post {post_id}[/bold]",
+                    border_style="cyan"
+                ))
+            else:
+                console.print(f"[yellow]No note for post {post_id}[/yellow]")
+                console.print(f"[dim]Add a note with: xbm note {post_id} \"your note\"[/dim]")
+        else:
+            # Add/update note
+            repo.update_note(post_id, text)
+            console.print(f"[green]Note added to post {post_id}[/green]")
+
+        conn.close()
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Note operation failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
             border_style="red",
         ))
         sys.exit(1)
