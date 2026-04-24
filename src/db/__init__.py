@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from .connection import get_connection
-from .schema import SCHEMA_V1, SCHEMA_V2
+from .schema import SCHEMA_V1, SCHEMA_V2, SCHEMA_V3_MIGRATION
 
 
 def init_database(db_path: Optional[Union[Path, str]] = None) -> sqlite3.Connection:
@@ -67,7 +67,17 @@ def init_database(db_path: Optional[Union[Path, str]] = None) -> sqlite3.Connect
     conn.executescript(SCHEMA_V2)
     conn.commit()
 
+    # Run migrations to latest version (v3: FTS5, note, link_status)
+    from .migrations import run_migrations
+    run_migrations(conn)
+
     return conn
 
 
-__all__ = ["init_database", "get_connection", "SCHEMA_V1", "SCHEMA_V2"]
+__all__ = [
+    "init_database",
+    "get_connection",
+    "SCHEMA_V1",
+    "SCHEMA_V2",
+    "SCHEMA_V3_MIGRATION",
+]

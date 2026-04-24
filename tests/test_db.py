@@ -327,8 +327,9 @@ class TestSchemaV2:
         assert "pagination_token" in column_names
         assert "total_bookmarks" in column_names
 
-    def test_get_schema_version_returns_v2(self):
-        """Verify get_schema_version returns 'v2' after Phase 2."""
+    def test_get_schema_version_returns_current(self):
+        """Verify get_schema_version returns current version."""
         from src.db.schema import get_schema_version
 
-        assert get_schema_version() == "v2"
+        # After Phase 3, version should be v3
+        assert get_schema_version() == "v3"

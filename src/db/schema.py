@@ -73,13 +73,62 @@ CREATE TABLE IF NOT EXISTS sync_state (
 """
 
 
+# Schema version 3: Phase 3 - FTS5 full-text search, notes, link status
+# Migration from v2 to v3 (not a standalone schema, but migration statements)
+# Note: SQLite doesn't support ALTER TABLE IF NOT EXISTS, so migration handles idempotency
+SCHEMA_V3_MIGRATION = """
+-- D-02: Add note column for personal notes on posts
+-- NOTE-01: User can add personal notes to bookmarked posts
+-- NOTE-02: Notes displayed when post is resurfaced for review
+-- ALTER TABLE posts ADD COLUMN note TEXT;  -- Run in migration with try/except
+
+-- D-04: Add link_status column for dead link detection
+-- MAINT-01: Application detects and flags dead links
+-- MAINT-02: Application can filter dead links from review queue
+-- ALTER TABLE posts ADD COLUMN link_status TEXT DEFAULT 'unchecked';  -- Run in migration
+
+-- D-01: FTS5 virtual table for full-text search
+-- SRCH-01: Full-text search within stored post content
+-- SRCH-02: Search by author name or username
+-- SRCH-03: Search results with context display (snippet/highlight)
+CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(
+    text,                    -- Full-text indexed content
+    author_username,         -- Searchable username
+    author_display_name,     -- Searchable display name
+    content='posts',        -- External content table
+    content_rowid='rowid'   -- Use SQLite's built-in rowid
+);
+
+-- CRITICAL: Triggers to keep FTS5 index synchronized with posts table
+-- See: https://sqlite.org/fts5.html - external content tables
+-- Pitfall #1: FTS5 index goes stale without triggers
+
+CREATE TRIGGER IF NOT EXISTS posts_ai AFTER INSERT ON posts BEGIN
+    INSERT INTO posts_fts(rowid, text, author_username, author_display_name)
+    VALUES (new.rowid, new.text, new.author_username, new.author_display_name);
+END;
+
+CREATE TRIGGER IF NOT EXISTS posts_ad AFTER DELETE ON posts BEGIN
+    INSERT INTO posts_fts(posts_fts, rowid, text, author_username, author_display_name)
+    VALUES ('delete', old.rowid, old.text, old.author_username, old.author_display_name);
+END;
+
+CREATE TRIGGER IF NOT EXISTS posts_au AFTER UPDATE ON posts BEGIN
+    INSERT INTO posts_fts(posts_fts, rowid, text, author_username, author_display_name)
+    VALUES ('delete', old.rowid, old.text, old.author_username, old.author_display_name);
+    INSERT INTO posts_fts(rowid, text, author_username, author_display_name)
+    VALUES (new.rowid, new.text, new.author_username, new.author_display_name);
+END;
+"""
+
+
 def get_schema_version() -> str:
     """Get the current schema version identifier.
 
     Returns:
-        Schema version string (e.g., "v1", "v2")
+        Schema version string (e.g., "v1", "v2", "v3")
     """
-    return "v2"
+    return "v3"
 
 
-__all__ = ["SCHEMA_V1", "get_schema_version"]
+__all__ = ["SCHEMA_V1", "SCHEMA_V2", "SCHEMA_V3_MIGRATION", "get_schema_version"]
