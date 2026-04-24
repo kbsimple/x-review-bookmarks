@@ -52,10 +52,10 @@ Plans:
   5. Incremental sync only fetches new bookmarks (not full re-fetch every time)
 **Plans:** 4 plans across 4 waves
 Plans:
-- [ ] 02-01-PLAN.md — Test scaffolding and schema V2 (posts + sync_state tables)
-- [ ] 02-02-PLAN.md — XClient and repositories (API client, PostsRepository, SyncStateRepository)
-- [ ] 02-03-PLAN.md — SyncService (orchestration, incremental sync, rate limits)
-- [ ] 02-04-PLAN.md — CLI sync command (progress bar, summary table)
+- [x] 02-01-PLAN.md — Test scaffolding and schema V2 (posts + sync_state tables)
+- [x] 02-02-PLAN.md — XClient and repositories (API client, PostsRepository, SyncStateRepository)
+- [x] 02-03-PLAN.md — SyncService (orchestration, incremental sync, rate limits)
+- [x] 02-04-PLAN.md — CLI sync command (progress bar, summary table)
 
 ### Phase 3: Search, Notes, and Import/Export
 **Goal:** Users can search stored posts, add notes, and export/import their data
@@ -68,7 +68,13 @@ Plans:
   4. User can export all stored posts to JSON or CSV format
   5. User can import posts from a JSON export
   6. User can identify posts with dead links
-**Plans:** TBD
+**Plans:** 5 plans across 3 waves
+Plans:
+- [ ] 03-01-PLAN.md — Schema V3 and FTS5 (note column, link_status column, FTS5 virtual table, migrations)
+- [ ] 03-02-PLAN.md — SearchService (FTS5 full-text search, bm25 ranking, author filtering)
+- [ ] 03-03-PLAN.md — Export/Import Services (JSON/CSV export, JSON import, conflict resolution)
+- [ ] 03-04-PLAN.md — LinkCheckerService (async concurrent HTTP, semaphore limiting, caching)
+- [ ] 03-05-PLAN.md — CLI Commands (search, note, export, import, check-links)
 
 ### Phase 4: Topic Organization
 **Goal:** Users can organize posts with tags and topics using a hybrid approach
@@ -98,7 +104,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundation and Authentication | 5/5 | Complete | 2026-04-18 |
 | 2. Bookmark Fetch and Storage | 0/4 | Planning complete | - |
-| 3. Search, Notes, and Import/Export | 0/11 | Not started | - |
+| 3. Search, Notes, and Import/Export | 0/5 | Planning complete | - |
 | 4. Topic Organization | 0/5 | Not started | - |
 | 5. Spaced Repetition Resurfacing | 0/5 | Not started | - |
 
@@ -119,17 +125,17 @@ Plans:
 | STOR-03 | Phase 2 | Planned (02-03-PLAN.md) |
 | CLI-01 | Phase 2 | Planned (02-04-PLAN.md) |
 | CLI-05 | Phase 2 | Planned (02-04-PLAN.md) |
-| SRCH-01 | Phase 3 | Pending |
-| SRCH-02 | Phase 3 | Pending |
-| SRCH-03 | Phase 3 | Pending |
-| NOTE-01 | Phase 3 | Pending |
-| NOTE-02 | Phase 3 | Pending |
-| CLI-03 | Phase 3 | Pending |
-| IMEX-01 | Phase 3 | Pending |
-| IMEX-02 | Phase 3 | Pending |
-| IMEX-03 | Phase 3 | Pending |
-| MAINT-01 | Phase 3 | Pending |
-| MAINT-02 | Phase 3 | Pending |
+| SRCH-01 | Phase 3 | Planned (03-02-PLAN.md) |
+| SRCH-02 | Phase 3 | Planned (03-02-PLAN.md) |
+| SRCH-03 | Phase 3 | Planned (03-02-PLAN.md) |
+| NOTE-01 | Phase 3 | Planned (03-01-PLAN.md, 03-05-PLAN.md) |
+| NOTE-02 | Phase 3 | Planned (03-01-PLAN.md) |
+| CLI-03 | Phase 3 | Planned (03-05-PLAN.md) |
+| IMEX-01 | Phase 3 | Planned (03-03-PLAN.md, 03-05-PLAN.md) |
+| IMEX-02 | Phase 3 | Planned (03-03-PLAN.md, 03-05-PLAN.md) |
+| IMEX-03 | Phase 3 | Planned (03-03-PLAN.md, 03-05-PLAN.md) |
+| MAINT-01 | Phase 3 | Planned (03-01-PLAN.md, 03-04-PLAN.md) |
+| MAINT-02 | Phase 3 | Planned (03-01-PLAN.md, 03-04-PLAN.md) |
 | ORG-01 | Phase 4 | Pending |
 | ORG-02 | Phase 4 | Pending |
 | ORG-03 | Phase 4 | Pending |
@@ -143,4 +149,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-04-18*
-*Roadmap updated: 2026-04-19 - Phase 2 plans added*
+*Roadmap updated: 2026-04-23 - Phase 3 plans added*
