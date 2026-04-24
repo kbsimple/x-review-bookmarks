@@ -1243,3 +1243,278 @@ class TestExportCommand:
             assert "Invalid format" in result.stdout or "invalid" in result.stdout.lower(), (
                 f"Expected invalid format message: {result.stdout}"
             )
+
+
+class TestImportCommand:
+    """Tests for `xbm import` command.
+
+    Tests for:
+    - IMEX-03: User can import posts from JSON export
+    """
+
+    def test_import_command_exists(self) -> None:
+        """Verify import command is registered in CLI app.
+
+        IMEX-03: User can import posts from JSON export.
+        """
+        # Check that import command exists in registered commands
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        # Note: function is named 'import_cmd' but command is 'import'
+        assert "import" in command_names, f"import command should exist, got: {command_names}"
+
+    def test_import_command_help(self) -> None:
+        """Verify import command shows help.
+
+        Expected behavior:
+        - --help shows usage information
+        """
+        result = runner.invoke(app, ["import", "--help"])
+
+        assert result.exit_code == 0
+        assert "Import" in result.stdout or "import" in result.stdout.lower()
+
+    def test_import_command_validates_version(self, tmp_path: Path) -> None:
+        """Verify import command validates version field.
+
+        IMEX-03: User can import posts from JSON export.
+
+        Expected behavior:
+        - Import validates version is "1.0"
+        - Error for wrong version
+        """
+        # Create test import file with wrong version
+        import json
+        test_file = tmp_path / "import.json"
+        test_file.write_text(json.dumps({
+            "version": "2.0",
+            "source": "xbm",
+            "posts": []
+        }))
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["import", str(test_file)])
+
+            # Should fail
+            assert result.exit_code == 1, (
+                f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show version error
+            assert "version" in result.stdout.lower() or "invalid" in result.stdout.lower(), (
+                f"Expected version error in output: {result.stdout}"
+            )
+
+    def test_import_command_validates_source(self, tmp_path: Path) -> None:
+        """Verify import command validates source field.
+
+        IMEX-03: User can import posts from JSON export.
+
+        Expected behavior:
+        - Import validates source is "xbm"
+        - Error for wrong source
+        """
+        # Create test import file with wrong source
+        import json
+        test_file = tmp_path / "import.json"
+        test_file.write_text(json.dumps({
+            "version": "1.0",
+            "source": "other",
+            "posts": []
+        }))
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["import", str(test_file)])
+
+            # Should fail
+            assert result.exit_code == 1, (
+                f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show source error
+            assert "source" in result.stdout.lower() or "invalid" in result.stdout.lower(), (
+                f"Expected source error in output: {result.stdout}"
+            )
+
+    def test_import_command_imports_posts(self, tmp_path: Path) -> None:
+        """Verify import command imports posts from JSON.
+
+        IMEX-03: User can import posts from JSON export.
+
+        Expected behavior:
+        - Command calls ImportService.import_json()
+        - Shows imported count
+        """
+        from src.services.export import ImportResult
+
+        # Create valid test import file
+        import json
+        test_file = tmp_path / "import.json"
+        test_file.write_text(json.dumps({
+            "version": "1.0",
+            "source": "xbm",
+            "posts": [
+                {
+                    "x_post_id": "post_1",
+                    "text": "Test post",
+                    "author_id": "user_1",
+                    "author_username": "testuser",
+                }
+            ]
+        }))
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_result = ImportResult(
+            imported_count=1,
+            skipped_count=0,
+            error_count=0,
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.export.ImportService") as mock_import_class:
+                mock_import_instance = MagicMock()
+                mock_import_instance.import_json.return_value = mock_result
+                mock_import_class.return_value = mock_import_instance
+
+                result = runner.invoke(app, ["import", str(test_file)])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should have called import_json
+                mock_import_instance.import_json.assert_called_once()
+
+    def test_import_command_update_flag(self, tmp_path: Path) -> None:
+        """Verify import command passes update flag to service.
+
+        IMEX-03: User can import posts from JSON export.
+
+        Expected behavior:
+        - --update flag passed to ImportService
+        - conflict="update" used
+        """
+        from src.services.export import ImportResult
+
+        # Create valid test import file
+        import json
+        test_file = tmp_path / "import.json"
+        test_file.write_text(json.dumps({
+            "version": "1.0",
+            "source": "xbm",
+            "posts": []
+        }))
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_result = ImportResult(
+            imported_count=0,
+            skipped_count=0,
+            error_count=0,
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.export.ImportService") as mock_import_class:
+                mock_import_instance = MagicMock()
+                mock_import_instance.import_json.return_value = mock_result
+                mock_import_class.return_value = mock_import_instance
+
+                result = runner.invoke(app, ["import", str(test_file), "--update"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should have called import_json with conflict="update"
+                mock_import_instance.import_json.assert_called_once()
+                call_kwargs = mock_import_instance.import_json.call_args[1]
+                assert call_kwargs.get("conflict") == "update", (
+                    f"Expected conflict='update', got: {call_kwargs}"
+                )
+
+    def test_import_command_shows_counts(self, tmp_path: Path) -> None:
+        """Verify import command shows imported/skipped counts.
+
+        IMEX-03: User can import posts from JSON export.
+
+        Expected behavior:
+        - Shows imported count
+        - Shows skipped count
+        """
+        from src.services.export import ImportResult
+
+        # Create valid test import file
+        import json
+        test_file = tmp_path / "import.json"
+        test_file.write_text(json.dumps({
+            "version": "1.0",
+            "source": "xbm",
+            "posts": []
+        }))
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_result = ImportResult(
+            imported_count=5,
+            skipped_count=3,
+            error_count=0,
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.export.ImportService") as mock_import_class:
+                mock_import_instance = MagicMock()
+                mock_import_instance.import_json.return_value = mock_result
+                mock_import_class.return_value = mock_import_instance
+
+                result = runner.invoke(app, ["import", str(test_file)])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show counts
+                assert "5" in result.stdout or "Imported" in result.stdout, (
+                    f"Expected imported count in output: {result.stdout}"
+                )
+
+    def test_import_command_file_not_found(self, tmp_path: Path) -> None:
+        """Verify import command handles missing file.
+
+        Expected behavior:
+        - Exit code 1 for non-existent file
+        - Error message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        non_existent = tmp_path / "non_existent.json"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["import", str(non_existent)])
+
+            # Should fail
+            assert result.exit_code == 1, (
+                f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show error
+            assert "not found" in result.stdout.lower() or "error" in result.stdout.lower(), (
+                f"Expected file not found error: {result.stdout}"
+            )

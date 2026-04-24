@@ -623,6 +623,102 @@ def export(
         sys.exit(1)
 
 
+@app.command("import")
+def import_cmd(
+    file: Path = typer.Argument(..., help="Path to JSON export file"),
+    update: bool = typer.Option(False, "--update", "-u", help="Update existing posts instead of skipping"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Path to database file"),
+) -> None:
+    """Import posts from JSON export file.
+
+    IMEX-03: User can import posts from JSON export.
+
+    Import validates:
+    - File exists and is valid JSON
+    - version field is "1.0"
+    - source field is "xbm"
+
+    By default, skips existing posts. Use --update to overwrite.
+
+    Examples:
+        xbm import bookmarks_2024-01-15.json
+        xbm import bookmarks.json --update
+    """
+    try:
+        # Validate file exists
+        if not file.exists():
+            console.print(f"[red]File not found: {file}[/red]")
+            raise typer.Exit(1)
+
+        # Get database connection
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+
+        # Create import service
+        from ..repositories import PostsRepository
+        from ..services.export import ImportService
+
+        repo = PostsRepository(conn)
+        import_service = ImportService(repo)
+
+        # Perform import
+        conflict = "update" if update else "skip"
+        result = import_service.import_json(file, conflict=conflict)
+
+        # Build result message
+        message_parts = [
+            (f"Imported: {result.imported_count}\n", "green"),
+            (f"Skipped: {result.skipped_count}\n", "yellow" if result.skipped_count > 0 else "dim"),
+        ]
+        if result.error_count > 0:
+            message_parts.append((f"Errors: {result.error_count}\n", "red"))
+
+        console.print(Panel(
+            Text.assemble(*message_parts),
+            title="[bold]Import Complete[/bold]",
+            border_style="green" if result.error_count == 0 else "yellow",
+        ))
+
+        # Show errors if any
+        if result.errors:
+            console.print("\n[bold red]Errors:[/bold red]")
+            for error in result.errors[:5]:  # Show first 5 errors
+                console.print(f"  [red]• {error}[/red]")
+            if len(result.errors) > 5:
+                console.print(f"  [dim]... and {len(result.errors) - 5} more[/dim]")
+
+        conn.close()
+
+    except typer.Exit:
+        raise
+    except ValueError as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Import validation failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Import failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()
