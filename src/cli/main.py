@@ -719,6 +719,95 @@ def import_cmd(
         sys.exit(1)
 
 
+@app.command("check-links")
+def check_links(
+    force: bool = typer.Option(False, "--force", "-f", help="Recheck all links, ignoring cache"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Path to database file"),
+) -> None:
+    """Check all links in stored posts and flag dead links.
+
+    MAINT-01: Application detects and flags dead links in stored posts.
+    MAINT-02: Application can filter dead links from review queue.
+
+    Checks links concurrently (max 10 at a time) with timeout handling.
+    Results cached for 30 days unless --force used.
+
+    Examples:
+        xbm check-links
+        xbm check-links --force
+    """
+    try:
+        # Get database connection
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+
+        # Prepare progress tracking
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Checking links...", total=None)
+
+            def on_progress(completed: int, total: int) -> None:
+                progress.update(task, completed=completed, total=total)
+
+            # Create link checker service
+            from ..repositories import PostsRepository
+            from ..services.link_checker import LinkCheckerService
+
+            repo = PostsRepository(conn)
+            checker = LinkCheckerService(repo, on_progress=on_progress)
+
+            # Run check
+            result = checker.check_all_links_sync(force=force)
+
+            progress.update(task, description=f"Checked {result.total_checked} links")
+
+        # Show summary table
+        table = Table(title="Link Check Summary", show_header=True, header_style="bold cyan")
+        table.add_column("Status", style="dim")
+        table.add_column("Count", justify="right")
+
+        table.add_row("OK", str(result.ok_count))
+        table.add_row("Dead", f"[red]{result.dead_count}[/red]" if result.dead_count > 0 else "0")
+        table.add_row("Error", f"[yellow]{result.error_count}[/yellow]" if result.error_count > 0 else "0")
+        table.add_row("Total", str(result.total_checked))
+
+        console.print()
+        console.print(table)
+
+        # Show dead links if any
+        if result.dead_count > 0:
+            console.print("\n[bold red]Dead Links:[/bold red]")
+            dead_links = [(pid, url) for pid, url, status in result.results if status.status == "dead"]
+            for post_id, url in dead_links[:5]:  # Show first 5
+                console.print(f"  [red]• {url}[/red] [dim](post: {post_id})[/dim]")
+            if len(dead_links) > 5:
+                console.print(f"  [dim]... and {len(dead_links) - 5} more[/dim]")
+
+        conn.close()
+
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Link check failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()

@@ -1518,3 +1518,190 @@ class TestImportCommand:
             assert "not found" in result.stdout.lower() or "error" in result.stdout.lower(), (
                 f"Expected file not found error: {result.stdout}"
             )
+
+
+class TestCheckLinksCommand:
+    """Tests for `xbm check-links` command.
+
+    Tests for:
+    - MAINT-01: Application detects and flags dead links in stored posts
+    """
+
+    def test_check_links_command_exists(self) -> None:
+        """Verify check-links command is registered in CLI app.
+
+        MAINT-01: Application detects and flags dead links in stored posts.
+        """
+        # Check that check-links command exists in registered commands
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "check-links" in command_names, f"check-links command should exist, got: {command_names}"
+
+    def test_check_links_command_help(self) -> None:
+        """Verify check-links command shows help.
+
+        Expected behavior:
+        - --help shows usage information
+        """
+        result = runner.invoke(app, ["check-links", "--help"])
+
+        assert result.exit_code == 0
+        assert "Check" in result.stdout or "check" in result.stdout.lower() or "link" in result.stdout.lower()
+
+    def test_check_links_command_shows_summary(self, tmp_path: Path) -> None:
+        """Verify check-links command shows summary table.
+
+        MAINT-01: Application detects and flags dead links.
+
+        Expected behavior:
+        - Command calls LinkCheckerService.check_all_links_sync()
+        - Shows summary table with ok/dead/error counts
+        """
+        from src.services.link_checker import CheckResult, LinkStatus
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Mock CheckResult
+        mock_result = CheckResult(
+            total_checked=10,
+            ok_count=8,
+            dead_count=1,
+            error_count=1,
+            results=[
+                ("post_1", "https://example.com/1", LinkStatus(url="https://example.com/1", status="ok")),
+                ("post_2", "https://example.com/dead", LinkStatus(url="https://example.com/dead", status="dead")),
+            ],
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.link_checker.LinkCheckerService") as mock_checker_class:
+                mock_checker_instance = MagicMock()
+                mock_checker_instance.check_all_links_sync.return_value = mock_result
+                mock_checker_class.return_value = mock_checker_instance
+
+                result = runner.invoke(app, ["check-links"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should have called check_all_links_sync
+                mock_checker_instance.check_all_links_sync.assert_called_once()
+
+    def test_check_links_force_flag(self, tmp_path: Path) -> None:
+        """Verify check-links --force flag bypasses cache.
+
+        MAINT-01: Application detects and flags dead links.
+
+        Expected behavior:
+        - --force passed to check_all_links_sync(force=True)
+        """
+        from src.services.link_checker import CheckResult, LinkStatus
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_result = CheckResult(
+            total_checked=5,
+            ok_count=5,
+            dead_count=0,
+            error_count=0,
+            results=[],
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.link_checker.LinkCheckerService") as mock_checker_class:
+                mock_checker_instance = MagicMock()
+                mock_checker_instance.check_all_links_sync.return_value = mock_result
+                mock_checker_class.return_value = mock_checker_instance
+
+                result = runner.invoke(app, ["check-links", "--force"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should have called with force=True
+                mock_checker_instance.check_all_links_sync.assert_called_once()
+                call_kwargs = mock_checker_instance.check_all_links_sync.call_args[1]
+                assert call_kwargs.get("force") == True, (
+                    f"Expected force=True, got: {call_kwargs}"
+                )
+
+    def test_check_links_shows_dead_links(self, tmp_path: Path) -> None:
+        """Verify check-links shows dead links in output.
+
+        MAINT-01: Application detects and flags dead links.
+
+        Expected behavior:
+        - Lists dead links when found
+        - Shows post ID with URL
+        """
+        from src.services.link_checker import CheckResult, LinkStatus
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_result = CheckResult(
+            total_checked=5,
+            ok_count=3,
+            dead_count=2,
+            error_count=0,
+            results=[
+                ("post_1", "https://example.com/dead1", LinkStatus(url="https://example.com/dead1", status="dead")),
+                ("post_2", "https://example.com/dead2", LinkStatus(url="https://example.com/dead2", status="dead")),
+            ],
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.link_checker.LinkCheckerService") as mock_checker_class:
+                mock_checker_instance = MagicMock()
+                mock_checker_instance.check_all_links_sync.return_value = mock_result
+                mock_checker_class.return_value = mock_checker_instance
+
+                result = runner.invoke(app, ["check-links"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show dead links section
+                assert "Dead" in result.stdout or "dead" in result.stdout.lower(), (
+                    f"Expected dead links in output: {result.stdout}"
+                )
+
+    def test_check_links_error_handling(self, tmp_path: Path) -> None:
+        """Verify check-links command handles errors gracefully.
+
+        Expected behavior:
+        - Exit code 1 on error
+        - Error message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.link_checker.LinkCheckerService") as mock_checker_class:
+                mock_checker_instance = MagicMock()
+                mock_checker_instance.check_all_links_sync.side_effect = Exception("Network error")
+                mock_checker_class.return_value = mock_checker_instance
+
+                result = runner.invoke(app, ["check-links"])
+
+                # Should fail
+                assert result.exit_code == 1, (
+                    f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show error
+                assert "Error" in result.stdout or "failed" in result.stdout.lower(), (
+                    f"Expected error message in output: {result.stdout}"
+                )
