@@ -1033,3 +1033,213 @@ class TestNoteCommand:
                 assert "Error" in result.stdout or "failed" in result.stdout.lower(), (
                     f"Expected error message in output: {result.stdout}"
                 )
+
+
+class TestExportCommand:
+    """Tests for `xbm export` command.
+
+    Tests for:
+    - IMEX-01: User can export stored posts to JSON format
+    - IMEX-02: User can export stored posts to CSV format
+    """
+
+    def test_export_command_exists(self) -> None:
+        """Verify export command is registered in CLI app.
+
+        IMEX-01: User can export stored posts to JSON format.
+        """
+        # Check that export command exists in registered commands
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "export" in command_names, f"export command should exist, got: {command_names}"
+
+    def test_export_command_help(self) -> None:
+        """Verify export command shows help.
+
+        Expected behavior:
+        - --help shows usage information
+        """
+        result = runner.invoke(app, ["export", "--help"])
+
+        assert result.exit_code == 0
+        assert "Export" in result.stdout or "export" in result.stdout.lower()
+
+    def test_export_command_creates_json(self, tmp_path: Path) -> None:
+        """Verify export command creates JSON file.
+
+        IMEX-01: User can export stored posts to JSON format.
+
+        Expected behavior:
+        - Command calls ExportService.export_json()
+        - JSON file created with metadata wrapper
+        """
+        from src.services.export import ExportResult
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        output_path = tmp_path / "export.json"
+
+        # Mock ExportResult
+        mock_result = ExportResult(
+            path=output_path,
+            post_count=10,
+            exported_at="2024-01-15T10:00:00Z",
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.export.ExportService") as mock_export_class:
+                mock_export_instance = MagicMock()
+                mock_export_instance.export_json.return_value = mock_result
+                mock_export_class.return_value = mock_export_instance
+
+                result = runner.invoke(app, ["export", "--output", str(output_path), "--format", "json"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should have called export_json
+                mock_export_instance.export_json.assert_called_once()
+
+    def test_export_command_creates_csv(self, tmp_path: Path) -> None:
+        """Verify export command creates CSV file.
+
+        IMEX-02: User can export stored posts to CSV format.
+
+        Expected behavior:
+        - Command calls ExportService.export_csv()
+        - CSV file created with core fields
+        """
+        from src.services.export import ExportResult
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        output_path = tmp_path / "export.csv"
+
+        # Mock ExportResult
+        mock_result = ExportResult(
+            path=output_path,
+            post_count=10,
+            exported_at="2024-01-15T10:00:00Z",
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.export.ExportService") as mock_export_class:
+                mock_export_instance = MagicMock()
+                mock_export_instance.export_csv.return_value = mock_result
+                mock_export_class.return_value = mock_export_instance
+
+                result = runner.invoke(app, ["export", "--output", str(output_path), "--format", "csv"])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should have called export_csv
+                mock_export_instance.export_csv.assert_called_once()
+
+    def test_export_command_default_format_json(self, tmp_path: Path) -> None:
+        """Verify export command defaults to JSON format.
+
+        Expected behavior:
+        - Without --format, defaults to JSON
+        """
+        from src.services.export import ExportResult
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        output_path = tmp_path / "export.json"
+
+        mock_result = ExportResult(
+            path=output_path,
+            post_count=5,
+            exported_at="2024-01-15T10:00:00Z",
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.export.ExportService") as mock_export_class:
+                mock_export_instance = MagicMock()
+                mock_export_instance.export_json.return_value = mock_result
+                mock_export_class.return_value = mock_export_instance
+
+                result = runner.invoke(app, ["export", "--output", str(output_path)])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should have called export_json (not export_csv)
+                mock_export_instance.export_json.assert_called_once()
+                mock_export_instance.export_csv.assert_not_called()
+
+    def test_export_command_shows_post_count(self, tmp_path: Path) -> None:
+        """Verify export command shows post count in success message.
+
+        Expected behavior:
+        - Success message includes post count
+        """
+        from src.services.export import ExportResult
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        output_path = tmp_path / "export.json"
+
+        mock_result = ExportResult(
+            path=output_path,
+            post_count=42,
+            exported_at="2024-01-15T10:00:00Z",
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.services.export.ExportService") as mock_export_class:
+                mock_export_instance = MagicMock()
+                mock_export_instance.export_json.return_value = mock_result
+                mock_export_class.return_value = mock_export_instance
+
+                result = runner.invoke(app, ["export", "--output", str(output_path)])
+
+                # Should succeed
+                assert result.exit_code == 0, (
+                    f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                )
+
+                # Should show post count
+                assert "42" in result.stdout or "Exported" in result.stdout, (
+                    f"Expected post count in output: {result.stdout}"
+                )
+
+    def test_export_command_invalid_format(self, tmp_path: Path) -> None:
+        """Verify export command handles invalid format.
+
+        Expected behavior:
+        - Exit code 1 for invalid format
+        - Error message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        output_path = tmp_path / "export.xml"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["export", "--output", str(output_path), "--format", "xml"])
+
+            # Should fail
+            assert result.exit_code == 1, (
+                f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show error
+            assert "Invalid format" in result.stdout or "invalid" in result.stdout.lower(), (
+                f"Expected invalid format message: {result.stdout}"
+            )

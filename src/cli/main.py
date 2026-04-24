@@ -540,6 +540,89 @@ def note(
         sys.exit(1)
 
 
+@app.command()
+def export(
+    format: str = typer.Option("json", "--format", "-f", help="Export format: json or csv"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Path to database file"),
+) -> None:
+    """Export stored posts to JSON or CSV.
+
+    IMEX-01: User can export stored posts to JSON format.
+    IMEX-02: User can export stored posts to CSV format.
+
+    JSON format includes: version, exported_at, source, post_count, posts array.
+    CSV format includes: x_post_id, text, author_username, author_display_name, created_at, note.
+
+    Examples:
+        xbm export --output bookmarks.json
+        xbm export --format csv --output bookmarks.csv
+        xbm export  # Prints to stdout with default JSON format
+    """
+    try:
+        # Validate format
+        if format not in ("json", "csv"):
+            console.print(f"[red]Invalid format: {format}. Use 'json' or 'csv'.[/red]")
+            raise typer.Exit(1)
+
+        # Get database connection
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+
+        # Determine output path
+        if output is None:
+            from datetime import datetime, timezone
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            output = Path(f"bookmarks_{timestamp}.{format}")
+
+        # Create export service
+        from ..repositories import PostsRepository
+        from ..services.export import ExportService
+
+        repo = PostsRepository(conn)
+        export_service = ExportService(repo)
+
+        # Perform export
+        if format == "json":
+            result = export_service.export_json(output)
+        else:
+            result = export_service.export_csv(output)
+
+        # Success message
+        console.print(Panel(
+            Text.assemble(
+                (f"Exported {result.post_count} posts\n", "bold green"),
+                ("Format: ", "dim"),
+                (f"{format.upper()}\n", "cyan"),
+                ("Output: ", "dim"),
+                (str(result.path), "cyan"),
+            ),
+            title="[bold]Export Complete[/bold]",
+            border_style="green",
+        ))
+
+        conn.close()
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Export failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()
