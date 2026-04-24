@@ -81,8 +81,8 @@ class PostsRepository:
             """
             INSERT INTO posts (
                 x_post_id, created_at, text, author_id, author_username,
-                author_display_name, media_urls, link_urls, bookmarked_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                author_display_name, media_urls, link_urls, bookmarked_at, note
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(x_post_id) DO UPDATE SET
                 created_at = excluded.created_at,
                 text = excluded.text,
@@ -92,6 +92,7 @@ class PostsRepository:
                 media_urls = excluded.media_urls,
                 link_urls = excluded.link_urls,
                 bookmarked_at = excluded.bookmarked_at,
+                note = excluded.note,
                 sync_version = sync_version + 1
             """,
             (
@@ -104,6 +105,7 @@ class PostsRepository:
                 json.dumps(post.get('media_urls', [])),
                 json.dumps(post.get('link_urls', [])),
                 post.get('bookmarked_at'),
+                post.get('note'),
             )
         )
         self._conn.commit()
