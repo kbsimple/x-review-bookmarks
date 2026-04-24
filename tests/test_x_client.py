@@ -16,46 +16,201 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-class TestXClientScaffold:
-    """Placeholder tests for X API client wrapper.
+class TestXClient:
+    """Tests for XClient wrapper around tweepy.Client."""
 
-    These tests will be implemented in Wave 1 when XClient is created.
-    """
+    def test_x_client_init_requires_access_token(self):
+        """Verify XClient raises ValueError on empty access_token.
 
-    def test_x_client_placeholder(self):
-        """Placeholder test for XClient module.
-
-        This test passes to establish the test scaffold.
-        Real tests will be added when implementing:
-        - DATA-01: Fetch bookmarks from X API
-        - DATA-04: Handle rate limits with resumable pagination
-        - DATA-05: Handle 800 bookmark limit gracefully
+        CRITICAL: XClient must use access_token (OAuth 2.0 User Context),
+        not bearer_token which causes 403 Forbidden on bookmarks endpoint.
         """
-        # Placeholder - will be replaced with real tests
-        assert True, "Test scaffold passes"
+        # Import here to allow test to run before module exists
+        from src.api.x_client import XClient
 
-    def test_get_bookmarks_requires_user_context(self):
-        """Placeholder: Verify get_bookmarks requires OAuth 2.0 User Context.
+        with pytest.raises(ValueError, match="access_token required"):
+            XClient("")
 
-        Critical: Using bearer_token returns 403 Forbidden.
-        Must use access_token from ensure_authenticated().
+    def test_x_client_uses_access_token_not_bearer(self):
+        """Verify XClient passes access_token to tweepy.Client.
+
+        D-05: Dedicated api/x_client.py module wrapping tweepy.Client.
+        Must use access_token parameter, NOT bearer_token.
         """
-        # Placeholder - will verify authentication mode
-        assert True, "Test scaffold passes"
+        from src.api.x_client import XClient
 
-    def test_rate_limit_tracking(self):
-        """Placeholder: Verify rate limit headers are tracked.
+        with patch("src.api.x_client.tweepy.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client_class.return_value = mock_client
 
-        X API allows 180 requests/15min per user.
-        XClient should track x-rate-limit-remaining and x-rate-limit-reset.
+            client = XClient("test_access_token_123")
+
+            # Verify tweepy.Client was called with access_token, not bearer_token
+            mock_client_class.assert_called_once_with(access_token="test_access_token_123")
+
+    def test_fetch_bookmarks_returns_result(self):
+        """Verify fetch_bookmarks returns BookmarkFetchResult with correct structure.
+
+        DATA-01: Fetch bookmarked posts from X API.
         """
-        # Placeholder - will verify rate limit handling
-        assert True, "Test scaffold passes"
+        from src.api.x_client import XClient, BookmarkFetchResult
 
-    def test_pagination_token_persistence(self):
-        """Placeholder: Verify pagination tokens are returned for resumable sync.
+        with patch("src.api.x_client.tweepy.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client_class.return_value = mock_client
 
-        DATA-04: Sync handles rate limits gracefully and can resume from interruption.
+            # Mock response with data
+            mock_tweet = MagicMock()
+            mock_tweet.id = "tweet_123"
+
+            mock_user = MagicMock()
+            mock_user.id = "user_456"
+
+            mock_media = MagicMock()
+            mock_media.media_key = "media_789"
+
+            mock_response = MagicMock()
+            mock_response.data = [mock_tweet]
+            mock_response.includes = {
+                "users": [mock_user],
+                "media": [mock_media],
+            }
+            mock_response.meta = {"next_token": "next_abc", "result_count": 1}
+            mock_response.headers = {}
+
+            mock_client.get_bookmarks.return_value = mock_response
+
+            client = XClient("test_token")
+            result = client.fetch_bookmarks()
+
+            assert isinstance(result, BookmarkFetchResult)
+            assert len(result.tweets) == 1
+            assert result.next_token == "next_abc"
+            assert result.result_count == 1
+
+    def test_fetch_bookmarks_extracts_rate_limit(self):
+        """Verify fetch_bookmarks extracts rate limit info from headers.
+
+        DATA-04: Handle X API rate limits.
         """
-        # Placeholder - will verify pagination token handling
-        assert True, "Test scaffold passes"
+        from src.api.x_client import XClient, RateLimitInfo
+
+        with patch("src.api.x_client.tweepy.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client_class.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.data = []
+            mock_response.includes = None
+            mock_response.meta = {}
+            # Simulate headers from X API
+            mock_response.headers = {
+                "x-rate-limit-remaining": "150",
+                "x-rate-limit-reset": "1700000000",
+            }
+
+            mock_client.get_bookmarks.return_value = mock_response
+
+            client = XClient("test_token")
+            result = client.fetch_bookmarks()
+
+            assert result.rate_limit.remaining == 150
+            assert result.rate_limit.reset_at == 1700000000.0
+
+    def test_fetch_bookmarks_handles_empty_response(self):
+        """Verify fetch_bookmarks handles None data gracefully.
+
+        X API may return empty data if no bookmarks exist.
+        """
+        from src.api.x_client import XClient, BookmarkFetchResult
+
+        with patch("src.api.x_client.tweepy.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client_class.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.data = None
+            mock_response.includes = None
+            mock_response.meta = None
+            mock_response.headers = {}
+
+            mock_client.get_bookmarks.return_value = mock_response
+
+            client = XClient("test_token")
+            result = client.fetch_bookmarks()
+
+            assert isinstance(result, BookmarkFetchResult)
+            assert result.tweets == []
+            assert result.users == {}
+            assert result.media == {}
+            assert result.next_token is None
+            assert result.result_count == 0
+
+    def test_fetch_bookmarks_with_pagination_token(self):
+        """Verify fetch_bookmarks passes pagination_token to API.
+
+        DATA-04: Sync handles rate limits gracefully and can resume.
+        """
+        from src.api.x_client import XClient
+
+        with patch("src.api.x_client.tweepy.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client_class.return_value = mock_client
+
+            mock_response = MagicMock()
+            mock_response.data = []
+            mock_response.includes = None
+            mock_response.meta = {}
+            mock_response.headers = {}
+
+            mock_client.get_bookmarks.return_value = mock_response
+
+            client = XClient("test_token")
+            client.fetch_bookmarks(pagination_token="resume_token_xyz")
+
+            # Verify pagination_token was passed
+            call_kwargs = mock_client.get_bookmarks.call_args[1]
+            assert call_kwargs["pagination_token"] == "resume_token_xyz"
+
+
+class TestRateLimitInfo:
+    """Tests for RateLimitInfo dataclass."""
+
+    def test_wait_seconds_calculation(self):
+        """Verify wait_seconds returns correct time until reset."""
+        import time
+        from src.api.x_client import RateLimitInfo
+
+        # Set reset_at to 100 seconds in the future
+        future_time = time.time() + 100
+        rate_limit = RateLimitInfo(remaining=10, reset_at=future_time)
+
+        # Should be approximately 100 seconds
+        assert 99 <= rate_limit.wait_seconds <= 100
+
+    def test_wait_seconds_negative_when_expired(self):
+        """Verify wait_seconds returns 0 when reset time has passed."""
+        import time
+        from src.api.x_client import RateLimitInfo
+
+        # Set reset_at to 100 seconds in the past
+        past_time = time.time() - 100
+        rate_limit = RateLimitInfo(remaining=0, reset_at=past_time)
+
+        assert rate_limit.wait_seconds == 0
+
+
+class TestBookmarkFetchResult:
+    """Tests for BookmarkFetchResult dataclass."""
+
+    def test_default_values(self):
+        """Verify BookmarkFetchResult has sensible defaults."""
+        from src.api.x_client import BookmarkFetchResult
+
+        result = BookmarkFetchResult()
+
+        assert result.tweets == []
+        assert result.users == {}
+        assert result.media == {}
+        assert result.next_token is None
+        assert result.result_count == 0

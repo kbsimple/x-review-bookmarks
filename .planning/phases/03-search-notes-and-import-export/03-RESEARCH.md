@@ -537,7 +537,7 @@ def export_to_csv(posts: list[dict], output_path: Path) -> None:
 
 **If this table is empty:** All claims in this research were verified or cited — no user confirmation needed.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Import conflict resolution default**
    - What we know: JSON import needs to handle existing posts

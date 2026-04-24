@@ -2,37 +2,37 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 02
-last_updated: "2026-04-19T15:42:35.035Z"
+status: Ready to plan
+last_updated: "2026-04-23T22:00:00.000Z"
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 9
-  completed_plans: 5
-  percent: 56
+  completed_phases: 3
+  total_plans: 15
+  completed_plans: 15
+  percent: 100
 ---
 
 # STATE: X Bookmarked Posts Organizer
 
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-23
 
 ## Project Reference
 
 **Core Value:** Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind
 
-**Current Focus:** Phase 02 — Bookmark Fetch and Storage
+**Current Focus:** Phase 04 — topic-organization
 
 **Milestone:** Milestone 1 (CLI + SQLite)
 
 ## Current Position
 
-Phase: 02 (Bookmark Fetch and Storage) — EXECUTING
-Plan: 1 of 4
+Phase: 4
+Plan: Not started
 | Field | Value |
 |-------|-------|
-| Phase | 2 |
+| Phase | 4 |
 | Plan | - |
-| Status | Ready to execute |
+| Status | Ready to plan |
 | Progress | 0% |
 
 ```
@@ -43,16 +43,11 @@ Plan: 1 of 4
 
 | Metric | Value |
 |--------|-------|
-| Phases completed | 1/5 |
-| Requirements delivered | 5/34 |
-| Plans completed | 5/9 |
-| Sessions this milestone | 2 |
+| Phases completed | 3/5 |
+| Requirements delivered | 27/34 |
+| Plans completed | 15/15 |
+| Sessions this milestone | 3 |
 | Time in current phase | 0 sessions |
-| Phase 01 P00 | 600 | 5 tasks | 7 files |
-| Phase 01 P01 | 8min | 4 tasks | 8 files |
-| Phase 01-foundation-and-authentication P02 | 5min | 4 tasks | 4 files |
-| Phase 01-foundation-and-authentication P03 | 15min | 6 tasks | 3 files |
-| Phase 01 P04 | 25 | 6 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -68,15 +63,11 @@ Plan: 1 of 4
 | 2026-04-19 | Auto-wait rate limit (D-03) | Auto-wait when remaining < 5, persist pagination token |
 | 2026-04-19 | Progress bar + summary (D-04) | Rich Progress during sync, summary table after |
 | 2026-04-19 | Dedicated x_client.py (D-05) | Wrapper around tweepy.Client with rate limit awareness |
-
-- [Phase 01]: Typer 0.23.0 for Python 3.9 compatibility (Typer 0.24+ requires Python 3.10+)
-- [Phase 01]: env_prefix='X_' for all X API environment variables
-- [Phase 01]: SecretStr type for client_secret prevents accidental logging
-- [Phase 01]: Python 3.9 compatibility: use Optional[Union[...]] not Path | str | None
-- [Phase 01-foundation-and-authentication]: OAuth scopes: tweet.read, users.read, bookmark.read, offline.access (D-04)
-- [Phase 01-foundation-and-authentication]: Callback server binds to 127.0.0.1 only (security)
-- [Phase 01-foundation-and-authentication]: CLI uses Typer with rich_markup_mode='rich' for styled output
-- [Phase 01-foundation-and-authentication]: setuptools packages.find configured for src/ layout
+| 2026-04-23 | FTS5 external content table (D-01) | content='posts' pattern with sync triggers |
+| 2026-04-23 | Note and link_status columns (D-02) | Simple TEXT columns for notes and link status |
+| 2026-04-23 | JSON export with metadata (D-03) | version, exported_at, source, post_count, posts array |
+| 2026-04-23 | httpx AsyncClient with Semaphore (D-04) | Max 10 concurrent requests, 30-day cache |
+| 2026-04-23 | CLI commands pattern (D-05) | xbm search, note, export, import, check-links |
 
 ### Key Files
 
@@ -86,8 +77,8 @@ Plan: 1 of 4
 | .planning/REQUIREMENTS.md | v1 requirements |
 | .planning/ROADMAP.md | Phase structure |
 | .planning/research/SUMMARY.md | Research findings |
-| .planning/phases/02-bookmark-fetch-and-storage/02-CONTEXT.md | Phase 2 user decisions |
-| .planning/phases/02-bookmark-fetch-and-storage/02-RESEARCH.md | Phase 2 technical research |
+| .planning/phases/03-search-notes-and-import-export/03-CONTEXT.md | Phase 3 user decisions |
+| .planning/phases/03-search-notes-and-import-export/03-RESEARCH.md | Phase 3 technical research |
 
 ### Active Blockers
 
@@ -99,24 +90,26 @@ Plan: 1 of 4
 
 ## Session Continuity
 
-**Previous session ended:** Phase 2 planning complete
+**Previous session ended:** Phase 3 complete — search, notes, export/import, link checking
 
-**Continue with:** Execute Phase 2 (Bookmark Fetch and Storage)
+**Continue with:** Plan Phase 4 (Topic Organization)
 
 **Quick start:**
 
 ```
-/gsd-execute-phase 02-bookmark-fetch-and-storage
+/gsd-discuss-phase 4
 ```
 
 ## Notes
 
-- Research summary indicates OAuth 2.0 PKCE is the most common failure point (403 Forbidden errors)
-- X API has hard limit of 800 retrievable bookmarks
-- Existing x-api project has working auth pattern to reference
-- Phase 2 delivers: sync command, posts table, incremental sync, rate limit handling
-- Critical: XClient MUST use access_token (OAuth 2.0 User Context), NOT bearer_token
+- Phase 1: OAuth 2.0 PKCE + SQLite foundation
+- Phase 2: X API integration, bookmark sync, incremental updates
+- Phase 3: FTS5 full-text search, personal notes, JSON/CSV export/import, dead link detection
+- Phase 4: Tags, topic taxonomy, hybrid clustering (predefined + AI-suggested)
+- Phase 5: FSRS-based spaced repetition scheduling
+- Critical: XClient uses access_token (OAuth 2.0 User Context), NOT bearer_token
+- FTS5 sync triggers ensure search index stays current with posts table
 
 ---
 *State initialized: 2026-04-18*
-*State updated: 2026-04-19 - Phase 2 planning complete*
+*State updated: 2026-04-23 - Phase 3 complete*

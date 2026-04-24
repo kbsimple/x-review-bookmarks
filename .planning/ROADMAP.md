@@ -16,8 +16,8 @@
 ## Phases
 
 - [x] **Phase 1: Foundation and Authentication** - OAuth 2.0 PKCE flow and SQLite database setup
-- [ ] **Phase 2: Bookmark Fetch and Storage** - X API integration for fetching and persisting bookmarks
-- [ ] **Phase 3: Search, Notes, and Import/Export** - Full-text search, personal notes, and data portability
+- [x] **Phase 2: Bookmark Fetch and Storage** - X API integration for fetching and persisting bookmarks
+- [x] **Phase 3: Search, Notes, and Import/Export** - Full-text search, personal notes, and data portability
 - [ ] **Phase 4: Topic Organization** - Tags, topic taxonomy, and hybrid clustering
 - [ ] **Phase 5: Spaced Repetition Resurfacing** - FSRS-based scheduling and review delivery
 
@@ -68,13 +68,14 @@ Plans:
   4. User can export all stored posts to JSON or CSV format
   5. User can import posts from a JSON export
   6. User can identify posts with dead links
-**Plans:** 5 plans across 3 waves
+**Plans:** 6 plans across 4 waves
 Plans:
-- [ ] 03-01-PLAN.md — Schema V3 and FTS5 (note column, link_status column, FTS5 virtual table, migrations)
-- [ ] 03-02-PLAN.md — SearchService (FTS5 full-text search, bm25 ranking, author filtering)
-- [ ] 03-03-PLAN.md — Export/Import Services (JSON/CSV export, JSON import, conflict resolution)
-- [ ] 03-04-PLAN.md — LinkCheckerService (async concurrent HTTP, semaphore limiting, caching)
-- [ ] 03-05-PLAN.md — CLI Commands (search, note, export, import, check-links)
+- [x] 03-01-PLAN.md — Schema V3 and FTS5 (note column, link_status column, FTS5 virtual table, migrations)
+- [x] 03-02-PLAN.md — SearchService (FTS5 full-text search, bm25 ranking, author filtering)
+- [x] 03-03-PLAN.md — Export/Import Services (JSON/CSV export, JSON import, conflict resolution)
+- [x] 03-04-PLAN.md — LinkCheckerService (async concurrent HTTP, semaphore limiting, caching)
+- [x] 03-05-PLAN.md — CLI Commands: search and note
+- [x] 03-06-PLAN.md — CLI Commands: export, import, check-links
 
 ### Phase 4: Topic Organization
 **Goal:** Users can organize posts with tags and topics using a hybrid approach
@@ -103,8 +104,8 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation and Authentication | 5/5 | Complete | 2026-04-18 |
-| 2. Bookmark Fetch and Storage | 0/4 | Planning complete | - |
-| 3. Search, Notes, and Import/Export | 0/5 | Planning complete | - |
+| 2. Bookmark Fetch and Storage | 4/4 | Complete | 2026-04-23 |
+| 3. Search, Notes, and Import/Export | 6/6 | Complete | 2026-04-23 |
 | 4. Topic Organization | 0/5 | Not started | - |
 | 5. Spaced Repetition Resurfacing | 0/5 | Not started | - |
 
@@ -117,25 +118,25 @@ Plans:
 | AUTH-03 | Phase 1 | Complete |
 | STOR-01 | Phase 1 | Complete |
 | STOR-02 | Phase 1 | Complete |
-| DATA-01 | Phase 2 | Planned (02-02-PLAN.md) |
-| DATA-02 | Phase 2 | Planned (02-01-PLAN.md, 02-02-PLAN.md) |
-| DATA-03 | Phase 2 | Planned (02-01-PLAN.md, 02-02-PLAN.md) |
-| DATA-04 | Phase 2 | Planned (02-02-PLAN.md, 02-03-PLAN.md) |
-| DATA-05 | Phase 2 | Planned (02-02-PLAN.md, 02-03-PLAN.md) |
-| STOR-03 | Phase 2 | Planned (02-03-PLAN.md) |
-| CLI-01 | Phase 2 | Planned (02-04-PLAN.md) |
-| CLI-05 | Phase 2 | Planned (02-04-PLAN.md) |
-| SRCH-01 | Phase 3 | Planned (03-02-PLAN.md) |
-| SRCH-02 | Phase 3 | Planned (03-02-PLAN.md) |
-| SRCH-03 | Phase 3 | Planned (03-02-PLAN.md) |
-| NOTE-01 | Phase 3 | Planned (03-01-PLAN.md, 03-05-PLAN.md) |
-| NOTE-02 | Phase 3 | Planned (03-01-PLAN.md) |
-| CLI-03 | Phase 3 | Planned (03-05-PLAN.md) |
-| IMEX-01 | Phase 3 | Planned (03-03-PLAN.md, 03-05-PLAN.md) |
-| IMEX-02 | Phase 3 | Planned (03-03-PLAN.md, 03-05-PLAN.md) |
-| IMEX-03 | Phase 3 | Planned (03-03-PLAN.md, 03-05-PLAN.md) |
-| MAINT-01 | Phase 3 | Planned (03-01-PLAN.md, 03-04-PLAN.md) |
-| MAINT-02 | Phase 3 | Planned (03-01-PLAN.md, 03-04-PLAN.md) |
+| DATA-01 | Phase 2 | Complete |
+| DATA-02 | Phase 2 | Complete |
+| DATA-03 | Phase 2 | Complete |
+| DATA-04 | Phase 2 | Complete |
+| DATA-05 | Phase 2 | Complete |
+| STOR-03 | Phase 2 | Complete |
+| CLI-01 | Phase 2 | Complete |
+| CLI-05 | Phase 2 | Complete |
+| SRCH-01 | Phase 3 | Complete |
+| SRCH-02 | Phase 3 | Complete |
+| SRCH-03 | Phase 3 | Complete |
+| NOTE-01 | Phase 3 | Complete |
+| NOTE-02 | Phase 3 | Complete |
+| CLI-03 | Phase 3 | Complete |
+| IMEX-01 | Phase 3 | Complete |
+| IMEX-02 | Phase 3 | Complete |
+| IMEX-03 | Phase 3 | Complete |
+| MAINT-01 | Phase 3 | Complete |
+| MAINT-02 | Phase 3 | Complete |
 | ORG-01 | Phase 4 | Pending |
 | ORG-02 | Phase 4 | Pending |
 | ORG-03 | Phase 4 | Pending |
@@ -149,4 +150,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-04-18*
-*Roadmap updated: 2026-04-23 - Phase 3 plans added*
+*Roadmap updated: 2026-04-23 - Phase 2 and 3 complete*
