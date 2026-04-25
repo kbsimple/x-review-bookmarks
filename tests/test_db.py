@@ -331,5 +331,5 @@ class TestSchemaV2:
         """Verify get_schema_version returns current version."""
         from src.db.schema import get_schema_version
 
-        # After Phase 3, version should be v3
-        assert get_schema_version() == "v3"
+        # After Phase 4, version should be v4
+        assert get_schema_version() == "v4"
