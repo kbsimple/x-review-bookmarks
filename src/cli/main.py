@@ -808,6 +808,117 @@ def check_links(
         sys.exit(1)
 
 
+@app.command("tag")
+def tag(
+    post_id: Optional[str] = typer.Argument(None, help="X post ID (omit for --list)"),
+    tag_name: Optional[str] = typer.Argument(None, help="Tag name to assign/remove"),
+    remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag from post"),
+    list_tags: bool = typer.Option(False, "--list", "-l", help="List all tags"),
+    show: bool = typer.Option(False, "--show", "-s", help="Show tags for post"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Database path"),
+) -> None:
+    """Manage tags for bookmarked posts.
+
+    CLI-04: User can manage tags via CLI commands.
+
+    Examples:
+        xbm tag post_123 python           # Add 'python' tag to post
+        xbm tag post_123 "machine learning"  # Tag with space
+        xbm tag post_123 --remove python  # Remove tag
+        xbm tag post_123 --show           # Show post's tags
+        xbm tag --list                    # List all tags
+    """
+    try:
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+        from ..repositories.tags import TagsRepository
+        from ..repositories.posts import PostsRepository
+
+        tags_repo = TagsRepository(conn)
+        posts_repo = PostsRepository(conn)
+
+        if list_tags:
+            # List all tags
+            tags = tags_repo.list_tags()
+            if not tags:
+                console.print("[yellow]No tags found[/yellow]")
+                conn.close()
+                return
+
+            table = Table(title="Tags")
+            table.add_column("ID", style="dim")
+            table.add_column("Name", style="cyan")
+            table.add_column("Created", style="dim")
+
+            for tag in tags:
+                table.add_row(str(tag['id']), tag['name'], str(tag.get('created_at', ''))[:10])
+
+            console.print(table)
+            conn.close()
+            return
+
+        if post_id is None:
+            console.print("[red]Error: post_id required unless using --list[/red]")
+            raise typer.Exit(1)
+
+        # Verify post exists
+        post = posts_repo.get_by_id(post_id)
+        if not post:
+            console.print(f"[red]Post not found: {post_id}[/red]")
+            raise typer.Exit(1)
+
+        if show:
+            # Show tags for post
+            tags = tags_repo.get_post_tags(post_id)
+            if not tags:
+                console.print(f"[yellow]No tags for post {post_id}[/yellow]")
+            else:
+                console.print(f"[bold]Tags for post {post_id}:[/bold]")
+                for tag in tags:
+                    console.print(f"  - {tag['name']}")
+            conn.close()
+            return
+
+        if tag_name is None:
+            console.print("[red]Error: tag_name required unless using --show[/red]")
+            raise typer.Exit(1)
+
+        if remove:
+            # Remove tag
+            tag = tags_repo.get_tag_by_name(tag_name)
+            if tag:
+                tags_repo.remove_tag(post_id, tag['id'])
+                console.print(f"[green]Removed tag '{tag_name}' from post {post_id}[/green]")
+            else:
+                console.print(f"[yellow]Tag '{tag_name}' not found[/yellow]")
+        else:
+            # Add tag
+            tag_id = tags_repo.get_or_create_tag(tag_name)
+            tags_repo.assign_tag(post_id, tag_id)
+            console.print(f"[green]Added tag '{tag_name}' to post {post_id}[/green]")
+
+        conn.close()
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Tag operation failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()

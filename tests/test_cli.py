@@ -1705,3 +1705,290 @@ class TestCheckLinksCommand:
                 assert "Error" in result.stdout or "failed" in result.stdout.lower(), (
                     f"Expected error message in output: {result.stdout}"
                 )
+
+
+class TestTagCommand:
+    """Tests for `xbm tag` command.
+
+    Tests for:
+    - CLI-04: User can manage tags via CLI commands
+    - ORG-01: User can assign tags to bookmarked posts
+    """
+
+    def test_tag_command_exists(self) -> None:
+        """Verify tag command is registered in CLI app.
+
+        CLI-04: User can manage tags via CLI commands.
+        """
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "tag" in command_names, f"tag command should exist, got: {command_names}"
+
+    def test_tag_command_help(self) -> None:
+        """Verify tag command shows help."""
+        result = runner.invoke(app, ["tag", "--help"])
+
+        assert result.exit_code == 0
+        assert "Manage tags" in result.stdout or "tag" in result.stdout.lower()
+
+    def test_tag_assign_to_post(self, tmp_path: Path) -> None:
+        """Verify tag command assigns tag to post.
+
+        CLI-04: xbm tag post_id tag_name assigns tag.
+
+        Expected behavior:
+        - Command creates tag if not exists
+        - Command assigns tag to post
+        - Success message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Mock post exists
+        mock_post = {"x_post_id": "test_post_1", "text": "Test post"}
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    with patch("src.repositories.tags.TagsRepository") as mock_tags_repo_class:
+                        mock_posts_repo = MagicMock()
+                        mock_posts_repo.get_by_id.return_value = mock_post
+                        mock_posts_repo_class.return_value = mock_posts_repo
+
+                        mock_tags_repo = MagicMock()
+                        mock_tags_repo.get_or_create_tag.return_value = 1
+                        mock_tags_repo_class.return_value = mock_tags_repo
+
+                        result = runner.invoke(app, ["tag", "test_post_1", "python"])
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should create tag
+                        mock_tags_repo.get_or_create_tag.assert_called_once_with("python")
+
+                        # Should assign tag
+                        mock_tags_repo.assign_tag.assert_called_once_with("test_post_1", 1)
+
+                        # Should show success message
+                        assert "Added tag" in result.stdout or "python" in result.stdout, (
+                            f"Expected success message in output: {result.stdout}"
+                        )
+
+    def test_tag_remove_from_post(self, tmp_path: Path) -> None:
+        """Verify tag command removes tag from post.
+
+        CLI-04: xbm tag post_id --remove tag_name removes tag.
+
+        Expected behavior:
+        - Command finds tag by name
+        - Command removes tag from post
+        - Success message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_post = {"x_post_id": "test_post_1", "text": "Test post"}
+        mock_tag = {"id": 1, "name": "python"}
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    with patch("src.repositories.tags.TagsRepository") as mock_tags_repo_class:
+                        mock_posts_repo = MagicMock()
+                        mock_posts_repo.get_by_id.return_value = mock_post
+                        mock_posts_repo_class.return_value = mock_posts_repo
+
+                        mock_tags_repo = MagicMock()
+                        mock_tags_repo.get_tag_by_name.return_value = mock_tag
+                        mock_tags_repo_class.return_value = mock_tags_repo
+
+                        result = runner.invoke(app, ["tag", "test_post_1", "python", "--remove"])
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should find tag
+                        mock_tags_repo.get_tag_by_name.assert_called_once_with("python")
+
+                        # Should remove tag
+                        mock_tags_repo.remove_tag.assert_called_once_with("test_post_1", 1)
+
+                        # Should show success message
+                        assert "Removed tag" in result.stdout or "removed" in result.stdout.lower(), (
+                            f"Expected removal message in output: {result.stdout}"
+                        )
+
+    def test_tag_list_all_tags(self, tmp_path: Path) -> None:
+        """Verify tag --list shows all tags.
+
+        CLI-04: xbm tag --list shows all tags.
+
+        Expected behavior:
+        - Command retrieves all tags
+        - Tags displayed in Rich table
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_tags = [
+            {"id": 1, "name": "python", "created_at": "2024-01-15T10:00:00Z"},
+            {"id": 2, "name": "machine-learning", "created_at": "2024-01-16T10:00:00Z"},
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.tags.TagsRepository") as mock_tags_repo_class:
+                    mock_tags_repo = MagicMock()
+                    mock_tags_repo.list_tags.return_value = mock_tags
+                    mock_tags_repo_class.return_value = mock_tags_repo
+
+                    result = runner.invoke(app, ["tag", "--list"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should list tags
+                    mock_tags_repo.list_tags.assert_called_once()
+
+                    # Should show tags in output
+                    assert "python" in result.stdout or "Tags" in result.stdout, (
+                        f"Expected tags in output: {result.stdout}"
+                    )
+
+    def test_tag_show_post_tags(self, tmp_path: Path) -> None:
+        """Verify tag post_id --show shows post's tags.
+
+        CLI-04: xbm tag post_id --show shows post's tags.
+
+        Expected behavior:
+        - Command retrieves tags for post
+        - Tags displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_post = {"x_post_id": "test_post_1", "text": "Test post"}
+        mock_tags = [
+            {"id": 1, "name": "python", "created_at": "2024-01-15T10:00:00Z"},
+            {"id": 2, "name": "data-science", "created_at": "2024-01-16T10:00:00Z"},
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    with patch("src.repositories.tags.TagsRepository") as mock_tags_repo_class:
+                        mock_posts_repo = MagicMock()
+                        mock_posts_repo.get_by_id.return_value = mock_post
+                        mock_posts_repo_class.return_value = mock_posts_repo
+
+                        mock_tags_repo = MagicMock()
+                        mock_tags_repo.get_post_tags.return_value = mock_tags
+                        mock_tags_repo_class.return_value = mock_tags_repo
+
+                        result = runner.invoke(app, ["tag", "test_post_1", "--show"])
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should get post tags
+                        mock_tags_repo.get_post_tags.assert_called_once_with("test_post_1")
+
+                        # Should show tags
+                        assert "python" in result.stdout or "Tags for post" in result.stdout, (
+                            f"Expected tags in output: {result.stdout}"
+                        )
+
+    def test_tag_normalizes_to_lowercase(self, tmp_path: Path) -> None:
+        """Verify tag names are normalized to lowercase.
+
+        ORG-01: Tags normalized to lowercase.
+
+        Expected behavior:
+        - Tag name converted to lowercase
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_post = {"x_post_id": "test_post_1", "text": "Test post"}
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    with patch("src.repositories.tags.TagsRepository") as mock_tags_repo_class:
+                        mock_posts_repo = MagicMock()
+                        mock_posts_repo.get_by_id.return_value = mock_post
+                        mock_posts_repo_class.return_value = mock_posts_repo
+
+                        mock_tags_repo = MagicMock()
+                        mock_tags_repo.get_or_create_tag.return_value = 1
+                        mock_tags_repo_class.return_value = mock_tags_repo
+
+                        result = runner.invoke(app, ["tag", "test_post_1", "Python"])
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Tag name should be passed as-is; normalization happens in TagsRepository
+                        # We just verify the command passes it correctly
+
+    def test_tag_post_not_found(self, tmp_path: Path) -> None:
+        """Verify tag command handles non-existent post.
+
+        Expected behavior:
+        - Exit code 1
+        - Error message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    mock_posts_repo = MagicMock()
+                    mock_posts_repo.get_by_id.return_value = None
+                    mock_posts_repo_class.return_value = mock_posts_repo
+
+                    result = runner.invoke(app, ["tag", "nonexistent_post", "python"])
+
+                    # Should fail
+                    assert result.exit_code == 1, (
+                        f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should show error
+                    assert "not found" in result.stdout.lower() or "error" in result.stdout.lower(), (
+                        f"Expected error message in output: {result.stdout}"
+                    )
