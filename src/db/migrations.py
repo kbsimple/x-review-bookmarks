@@ -19,7 +19,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Optional
 
-from .schema import SCHEMA_V3_MIGRATION
+from .schema import SCHEMA_V3_MIGRATION, SCHEMA_V4_MIGRATION
 
 
 def get_schema_version_int(conn: sqlite3.Connection) -> int:
@@ -91,6 +91,35 @@ def migrate_to_v3(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_to_v4(conn: sqlite3.Connection) -> None:
+    """Migrate from v3 to v4: Add tags, topics, and embeddings tables.
+
+    Idempotent: Safe to call multiple times. Checks PRAGMA user_version
+    before applying changes.
+
+    ORG-01: Tags table for user-defined post tags.
+    ORG-02: Topics table for predefined topic taxonomy.
+    ORG-03: Post embeddings cache for clustering.
+    ORG-04: Pending topic assignments for AI suggestions.
+
+    Args:
+        conn: SQLite connection.
+    """
+    current_version = get_schema_version_int(conn)
+
+    # Idempotent: Skip if already at v4 or higher
+    if current_version >= 4:
+        return
+
+    # Create tags, topics, and embeddings tables
+    # This uses IF NOT EXISTS for idempotency
+    conn.executescript(SCHEMA_V4_MIGRATION)
+
+    # Set schema version to 4
+    conn.execute("PRAGMA user_version = 4")
+    conn.commit()
+
+
 def run_migrations(conn: sqlite3.Connection) -> int:
     """Run all pending database migrations.
 
@@ -112,7 +141,10 @@ def run_migrations(conn: sqlite3.Connection) -> int:
     if current_version < 3:
         migrate_to_v3(conn)
 
+    if current_version < 4:
+        migrate_to_v4(conn)
+
     return get_schema_version_int(conn)
 
 
-__all__ = ["get_schema_version_int", "migrate_to_v3", "run_migrations"]
+__all__ = ["get_schema_version_int", "migrate_to_v3", "migrate_to_v4", "run_migrations"]

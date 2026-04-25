@@ -86,11 +86,11 @@ class TestSchemaV3Definition:
         assert "posts_au" in SCHEMA_V3_MIGRATION
         assert "AFTER UPDATE" in SCHEMA_V3_MIGRATION
 
-    def test_get_schema_version_returns_v3(self):
-        """Verify get_schema_version returns 'v3' after Phase 3."""
+    def test_get_schema_version_returns_v4(self):
+        """Verify get_schema_version returns 'v4' after Phase 4."""
         from src.db.schema import get_schema_version
 
-        assert get_schema_version() == "v3"
+        assert get_schema_version() == "v4"
 
 
 class TestMigrationsModule:
@@ -373,3 +373,146 @@ class TestSchemaV3Integration:
         ).fetchone()
 
         assert row["link_status"] == "unchecked"
+
+
+class TestSchemaV4Migration:
+    """Tests for v4 schema migration: tags, topics, embeddings."""
+
+    @pytest.fixture
+    def temp_db_v3(self):
+        """Create a temporary database with v3 schema applied."""
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            db_path = Path(f.name)
+
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+
+        # Apply PRAGMAs
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+        conn.execute("PRAGMA busy_timeout = 5000")
+
+        # Apply v1 and v2 schemas
+        from src.db.schema import SCHEMA_V1, SCHEMA_V2
+        conn.executescript(SCHEMA_V1)
+        conn.executescript(SCHEMA_V2)
+        conn.commit()
+
+        # Run v3 migration
+        from src.db.migrations import migrate_to_v3
+        migrate_to_v3(conn)
+
+        yield conn
+
+        conn.close()
+        db_path.unlink(missing_ok=True)
+
+    def test_migrate_to_v4_function_exists(self):
+        """Verify migrate_to_v4 function exists in migrations module."""
+        from src.db.migrations import migrate_to_v4
+
+        assert callable(migrate_to_v4)
+
+    def test_migrate_to_v4_creates_tags_table(self, temp_db_v3):
+        """Verify migrate_to_v4 creates tags table."""
+        from src.db.migrations import migrate_to_v4
+
+        migrate_to_v4(temp_db_v3)
+
+        result = temp_db_v3.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='tags'"
+        ).fetchone()
+
+        assert result is not None
+
+    def test_migrate_to_v4_creates_post_tags_table(self, temp_db_v3):
+        """Verify migrate_to_v4 creates post_tags junction table."""
+        from src.db.migrations import migrate_to_v4
+
+        migrate_to_v4(temp_db_v3)
+
+        result = temp_db_v3.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='post_tags'"
+        ).fetchone()
+
+        assert result is not None
+
+    def test_migrate_to_v4_creates_topics_table(self, temp_db_v3):
+        """Verify migrate_to_v4 creates topics table."""
+        from src.db.migrations import migrate_to_v4
+
+        migrate_to_v4(temp_db_v3)
+
+        result = temp_db_v3.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='topics'"
+        ).fetchone()
+
+        assert result is not None
+
+    def test_migrate_to_v4_creates_post_topics_table(self, temp_db_v3):
+        """Verify migrate_to_v4 creates post_topics table."""
+        from src.db.migrations import migrate_to_v4
+
+        migrate_to_v4(temp_db_v3)
+
+        result = temp_db_v3.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='post_topics'"
+        ).fetchone()
+
+        assert result is not None
+
+    def test_migrate_to_v4_creates_pending_topic_assignments_table(self, temp_db_v3):
+        """Verify migrate_to_v4 creates pending_topic_assignments table."""
+        from src.db.migrations import migrate_to_v4
+
+        migrate_to_v4(temp_db_v3)
+
+        result = temp_db_v3.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='pending_topic_assignments'"
+        ).fetchone()
+
+        assert result is not None
+
+    def test_migrate_to_v4_creates_post_embeddings_table(self, temp_db_v3):
+        """Verify migrate_to_v4 creates post_embeddings table."""
+        from src.db.migrations import migrate_to_v4
+
+        migrate_to_v4(temp_db_v3)
+
+        result = temp_db_v3.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='post_embeddings'"
+        ).fetchone()
+
+        assert result is not None
+
+    def test_migrate_to_v4_sets_pragma_user_version(self, temp_db_v3):
+        """Verify migrate_to_v4 sets PRAGMA user_version = 4."""
+        from src.db.migrations import migrate_to_v4, get_schema_version_int
+
+        migrate_to_v4(temp_db_v3)
+
+        version = get_schema_version_int(temp_db_v3)
+        assert version == 4
+
+    def test_migrate_to_v4_idempotent(self, temp_db_v3):
+        """Verify migrate_to_v4 is idempotent (safe to call multiple times)."""
+        from src.db.migrations import migrate_to_v4, get_schema_version_int
+
+        migrate_to_v4(temp_db_v3)
+        version_after_first = get_schema_version_int(temp_db_v3)
+        assert version_after_first == 4
+
+        # Run migration again (should skip)
+        migrate_to_v4(temp_db_v3)
+        version_after_second = get_schema_version_int(temp_db_v3)
+        assert version_after_second == 4
+
+    def test_run_migrations_applies_v4(self, temp_db_v3):
+        """Verify run_migrations applies v4 migration."""
+        from src.db.migrations import run_migrations, get_schema_version_int
+
+        final_version = run_migrations(temp_db_v3)
+
+        assert final_version >= 4
+        assert get_schema_version_int(temp_db_v3) == final_version
