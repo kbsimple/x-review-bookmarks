@@ -1286,6 +1286,108 @@ def review_topics(
         sys.exit(1)
 
 
+@app.command()
+def due(
+    topic: Optional[str] = typer.Option(None, "--topic", "-t", help="Filter by topic name"),
+    limit: int = typer.Option(50, "--limit", "-l", help="Maximum posts to show"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Database path"),
+) -> None:
+    """View posts due for review.
+
+    SPAC-03: User can view currently due posts via CLI.
+    D-04: Table format with truncated content.
+    D-08: Themed reviews via --topic flag.
+
+    Examples:
+        xbm due
+        xbm due --topic python
+        xbm due --limit 20
+    """
+    try:
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+        from ..services.review_service import ReviewService
+        from ..repositories.topics import TopicsRepository
+
+        service = ReviewService(conn)
+        topics_repo = TopicsRepository(conn)
+
+        # Resolve topic_id if topic name provided
+        topic_id = None
+        if topic:
+            topic_obj = topics_repo.get_topic_by_name(topic)
+            if not topic_obj:
+                console.print(f"[red]Topic not found: {topic}[/red]")
+                conn.close()
+                raise typer.Exit(1)
+            topic_id = topic_obj['id']
+
+        # Get due posts
+        posts = service.get_due_posts(topic_id=topic_id, limit=limit)
+
+        if not posts:
+            if topic:
+                console.print(f"[yellow]No posts due for topic: {topic}[/yellow]")
+            else:
+                console.print("[yellow]No posts due for review[/yellow]")
+            conn.close()
+            return
+
+        # Build table (D-04)
+        table = Table(title="Due Posts" + (f" - {topic}" if topic else ""))
+        table.add_column("#", style="dim", width=4)
+        table.add_column("Author", style="cyan")
+        table.add_column("Content Preview", style="white")
+        table.add_column("Topics", style="green")
+        table.add_column("Due", style="yellow")
+
+        for i, post in enumerate(posts, 1):
+            # Truncate content (D-04)
+            text = post.get('text', '')
+            preview = text[:50] + "..." if len(text) > 50 else text
+
+            # Get topics for this post
+            post_topics = topics_repo.get_post_topics(post['x_post_id'])
+            topics_str = ", ".join(t['name'] for t in post_topics) or "None"
+
+            # Format due date
+            due_date = post.get('scheduled_for', '')
+            if due_date:
+                due_date = due_date[:10]  # Just the date
+
+            table.add_row(
+                str(i),
+                f"@{post.get('author_username', 'unknown')}",
+                preview,
+                topics_str,
+                due_date
+            )
+
+        console.print(table)
+        console.print(f"[dim]Total: {len(posts)} posts due[/dim]")
+
+        conn.close()
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Failed to get due posts\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()

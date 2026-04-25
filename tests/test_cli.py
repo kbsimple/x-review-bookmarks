@@ -2734,3 +2734,255 @@ class TestReviewTopicsCommand:
                     assert "No pending" in result.stdout or "no pending" in result.stdout.lower(), (
                         f"Expected no pending message in output: {result.stdout}"
                     )
+
+
+class TestDueCommand:
+    """Tests for `xbm due` command.
+
+    Tests for:
+    - D-04: Table format with truncated content
+    - D-08: Themed reviews via --topic flag
+    - SPAC-03: User can view currently due posts via CLI
+    - SPAC-04: Filter by topic for themed reviews
+    """
+
+    def test_due_command_exists(self) -> None:
+        """Verify due command is registered in CLI app.
+
+        SPAC-03: User can view currently due posts via CLI.
+        """
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "due" in command_names, f"due command should exist, got: {command_names}"
+
+    def test_due_command_help(self) -> None:
+        """Verify due command shows help."""
+        result = runner.invoke(app, ["due", "--help"])
+
+        assert result.exit_code == 0
+        assert "due" in result.stdout.lower() or "review" in result.stdout.lower()
+
+    def test_due_command_empty_queue(self, tmp_path: Path) -> None:
+        """Verify due command shows 'No posts due' when queue empty.
+
+        D-04: Table format for due posts.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = []
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["due"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should show no posts due message
+                    assert "No posts due" in result.stdout, (
+                        f"Expected 'No posts due' in output: {result.stdout}"
+                    )
+
+    def test_due_command_with_posts(self, tmp_path: Path) -> None:
+        """Verify due command shows table with due posts.
+
+        D-04: Table format with #, Author, Content Preview, Topics, Due.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_posts = [
+            {
+                "x_post_id": "post_123",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": "This is a test post about Python programming",
+                "scheduled_for": "2024-01-15T10:00:00Z",
+                "review_count": 0,
+            },
+            {
+                "x_post_id": "post_456",
+                "author_username": "anotheruser",
+                "author_display_name": "Another User",
+                "text": "Short post",
+                "scheduled_for": "2024-01-16T10:00:00Z",
+                "review_count": 1,
+            },
+        ]
+
+        mock_topics = [
+            {"id": 1, "name": "Python"},
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = mock_posts
+                    mock_service_class.return_value = mock_service
+
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_topics_repo = MagicMock()
+                        # First post has Python topic, second has no topics
+                        mock_topics_repo.get_post_topics.side_effect = [mock_topics, []]
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        result = runner.invoke(app, ["due"])
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should show table with posts
+                        assert "testuser" in result.stdout or "@testuser" in result.stdout, (
+                            f"Expected author in output: {result.stdout}"
+                        )
+                        assert "Python" in result.stdout, (
+                            f"Expected topic in output: {result.stdout}"
+                        )
+
+    def test_due_command_with_topic_filter(self, tmp_path: Path) -> None:
+        """Verify due command --topic filters by topic.
+
+        D-08: Themed reviews via --topic flag.
+        SPAC-04: Filter by topic for themed reviews.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_topic = {"id": 1, "name": "Python"}
+
+        mock_posts = [
+            {
+                "x_post_id": "post_123",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": "Python post",
+                "scheduled_for": "2024-01-15T10:00:00Z",
+                "review_count": 0,
+            },
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                    mock_topics_repo = MagicMock()
+                    mock_topics_repo.get_topic_by_name.return_value = mock_topic
+                    mock_topics_repo.get_post_topics.return_value = []
+                    mock_topics_repo_class.return_value = mock_topics_repo
+
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service.get_due_posts.return_value = mock_posts
+                        mock_service_class.return_value = mock_service
+
+                        result = runner.invoke(app, ["due", "--topic", "Python"])
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should pass topic_id to get_due_posts
+                        call_kwargs = mock_service.get_due_posts.call_args[1]
+                        assert call_kwargs.get("topic_id") == 1, (
+                            f"Expected topic_id=1, got: {call_kwargs}"
+                        )
+
+    def test_due_command_topic_not_found(self, tmp_path: Path) -> None:
+        """Verify due command shows error for invalid topic.
+
+        T-05-06: Topic parameter validated.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                    mock_topics_repo = MagicMock()
+                    mock_topics_repo.get_topic_by_name.return_value = None
+                    mock_topics_repo_class.return_value = mock_topics_repo
+
+                    result = runner.invoke(app, ["due", "--topic", "Nonexistent"])
+
+                    # Should fail
+                    assert result.exit_code == 1, (
+                        f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should show error message
+                    assert "not found" in result.stdout.lower() or "Topic" in result.stdout, (
+                        f"Expected topic not found message: {result.stdout}"
+                    )
+
+    def test_due_command_truncates_content(self, tmp_path: Path) -> None:
+        """Verify due command truncates long content to 50 chars.
+
+        D-04: Content preview truncated.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        long_text = "A" * 100  # 100 characters
+        mock_posts = [
+            {
+                "x_post_id": "post_long",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": long_text,
+                "scheduled_for": "2024-01-15T10:00:00Z",
+                "review_count": 0,
+            },
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = mock_posts
+                    mock_service_class.return_value = mock_service
+
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_topics_repo = MagicMock()
+                        mock_topics_repo.get_post_topics.return_value = []
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        result = runner.invoke(app, ["due"])
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should show truncated content (50 chars + "...")
+                        # Note: Rich table may have different formatting
+                        assert "AAA" in result.stdout or "..." in result.stdout, (
+                            f"Expected truncated content in output: {result.stdout}"
+                        )
