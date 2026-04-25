@@ -6,6 +6,7 @@ from .export import ExportService, ImportService, ExportResult, ImportResult
 from .link_checker import LinkCheckerService, LinkStatus, CheckResult
 from .embedding import EmbeddingService
 from .clustering import ClusteringService
+from .topic_suggester import TopicSuggesterService, TopicSuggestion, SuggestionSummary
 
 __all__ = [
     "SearchService",
@@ -21,4 +22,7 @@ __all__ = [
     "CheckResult",
     "EmbeddingService",
     "ClusteringService",
+    "TopicSuggesterService",
+    "TopicSuggestion",
+    "SuggestionSummary",
 ]
