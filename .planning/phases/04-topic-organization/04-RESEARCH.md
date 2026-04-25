@@ -492,22 +492,22 @@ class TagsRepository:
 | A1 | all-MiniLM-L6-v2 works well for short text (tweets) | Standard Stack | May need larger model or text enrichment if quality is poor |
 | A2 | 0.6 confidence threshold is reasonable starting point | Architecture Patterns | May need tuning based on actual data |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should topics support hierarchy?**
+1. **Should topics support hierarchy?** — RESOLVED: Implement flat topics first.
    - What we know: Schema includes parent_id for hierarchical topics.
    - What's unclear: Whether user wants nested topics (e.g., "Python" under "Programming").
-   - Recommendation: Implement flat topics first, add hierarchy support if requested.
+   - **Resolution:** Implement flat topics first, add hierarchy support if requested.
 
-2. **How to handle embedding cache invalidation?**
+2. **How to handle embedding cache invalidation?** — RESOLVED: Manual trigger via CLI.
    - What we know: Store model_name with embeddings.
    - What's unclear: Automatic regeneration vs manual trigger.
-   - Recommendation: Manual `xbm regenerate-embeddings` command for explicit control.
+   - **Resolution:** Manual `xbm regenerate-embeddings` command for explicit control.
 
-3. **What predefined topics should seed the taxonomy?**
+3. **What predefined topics should seed the taxonomy?** — RESOLVED: Empty taxonomy, user-driven.
    - What we know: User mentioned 20-30 topics.
    - What's unclear: Specific topic names.
-   - Recommendation: Start with empty taxonomy, user creates topics organically. Or provide starter topics like: "Programming", "Machine Learning", "Career", "Health", "Finance", "News", "Entertainment".
+   - **Resolution:** Start with empty taxonomy, user creates topics organically.
 
 ## Environment Availability
 

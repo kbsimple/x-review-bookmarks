@@ -136,6 +136,18 @@ Use these entry points:
 Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
 <!-- GSD:workflow-end -->
 
+## Git Commit Configuration
+
+For all git commits in this project:
+- **Author:** Faiser
+- **Email:** keepbreakfastsimple@gmail.com
+
+Apply these settings before committing:
+```bash
+git config user.name "Faiser"
+git config user.email "keepbreakfastsimple@gmail.com"
+```
+
 <!-- GSD:profile-start -->
 ## Developer Profile
 
