@@ -3883,3 +3883,133 @@ class TestResetCommand:
                         assert "testuser" in result.stdout or "@testuser" in result.stdout, (
                             f"Expected author in output: {result.stdout}"
                         )
+
+
+class TestSeedCommand:
+    """Tests for `xbm seed` command.
+
+    Tests for:
+    - D-02: Seeds initial review state from publication date
+    - Posts without state get scheduled_for date
+    """
+
+    def test_seed_command_exists(self) -> None:
+        """Verify seed command is registered in CLI app.
+
+        D-02: Seeds from publication date.
+        """
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "seed" in command_names, f"seed command should exist, got: {command_names}"
+
+    def test_seed_command_help(self) -> None:
+        """Verify seed command shows help."""
+        result = runner.invoke(app, ["seed", "--help"])
+
+        assert result.exit_code == 0
+        assert "seed" in result.stdout.lower() or "review state" in result.stdout.lower()
+
+    def test_seed_command_creates_states(self, tmp_path: Path) -> None:
+        """Verify seed command creates states for posts without state.
+
+        D-02: Seeds from publication date.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.seed_new_posts.return_value = 5  # 5 posts seeded
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["seed"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should call seed_new_posts
+                    mock_service.seed_new_posts.assert_called_once()
+
+                    # Should show seeded count
+                    assert "5" in result.stdout, (
+                        f"Expected '5' seeded count in output: {result.stdout}"
+                    )
+
+    def test_seed_command_idempotent(self, tmp_path: Path) -> None:
+        """Verify seed command shows message when all posts already have state.
+
+        D-02: Running twice doesn't duplicate states.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.seed_new_posts.return_value = 0  # No new posts to seed
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["seed"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should show already seeded message
+                    assert "already" in result.stdout.lower() or "0" in result.stdout, (
+                        f"Expected already seeded message in output: {result.stdout}"
+                    )
+
+    def test_seed_command_force_flag(self, tmp_path: Path) -> None:
+        """Verify seed command --force clears existing states first.
+
+        D-02: --force re-seeds all posts from scratch.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.seed_new_posts.return_value = 10  # 10 posts seeded
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["seed", "--force"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should clear existing states first (DELETE FROM post_review_state)
+                    # The mock_conn should have execute called with DELETE
+                    delete_calls = [call for call in mock_conn.execute.call_args_list
+                                    if call and len(call[0]) > 0 and "DELETE" in str(call[0][0])]
+                    assert len(delete_calls) > 0, (
+                        f"Expected DELETE call for --force, got: {mock_conn.execute.call_args_list}"
+                    )
+
+                    # Should show seeded count
+                    assert "10" in result.stdout or "seeded" in result.stdout.lower(), (
+                        f"Expected seeded count in output: {result.stdout}"
+                    )

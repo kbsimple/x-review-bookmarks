@@ -1699,6 +1699,62 @@ def reset(
         sys.exit(1)
 
 
+@app.command()
+def seed(
+    force: bool = typer.Option(False, "--force", "-f", help="Re-seed all posts (clear existing)"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Database path"),
+) -> None:
+    """Initialize review state for posts without state.
+
+    D-02: Seeds from publication date.
+    Posts without review state get initial scheduled_for date.
+
+    Examples:
+        xbm seed
+        xbm seed --force  # Re-seed all posts
+    """
+    try:
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+        from ..services.review_service import ReviewService
+
+        service = ReviewService(conn)
+
+        if force:
+            # Clear all existing review states
+            conn.execute("DELETE FROM post_review_state")
+            conn.commit()
+            console.print("[yellow]Cleared all existing review states[/yellow]")
+
+        # Seed new posts
+        seeded_count = service.seed_new_posts()
+
+        if seeded_count == 0:
+            console.print("[green]All posts already have review state[/green]")
+        else:
+            console.print(f"[green]Seeded review state for {seeded_count} posts[/green]")
+            console.print("[dim]Posts scheduled based on publication date (older posts due sooner)[/dim]")
+
+        conn.close()
+
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Failed to seed review states\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()
