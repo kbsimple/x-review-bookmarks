@@ -1558,6 +1558,74 @@ def review(
         sys.exit(1)
 
 
+@app.command()
+def stats(
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Database path"),
+) -> None:
+    """Display review statistics and progress.
+
+    D-12: Shows total posts, due count, reviewed count.
+    CLI-02: User can view review statistics via CLI.
+
+    Examples:
+        xbm stats
+    """
+    try:
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+        from ..services.review_service import ReviewService
+
+        service = ReviewService(conn)
+        stats_data = service.get_review_stats()
+
+        # Build stats table (D-12)
+        table = Table(title="Review Statistics")
+        table.add_column("Metric", style="dim")
+        table.add_column("Count", justify="right")
+
+        table.add_row("Total Posts", str(stats_data['total_posts']))
+        table.add_row("Posts Due", str(stats_data['due_count']))
+        table.add_row("Posts Reviewed", str(stats_data['reviewed_count']))
+
+        # Calculate percentage
+        if stats_data['total_posts'] > 0:
+            reviewed_pct = (stats_data['reviewed_count'] / stats_data['total_posts']) * 100
+            table.add_row("Review Progress", f"{reviewed_pct:.1f}%")
+        else:
+            table.add_row("Review Progress", "N/A")
+
+        console.print(table)
+
+        # Show encouragement message
+        if stats_data['due_count'] > 0:
+            console.print()
+            console.print(f"[bold yellow]{stats_data['due_count']} posts awaiting review[/bold yellow]")
+            console.print("[dim]Use 'xbm review' to start reviewing[/dim]")
+        elif stats_data['total_posts'] > 0:
+            console.print()
+            console.print("[bold green]All caught up![/bold green]")
+            console.print("[dim]No posts due for review[/dim]")
+
+        conn.close()
+
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Failed to get statistics\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()
