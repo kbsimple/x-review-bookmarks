@@ -5,6 +5,7 @@ from .sync import SyncService, SyncResult
 from .export import ExportService, ImportService, ExportResult, ImportResult
 from .link_checker import LinkCheckerService, LinkStatus, CheckResult
 from .embedding import EmbeddingService
+from .clustering import ClusteringService
 
 __all__ = [
     "SearchService",
@@ -19,4 +20,5 @@ __all__ = [
     "LinkStatus",
     "CheckResult",
     "EmbeddingService",
+    "ClusteringService",
 ]
