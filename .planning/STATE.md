@@ -20,20 +20,20 @@ progress:
 
 **Core Value:** Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind
 
-**Current Focus:** Phase 04 — topic-organization
+**Current Focus:** Phase 05 — spaced-repetition-resurfacing
 
 **Milestone:** Milestone 1 (CLI + SQLite)
 
 ## Current Position
 
-Phase: 4
-Plan: 5
+Phase: 5
+Plan: Not started
 | Field | Value |
 |-------|-------|
-| Phase | 4 |
-| Plan | 5 |
-| Status | Phase 04 complete |
-| Progress | 100% |
+| Phase | 5 |
+| Plan | - |
+| Status | Ready to plan |
+| Progress | 0% |
 
 ```
 [::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::] 100%
@@ -43,16 +43,11 @@ Plan: 5
 
 | Metric | Value |
 |--------|-------|
-| Phases completed | 3/5 |
-| Requirements delivered | 28/34 |
-| Plans completed | 19/21 |
+| Phases completed | 4/5 |
+| Requirements delivered | 32/34 |
+| Plans completed | 21/21 |
 | Sessions this milestone | 5 |
-| Time in current phase | 2 sessions |
-| Phase 04-topic-organization P01 | 5min | 4 tasks | 7 files |
-| Phase 04 P02 | 2min | 2 tasks | 3 files |
-| Phase 04 P03 | 5min | 4 tasks | 5 files |
-| Phase 04 P04 | 4min | 2 tasks | 3 files |
-| Phase 04-topic-organization P05 | 8 | 4 tasks | 2 files |
+| Time in current phase | 0 sessions |
 
 ## Accumulated Context
 
@@ -124,7 +119,7 @@ Plan: 5
 **Quick start:**
 
 ```
-/gsd-execute-phase 5
+/gsd-discuss-phase 5
 ```
 
 ## Notes
@@ -132,11 +127,11 @@ Plan: 5
 - Phase 1: OAuth 2.0 PKCE + SQLite foundation
 - Phase 2: X API integration, bookmark sync, incremental updates
 - Phase 3: FTS5 full-text search, personal notes, JSON/CSV export/import, dead link detection
-- Phase 4: Tags, topic taxonomy, hybrid clustering (predefined + AI-suggested)
+- Phase 4: Tags, topic taxonomy, hybrid clustering with AI suggestions (complete)
 - Phase 5: FSRS-based spaced repetition scheduling
 - Critical: XClient uses access_token (OAuth 2.0 User Context), NOT bearer_token
 - FTS5 sync triggers ensure search index stays current with posts table
 
 ---
 *State initialized: 2026-04-18*
-*State updated: 2026-04-25 - Phase 04 complete (Plan 04-05)*
+*State updated: 2026-04-25 - Phase 4 complete, ready for Phase 5*

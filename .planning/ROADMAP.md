@@ -18,7 +18,7 @@
 - [x] **Phase 1: Foundation and Authentication** - OAuth 2.0 PKCE flow and SQLite database setup
 - [x] **Phase 2: Bookmark Fetch and Storage** - X API integration for fetching and persisting bookmarks
 - [x] **Phase 3: Search, Notes, and Import/Export** - Full-text search, personal notes, and data portability
-- [ ] **Phase 4: Topic Organization** - Tags, topic taxonomy, and hybrid clustering
+- [x] **Phase 4: Topic Organization** - Tags, topic taxonomy, and hybrid clustering
 - [ ] **Phase 5: Spaced Repetition Resurfacing** - FSRS-based scheduling and review delivery
 
 ## Phase Details
@@ -86,14 +86,14 @@ Plans:
   2. User can create and manage a predefined topic taxonomy
   3. Application suggests topic assignments using hybrid approach (predefined + AI-suggested)
   4. User can review and approve AI-suggested topic assignments
-**Plans:** 3/6 plans executed
+**Plans:** 6 plans across 4 waves
 Plans:
 - [x] 04-00-PLAN.md — Test infrastructure and dependencies
 - [x] 04-01-PLAN.md — Schema V4 and TagsRepository
 - [x] 04-02-PLAN.md — TopicsRepository with pending assignment workflow
-- [ ] 04-03-PLAN.md — EmbeddingService and ClusteringService
-- [ ] 04-04-PLAN.md — TopicSuggesterService for hybrid suggestions
-- [ ] 04-05-PLAN.md — CLI commands: tag, topic, suggest-topics, review-topics
+- [x] 04-03-PLAN.md — EmbeddingService and ClusteringService
+- [x] 04-04-PLAN.md — TopicSuggesterService for hybrid suggestions
+- [x] 04-05-PLAN.md — CLI commands: tag, topic, suggest-topics, review-topics
 
 ### Phase 5: Spaced Repetition Resurfacing
 **Goal:** Posts are resurfaced for review on an exponential backoff schedule
@@ -113,7 +113,7 @@ Plans:
 | 1. Foundation and Authentication | 5/5 | Complete | 2026-04-18 |
 | 2. Bookmark Fetch and Storage | 4/4 | Complete | 2026-04-23 |
 | 3. Search, Notes, and Import/Export | 6/6 | Complete | 2026-04-23 |
-| 4. Topic Organization | 3/6 | In Progress|  |
+| 4. Topic Organization | 6/6 | Complete | 2026-04-25 |
 | 5. Spaced Repetition Resurfacing | 0/5 | Not started | - |
 
 ## Coverage
@@ -144,11 +144,11 @@ Plans:
 | IMEX-03 | Phase 3 | Complete |
 | MAINT-01 | Phase 3 | Complete |
 | MAINT-02 | Phase 3 | Complete |
-| ORG-01 | Phase 4 | Pending |
-| ORG-02 | Phase 4 | Pending |
-| ORG-03 | Phase 4 | Pending |
-| ORG-04 | Phase 4 | Pending |
-| CLI-04 | Phase 4 | Pending |
+| ORG-01 | Phase 4 | Complete |
+| ORG-02 | Phase 4 | Complete |
+| ORG-03 | Phase 4 | Complete |
+| ORG-04 | Phase 4 | Complete |
+| CLI-04 | Phase 4 | Complete |
 | SPAC-01 | Phase 5 | Pending |
 | SPAC-02 | Phase 5 | Pending |
 | SPAC-03 | Phase 5 | Pending |
@@ -157,4 +157,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-04-18*
-*Roadmap updated: 2026-04-24 - Phase 4 planned*
+*Roadmap updated: 2026-04-25 - Phase 4 complete*
