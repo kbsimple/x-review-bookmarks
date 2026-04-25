@@ -1091,6 +1091,96 @@ def topic(
         sys.exit(1)
 
 
+@app.command("suggest-topics")
+def suggest_topics(
+    threshold: float = typer.Option(0.6, "--threshold", "-t", help="Minimum confidence threshold"),
+    clear: bool = typer.Option(True, "--clear/--no-clear", help="Clear existing suggestions first"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Database path"),
+) -> None:
+    """Generate AI topic suggestions for unassigned posts.
+
+    ORG-03: Application clusters posts into topics using hybrid approach.
+
+    Analyzes posts without topic assignments and generates suggestions
+    based on semantic similarity to existing topic centroids.
+
+    Suggestions are stored as pending assignments for review.
+
+    Examples:
+        xbm suggest-topics
+        xbm suggest-topics --threshold 0.7
+        xbm suggest-topics --no-clear  # Keep existing suggestions
+    """
+    try:
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+
+        from ..services.topic_suggester import TopicSuggesterService
+
+        # Create service with specified threshold
+        service = TopicSuggesterService(
+            conn,
+            confidence_threshold=threshold
+        )
+
+        console.print("[bold]Generating topic suggestions...[/bold]")
+
+        # Generate suggestions
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Analyzing posts...", total=None)
+
+            summary = service.generate_all_suggestions(
+                clear_existing=clear,
+                show_progress=True
+            )
+
+            progress.update(task, description="Complete!")
+
+        # Show summary
+        table = Table(title="Suggestion Summary")
+        table.add_column("Metric", style="dim")
+        table.add_column("Value", justify="right")
+
+        table.add_row("Posts Processed", str(summary.total_posts_processed))
+        table.add_row("Suggestions Generated", str(summary.total_suggestions))
+        table.add_row("Posts with Suggestions", str(summary.posts_with_suggestions))
+
+        console.print()
+        console.print(table)
+
+        if summary.suggestions_by_topic:
+            console.print()
+            console.print("[bold]Suggestions by Topic:[/bold]")
+            for topic_name, count in sorted(summary.suggestions_by_topic.items(), key=lambda x: -x[1]):
+                console.print(f"  {topic_name}: {count}")
+
+        console.print()
+        console.print("[dim]Use 'xbm review-topics' to review and approve suggestions[/dim]")
+
+        conn.close()
+
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Suggestion generation failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()

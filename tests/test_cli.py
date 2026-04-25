@@ -2270,3 +2270,192 @@ class TestTopicCommand:
                     assert "not found" in result.stdout.lower() or "error" in result.stdout.lower(), (
                         f"Expected error message in output: {result.stdout}"
                     )
+
+
+class TestSuggestTopicsCommand:
+    """Tests for `xbm suggest-topics` command.
+
+    Tests for:
+    - CLI-04: User can generate topic suggestions via CLI
+    - ORG-03: Application clusters posts into topics using hybrid approach
+    """
+
+    def test_suggest_topics_command_exists(self) -> None:
+        """Verify suggest-topics command is registered in CLI app.
+
+        CLI-04: User can manage topics via CLI commands.
+        """
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "suggest-topics" in command_names, f"suggest-topics command should exist, got: {command_names}"
+
+    def test_suggest_topics_command_help(self) -> None:
+        """Verify suggest-topics command shows help."""
+        result = runner.invoke(app, ["suggest-topics", "--help"])
+
+        assert result.exit_code == 0
+        assert "topic" in result.stdout.lower() or "suggest" in result.stdout.lower()
+
+    def test_suggest_topics_generates_suggestions(self, tmp_path: Path) -> None:
+        """Verify suggest-topics generates suggestions.
+
+        ORG-03: Application clusters posts into topics.
+
+        Expected behavior:
+        - Command calls TopicSuggesterService.generate_all_suggestions
+        - Shows summary with counts
+        """
+        from src.services.topic_suggester import SuggestionSummary
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_summary = SuggestionSummary(
+            total_posts_processed=10,
+            total_suggestions=15,
+            posts_with_suggestions=8,
+            suggestions_by_topic={"Programming": 10, "Machine Learning": 5},
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.topic_suggester.TopicSuggesterService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.generate_all_suggestions.return_value = mock_summary
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["suggest-topics"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should call generate_all_suggestions
+                    mock_service.generate_all_suggestions.assert_called_once()
+
+                    # Should show summary
+                    assert "10" in result.stdout or "suggestions" in result.stdout.lower(), (
+                        f"Expected summary in output: {result.stdout}"
+                    )
+
+    def test_suggest_topics_with_threshold(self, tmp_path: Path) -> None:
+        """Verify suggest-topics respects --threshold option.
+
+        Expected behavior:
+        - Threshold passed to TopicSuggesterService
+        """
+        from src.services.topic_suggester import SuggestionSummary
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_summary = SuggestionSummary(
+            total_posts_processed=10,
+            total_suggestions=5,
+            posts_with_suggestions=5,
+            suggestions_by_topic={"Programming": 5},
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.topic_suggester.TopicSuggesterService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.generate_all_suggestions.return_value = mock_summary
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["suggest-topics", "--threshold", "0.8"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should pass threshold to service
+                    call_kwargs = mock_service_class.call_args[1]
+                    assert call_kwargs.get("confidence_threshold") == 0.8, (
+                        f"Expected threshold 0.8, got: {call_kwargs}"
+                    )
+
+    def test_suggest_topics_no_clear_flag(self, tmp_path: Path) -> None:
+        """Verify suggest-topics --no-clear keeps existing suggestions.
+
+        Expected behavior:
+        - clear_existing=False passed when --no-clear used
+        """
+        from src.services.topic_suggester import SuggestionSummary
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_summary = SuggestionSummary(
+            total_posts_processed=5,
+            total_suggestions=3,
+            posts_with_suggestions=3,
+            suggestions_by_topic={"Python": 3},
+        )
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.topic_suggester.TopicSuggesterService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.generate_all_suggestions.return_value = mock_summary
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["suggest-topics", "--no-clear"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should pass clear_existing=False
+                    call_kwargs = mock_service.generate_all_suggestions.call_args[1]
+                    assert call_kwargs.get("clear_existing") == False, (
+                        f"Expected clear_existing=False, got: {call_kwargs}"
+                    )
+
+    def test_suggest_topics_error_handling(self, tmp_path: Path) -> None:
+        """Verify suggest-topics handles errors gracefully.
+
+        Expected behavior:
+        - Exit code 1 on error
+        - Error message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.topic_suggester.TopicSuggesterService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.generate_all_suggestions.side_effect = Exception("Database error")
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["suggest-topics"])
+
+                    # Should fail
+                    assert result.exit_code == 1, (
+                        f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should show error
+                    assert "Error" in result.stdout or "failed" in result.stdout.lower(), (
+                        f"Expected error message in output: {result.stdout}"
+                    )
