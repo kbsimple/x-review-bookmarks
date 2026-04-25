@@ -7,6 +7,7 @@ from .link_checker import LinkCheckerService, LinkStatus, CheckResult
 from .embedding import EmbeddingService
 from .clustering import ClusteringService
 from .topic_suggester import TopicSuggesterService, TopicSuggestion, SuggestionSummary
+from .review_scheduler import ReviewScheduler
 
 __all__ = [
     "SearchService",
@@ -25,4 +26,5 @@ __all__ = [
     "TopicSuggesterService",
     "TopicSuggestion",
     "SuggestionSummary",
+    "ReviewScheduler",
 ]
