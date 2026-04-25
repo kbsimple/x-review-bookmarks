@@ -919,6 +919,178 @@ def tag(
         sys.exit(1)
 
 
+@app.command("topic")
+def topic(
+    action: Optional[str] = typer.Argument(None, help="Action: create, assign, delete, or topic_id for --show"),
+    name_or_id: Optional[str] = typer.Argument(None, help="Topic name (for create) or post_id (for assign) or topic_id (for delete)"),
+    topic_id: Optional[int] = typer.Argument(None, help="Topic ID for assignment"),
+    description: Optional[str] = typer.Option(None, "--desc", "-d", help="Topic description"),
+    list_topics: bool = typer.Option(False, "--list", "-l", help="List all topics"),
+    show: bool = typer.Option(False, "--show", "-s", help="Show topics for post (action=post_id)"),
+    db_path: Optional[Path] = typer.Option(None, "--db", help="Database path"),
+) -> None:
+    """Manage topic taxonomy.
+
+    CLI-04: User can manage topics via CLI commands.
+
+    Examples:
+        xbm topic create "Programming" --desc "Software development"
+        xbm topic --list
+        xbm topic assign post_123 1        # Assign topic 1 to post
+        xbm topic post_123 --show          # Show post's topics
+        xbm topic delete 1                 # Delete topic 1
+    """
+    try:
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+        from ..repositories.topics import TopicsRepository
+        from ..repositories.posts import PostsRepository
+
+        topics_repo = TopicsRepository(conn)
+        posts_repo = PostsRepository(conn)
+
+        if list_topics:
+            # List all topics
+            topics = topics_repo.list_topics()
+            if not topics:
+                console.print("[yellow]No topics found[/yellow]")
+                conn.close()
+                return
+
+            table = Table(title="Topics")
+            table.add_column("ID", style="dim")
+            table.add_column("Name", style="cyan")
+            table.add_column("Description", style="white")
+            table.add_column("Posts", style="dim")
+
+            for topic in topics:
+                posts = topics_repo.get_posts_by_topic(topic['id'])
+                table.add_row(
+                    str(topic['id']),
+                    topic['name'],
+                    topic.get('description', '')[:40] or '',
+                    str(len(posts))
+                )
+
+            console.print(table)
+            conn.close()
+            return
+
+        if action is None:
+            console.print("[red]Error: action required (create, assign, delete, or post_id with --show)[/red]")
+            console.print("[dim]Use 'xbm topic --help' for usage[/dim]")
+            raise typer.Exit(1)
+
+        if action == "create":
+            # Create topic
+            if name_or_id is None:
+                console.print("[red]Error: topic name required for create[/red]")
+                raise typer.Exit(1)
+
+            try:
+                topic_id_result = topics_repo.create_topic(name_or_id, description)
+                console.print(f"[green]Created topic '{name_or_id}' (ID: {topic_id_result})[/green]")
+            except Exception as e:
+                if "UNIQUE constraint" in str(e):
+                    console.print(f"[red]Topic '{name_or_id}' already exists[/red]")
+                else:
+                    raise
+            conn.close()
+            return
+
+        if action == "assign":
+            # Assign topic to post
+            if name_or_id is None or topic_id is None:
+                console.print("[red]Error: post_id and topic_id required for assign[/red]")
+                raise typer.Exit(1)
+
+            post_id = name_or_id
+
+            # Verify post exists
+            post = posts_repo.get_by_id(post_id)
+            if not post:
+                console.print(f"[red]Post not found: {post_id}[/red]")
+                raise typer.Exit(1)
+
+            # Verify topic exists
+            topic_obj = topics_repo.get_topic_by_id(topic_id)
+            if not topic_obj:
+                console.print(f"[red]Topic not found: {topic_id}[/red]")
+                raise typer.Exit(1)
+
+            topics_repo.assign_topic_to_post(post_id, topic_id)
+            console.print(f"[green]Assigned topic '{topic_obj['name']}' to post {post_id}[/green]")
+            conn.close()
+            return
+
+        if action == "delete":
+            # Delete topic
+            if name_or_id is None:
+                console.print("[red]Error: topic_id required for delete[/red]")
+                raise typer.Exit(1)
+
+            try:
+                topic_id_to_delete = int(name_or_id)
+            except ValueError:
+                console.print(f"[red]Invalid topic_id: {name_or_id}[/red]")
+                raise typer.Exit(1)
+
+            topic_obj = topics_repo.get_topic_by_id(topic_id_to_delete)
+            if not topic_obj:
+                console.print(f"[red]Topic not found: {topic_id_to_delete}[/red]")
+                raise typer.Exit(1)
+
+            topics_repo.delete_topic(topic_id_to_delete)
+            console.print(f"[green]Deleted topic '{topic_obj['name']}'[/green]")
+            conn.close()
+            return
+
+        # Treat action as post_id for --show
+        if show:
+            post_id = action
+            # Verify post exists
+            post = posts_repo.get_by_id(post_id)
+            if not post:
+                console.print(f"[red]Post not found: {post_id}[/red]")
+                raise typer.Exit(1)
+
+            topics = topics_repo.get_post_topics(post_id)
+            if not topics:
+                console.print(f"[yellow]No topics for post {post_id}[/yellow]")
+            else:
+                console.print(f"[bold]Topics for post {post_id}:[/bold]")
+                for topic_obj in topics:
+                    source = topic_obj.get('source', 'user')
+                    confidence = topic_obj.get('confidence')
+                    conf_str = f" ({confidence:.2f})" if confidence else ""
+                    console.print(f"  - {topic_obj['name']}{conf_str} [{source}]")
+            conn.close()
+            return
+
+        console.print(f"[red]Unknown action: {action}[/red]")
+        console.print("[dim]Use 'xbm topic --help' for usage[/dim]")
+        raise typer.Exit(1)
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Topic operation failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()

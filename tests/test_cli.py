@@ -1992,3 +1992,281 @@ class TestTagCommand:
                     assert "not found" in result.stdout.lower() or "error" in result.stdout.lower(), (
                         f"Expected error message in output: {result.stdout}"
                     )
+
+
+class TestTopicCommand:
+    """Tests for `xbm topic` command.
+
+    Tests for:
+    - CLI-04: User can manage topics via CLI commands
+    - ORG-02: User can create and manage topic taxonomy
+    """
+
+    def test_topic_command_exists(self) -> None:
+        """Verify topic command is registered in CLI app.
+
+        CLI-04: User can manage topics via CLI commands.
+        """
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "topic" in command_names, f"topic command should exist, got: {command_names}"
+
+    def test_topic_command_help(self) -> None:
+        """Verify topic command shows help."""
+        result = runner.invoke(app, ["topic", "--help"])
+
+        assert result.exit_code == 0
+        assert "Manage topic" in result.stdout or "topic" in result.stdout.lower()
+
+    def test_topic_create(self, tmp_path: Path) -> None:
+        """Verify topic create creates new topic.
+
+        CLI-04: xbm topic create "name" creates topic.
+
+        Expected behavior:
+        - Command creates topic
+        - Success message with topic ID displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                    mock_topics_repo = MagicMock()
+                    mock_topics_repo.create_topic.return_value = 1
+                    mock_topics_repo_class.return_value = mock_topics_repo
+
+                    result = runner.invoke(app, ["topic", "create", "Programming", "--desc", "Software development"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should create topic
+                    mock_topics_repo.create_topic.assert_called_once_with(
+                        "Programming", "Software development"
+                    )
+
+                    # Should show success message
+                    assert "Created topic" in result.stdout or "Programming" in result.stdout, (
+                        f"Expected success message in output: {result.stdout}"
+                    )
+
+    def test_topic_list_all(self, tmp_path: Path) -> None:
+        """Verify topic --list shows all topics.
+
+        CLI-04: xbm topic --list shows all topics with post counts.
+
+        Expected behavior:
+        - Command retrieves all topics
+        - Shows post counts per topic
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_topics = [
+            {"id": 1, "name": "Programming", "description": "Software dev", "parent_id": None, "created_at": "2024-01-15T10:00:00Z"},
+            {"id": 2, "name": "Machine Learning", "description": "AI topics", "parent_id": None, "created_at": "2024-01-16T10:00:00Z"},
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                    mock_topics_repo = MagicMock()
+                    mock_topics_repo.list_topics.return_value = mock_topics
+                    mock_topics_repo.get_posts_by_topic.return_value = ["post_1", "post_2"]
+                    mock_topics_repo_class.return_value = mock_topics_repo
+
+                    result = runner.invoke(app, ["topic", "--list"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should list topics
+                    mock_topics_repo.list_topics.assert_called_once()
+
+                    # Should show topics in output
+                    assert "Programming" in result.stdout or "Topics" in result.stdout, (
+                        f"Expected topics in output: {result.stdout}"
+                    )
+
+    def test_topic_assign_to_post(self, tmp_path: Path) -> None:
+        """Verify topic assign assigns topic to post.
+
+        CLI-04: xbm topic assign post_id topic_id assigns topic.
+
+        Expected behavior:
+        - Command verifies post exists
+        - Command verifies topic exists
+        - Command assigns topic to post
+        - Success message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_post = {"x_post_id": "test_post_1", "text": "Test post"}
+        mock_topic = {"id": 1, "name": "Programming", "description": "Software dev"}
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_posts_repo = MagicMock()
+                        mock_posts_repo.get_by_id.return_value = mock_post
+                        mock_posts_repo_class.return_value = mock_posts_repo
+
+                        mock_topics_repo = MagicMock()
+                        mock_topics_repo.get_topic_by_id.return_value = mock_topic
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        result = runner.invoke(app, ["topic", "assign", "test_post_1", "1"])
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should assign topic
+                        mock_topics_repo.assign_topic_to_post.assert_called_once_with("test_post_1", 1)
+
+                        # Should show success message
+                        assert "Assigned topic" in result.stdout or "Programming" in result.stdout, (
+                            f"Expected success message in output: {result.stdout}"
+                        )
+
+    def test_topic_show_post_topics(self, tmp_path: Path) -> None:
+        """Verify topic post_id --show shows post's topics.
+
+        CLI-04: xbm topic post_id --show shows post's topics.
+
+        Expected behavior:
+        - Command retrieves topics for post
+        - Shows topic names with confidence and source
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_post = {"x_post_id": "test_post_1", "text": "Test post"}
+        mock_topics = [
+            {"id": 1, "name": "Programming", "confidence": 0.95, "source": "user"},
+            {"id": 2, "name": "Python", "confidence": 0.88, "source": "ai-approved"},
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_posts_repo = MagicMock()
+                        mock_posts_repo.get_by_id.return_value = mock_post
+                        mock_posts_repo_class.return_value = mock_posts_repo
+
+                        mock_topics_repo = MagicMock()
+                        mock_topics_repo.get_post_topics.return_value = mock_topics
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        result = runner.invoke(app, ["topic", "test_post_1", "--show"])
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should get post topics
+                        mock_topics_repo.get_post_topics.assert_called_once_with("test_post_1")
+
+                        # Should show topics
+                        assert "Programming" in result.stdout or "Topics for post" in result.stdout, (
+                            f"Expected topics in output: {result.stdout}"
+                        )
+
+    def test_topic_delete(self, tmp_path: Path) -> None:
+        """Verify topic delete removes topic.
+
+        CLI-04: xbm topic delete topic_id deletes topic.
+
+        Expected behavior:
+        - Command verifies topic exists
+        - Command deletes topic
+        - Success message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_topic = {"id": 1, "name": "Programming", "description": "Software dev"}
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                    mock_topics_repo = MagicMock()
+                    mock_topics_repo.get_topic_by_id.return_value = mock_topic
+                    mock_topics_repo_class.return_value = mock_topics_repo
+
+                    result = runner.invoke(app, ["topic", "delete", "1"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should delete topic
+                    mock_topics_repo.delete_topic.assert_called_once_with(1)
+
+                    # Should show success message
+                    assert "Deleted topic" in result.stdout or "Programming" in result.stdout, (
+                        f"Expected success message in output: {result.stdout}"
+                    )
+
+    def test_topic_topic_not_found(self, tmp_path: Path) -> None:
+        """Verify topic delete handles non-existent topic.
+
+        Expected behavior:
+        - Exit code 1
+        - Error message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                    mock_topics_repo = MagicMock()
+                    mock_topics_repo.get_topic_by_id.return_value = None
+                    mock_topics_repo_class.return_value = mock_topics_repo
+
+                    result = runner.invoke(app, ["topic", "delete", "999"])
+
+                    # Should fail
+                    assert result.exit_code == 1, (
+                        f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should show error
+                    assert "not found" in result.stdout.lower() or "error" in result.stdout.lower(), (
+                        f"Expected error message in output: {result.stdout}"
+                    )
