@@ -3656,3 +3656,230 @@ class TestStatsCommand:
                     assert "caught up" in result.stdout.lower() or "No posts due" in result.stdout, (
                         f"Expected caught up message in output: {result.stdout}"
                     )
+
+
+class TestResetCommand:
+    """Tests for `xbm reset` command.
+
+    Tests for:
+    - D-13: Reset review state without re-syncing everything
+    - Confirmation prompt before reset
+    - --yes flag to skip confirmation
+    """
+
+    def test_reset_command_exists(self) -> None:
+        """Verify reset command is registered in CLI app.
+
+        D-13: User can reset review state for a post.
+        """
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "reset" in command_names, f"reset command should exist, got: {command_names}"
+
+    def test_reset_command_help(self) -> None:
+        """Verify reset command shows help."""
+        result = runner.invoke(app, ["reset", "--help"])
+
+        assert result.exit_code == 0
+        assert "reset" in result.stdout.lower() or "review state" in result.stdout.lower()
+
+    def test_reset_command_post_not_found(self, tmp_path: Path) -> None:
+        """Verify reset command shows error for non-existent post.
+
+        D-13: Post validated before reset.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    mock_posts_repo = MagicMock()
+                    mock_posts_repo.get_by_id.return_value = None  # Post not found
+                    mock_posts_repo_class.return_value = mock_posts_repo
+
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service_class.return_value = mock_service
+
+                        result = runner.invoke(app, ["reset", "nonexistent_post"])
+
+                        # Should fail
+                        assert result.exit_code == 1, (
+                            f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should show error
+                        assert "not found" in result.stdout.lower(), (
+                            f"Expected 'not found' in output: {result.stdout}"
+                        )
+
+    def test_reset_command_confirmation(self, tmp_path: Path) -> None:
+        """Verify reset command asks for confirmation before reset.
+
+        D-13: Confirmation prompt shown by default.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_post = {
+            "x_post_id": "test_post_1",
+            "author_username": "testuser",
+            "text": "Test post content here",
+        }
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    mock_posts_repo = MagicMock()
+                    mock_posts_repo.get_by_id.return_value = mock_post
+                    mock_posts_repo_class.return_value = mock_posts_repo
+
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service_class.return_value = mock_service
+
+                        # Input 'n' to cancel the confirmation
+                        result = runner.invoke(app, ["reset", "test_post_1"], input="n\n")
+
+                        # Should exit without error (cancelled)
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0 for cancel, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should show confirmation prompt
+                        assert "confirm" in result.stdout.lower() or "reset" in result.stdout.lower(), (
+                            f"Expected confirmation prompt in output: {result.stdout}"
+                        )
+
+                        # Should NOT call reset (cancelled)
+                        mock_service.reset_review_state.assert_not_called()
+
+    def test_reset_command_yes_flag(self, tmp_path: Path) -> None:
+        """Verify reset command --yes flag skips confirmation.
+
+        D-13: --yes flag skips confirmation.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_post = {
+            "x_post_id": "test_post_1",
+            "author_username": "testuser",
+            "text": "Test post content here",
+        }
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    mock_posts_repo = MagicMock()
+                    mock_posts_repo.get_by_id.return_value = mock_post
+                    mock_posts_repo_class.return_value = mock_posts_repo
+
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service_class.return_value = mock_service
+
+                        # Use --yes flag to skip confirmation
+                        result = runner.invoke(app, ["reset", "test_post_1", "--yes"])
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should call reset without prompting
+                        mock_service.reset_review_state.assert_called_once_with("test_post_1")
+
+                        # Should show success message
+                        assert "reset" in result.stdout.lower() or "green" in result.stdout.lower(), (
+                            f"Expected success message in output: {result.stdout}"
+                        )
+
+    def test_reset_command_confirmed(self, tmp_path: Path) -> None:
+        """Verify reset command resets state when confirmed.
+
+        D-13: State cleared and re-seeded from publication date.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_post = {
+            "x_post_id": "test_post_1",
+            "author_username": "testuser",
+            "text": "Test post content here",
+        }
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    mock_posts_repo = MagicMock()
+                    mock_posts_repo.get_by_id.return_value = mock_post
+                    mock_posts_repo_class.return_value = mock_posts_repo
+
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service_class.return_value = mock_service
+
+                        # Input 'y' to confirm
+                        result = runner.invoke(app, ["reset", "test_post_1"], input="y\n")
+
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should call reset
+                        mock_service.reset_review_state.assert_called_once_with("test_post_1")
+
+    def test_reset_command_shows_post_preview(self, tmp_path: Path) -> None:
+        """Verify reset command shows post preview before confirmation.
+
+        D-13: Show post preview before confirming.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_post = {
+            "x_post_id": "test_post_1",
+            "author_username": "testuser",
+            "text": "This is a test post with some content",
+        }
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.posts.PostsRepository") as mock_posts_repo_class:
+                    mock_posts_repo = MagicMock()
+                    mock_posts_repo.get_by_id.return_value = mock_post
+                    mock_posts_repo_class.return_value = mock_posts_repo
+
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service_class.return_value = mock_service
+
+                        # Input 'n' to cancel (we just want to see the preview)
+                        result = runner.invoke(app, ["reset", "test_post_1"], input="n\n")
+
+                        # Should show post preview (author and content)
+                        assert "testuser" in result.stdout or "@testuser" in result.stdout, (
+                            f"Expected author in output: {result.stdout}"
+                        )

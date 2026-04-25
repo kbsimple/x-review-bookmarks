@@ -1626,6 +1626,79 @@ def stats(
         sys.exit(1)
 
 
+@app.command()
+def reset(
+    post_id: str = typer.Argument(..., help="X post ID to reset"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Database path"),
+) -> None:
+    """Reset review state for a specific post.
+
+    D-13: Reset review state without re-syncing everything.
+    Clears scheduling state and allows re-seeding from publication date.
+
+    Examples:
+        xbm reset 1234567890
+        xbm reset 1234567890 --yes  # Skip confirmation
+    """
+    try:
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+        from ..services.review_service import ReviewService
+        from ..repositories.posts import PostsRepository
+        from rich.prompt import Confirm
+
+        service = ReviewService(conn)
+        posts_repo = PostsRepository(conn)
+
+        # Verify post exists
+        post = posts_repo.get_by_id(post_id)
+        if not post:
+            console.print(f"[red]Post not found: {post_id}[/red]")
+            conn.close()
+            raise typer.Exit(1)
+
+        # Confirmation prompt
+        if not yes:
+            console.print(f"[bold]Post:[/bold] @{post.get('author_username', 'unknown')}")
+            text_preview = post.get('text', '')[:100]
+            if text_preview:
+                console.print(f"[dim]{text_preview}...[/dim]")
+            console.print()
+
+            if not Confirm.ask(f"Reset review state for post {post_id}?"):
+                console.print("[yellow]Cancelled[/yellow]")
+                conn.close()
+                raise typer.Exit(0)
+
+        # Reset state
+        service.reset_review_state(post_id)
+
+        console.print(f"[green]Reset review state for post {post_id}[/green]")
+        console.print("[dim]State will be re-seeded from publication date on next review[/dim]")
+
+        conn.close()
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Failed to reset review state\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()

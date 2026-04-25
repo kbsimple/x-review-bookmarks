@@ -216,3 +216,13 @@ class ReviewService:
             Dict with statistics.
         """
         return self._repo.get_stats()
+
+    def reset_review_state(self, post_id: str) -> None:
+        """Reset review state for a specific post.
+
+        D-13: Clears existing state and allows re-seeding from publication date.
+
+        Args:
+            post_id: X post ID to reset.
+        """
+        self._repo.reset_state(post_id)
