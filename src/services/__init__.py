@@ -8,6 +8,7 @@ from .embedding import EmbeddingService
 from .clustering import ClusteringService
 from .topic_suggester import TopicSuggesterService, TopicSuggestion, SuggestionSummary
 from .review_scheduler import ReviewScheduler
+from .review_service import ReviewService
 
 __all__ = [
     "SearchService",
@@ -27,4 +28,5 @@ __all__ = [
     "TopicSuggestion",
     "SuggestionSummary",
     "ReviewScheduler",
+    "ReviewService",
 ]
