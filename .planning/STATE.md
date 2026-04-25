@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-04-25T04:36:48.094Z"
+status: Ready to plan
+last_updated: "2026-04-25T21:30:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 21
   completed_plans: 21
-  percent: 100
+  percent: 80
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -27,12 +27,12 @@ progress:
 ## Current Position
 
 Phase: 5
-Plan: Not started
+Plan: Context gathered
 | Field | Value |
 |-------|-------|
 | Phase | 5 |
 | Plan | - |
-| Status | Ready to plan |
+| Status | Ready for planning |
 | Progress | 0% |
 
 ```
@@ -74,6 +74,11 @@ Plan: Not started
 | 2026-04-25 | Tags normalized to lowercase | Case-insensitive matching for user convenience |
 | 2026-04-25 | INSERT OR IGNORE for tag assignment | Idempotent operations prevent duplicate entries |
 | 2026-04-25 | CLI commands for tag/topic management | Typer CLI with Rich tables for user interaction |
+| 2026-04-25 | FSRS-4.5 concepts with simplified scheduling | User-controlled timing (fresh/soon/later) instead of difficulty rating |
+| 2026-04-25 | User intent intervals: 3d/2w/2m | Keep fresh (3 days), Review soon (2 weeks), Review later (2 months) |
+| 2026-04-25 | `xbm review` for interactive sessions | Primary command for viewing and interacting with due posts |
+| 2026-04-25 | `xbm due` for quick view | Non-interactive table view of due posts |
+| 2026-04-25 | Themed reviews via `--topic` flag | Filter by topic for focused review sessions |
 
 - [Phase 04]: approve_pending_assignment moves to post_topics with source='ai-approved'
 - [Phase 04]: INSERT OR REPLACE for idempotent topic assignment
@@ -95,6 +100,7 @@ Plan: Not started
 | .planning/phases/03-search-notes-and-import-export/03-RESEARCH.md | Phase 3 technical research |
 | .planning/phases/04-topic-organization/04-RESEARCH.md | Phase 4 technical research |
 | .planning/phases/04-topic-organization/04-VALIDATION.md | Phase 4 validation strategy |
+| .planning/phases/05-spaced-repetition-resurfacing/05-CONTEXT.md | Phase 5 user decisions |
 | src/repositories/tags.py | TagsRepository for tag CRUD (ORG-01) |
 | src/repositories/topics.py | TopicsRepository for topic CRUD (ORG-02, ORG-04) |
 | src/services/embedding.py | EmbeddingService for text embeddings (ORG-03) |
@@ -112,14 +118,14 @@ Plan: Not started
 
 ## Session Continuity
 
-**Previous session ended:** Plan 04-05 complete — CLI Commands for Tag/Topic Management
+**Previous session ended:** Phase 05 context gathered — Spaced Repetition Resurfacing
 
-**Continue with:** Phase 05 (Spaced Repetition Scheduling)
+**Continue with:** Phase 05 planning
 
 **Quick start:**
 
 ```
-/gsd-discuss-phase 5
+/gsd-plan-phase 5
 ```
 
 ## Notes
@@ -128,7 +134,7 @@ Plan: Not started
 - Phase 2: X API integration, bookmark sync, incremental updates
 - Phase 3: FTS5 full-text search, personal notes, JSON/CSV export/import, dead link detection
 - Phase 4: Tags, topic taxonomy, hybrid clustering with AI suggestions (complete)
-- Phase 5: FSRS-based spaced repetition scheduling
+- Phase 5: User-controlled review scheduling (fresh/soon/later) with hybrid algorithm support
 - Critical: XClient uses access_token (OAuth 2.0 User Context), NOT bearer_token
 - FTS5 sync triggers ensure search index stays current with posts table
 
