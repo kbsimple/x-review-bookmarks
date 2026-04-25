@@ -1388,6 +1388,176 @@ def due(
         sys.exit(1)
 
 
+@app.command()
+def review(
+    topic: Optional[str] = typer.Option(None, "--topic", "-t", help="Filter by topic name"),
+    days: Optional[int] = typer.Option(None, "--days", "-d", help="Postpone days (for postpone action)"),
+    db_path: Optional[Path] = typer.Option(None, "--db", help="Database path"),
+) -> None:
+    """Start interactive review session for due posts.
+
+    CLI-02: User can view resurfaced posts via CLI command.
+    D-05: Notes displayed at top during review.
+    D-06: Metadata shown (pub date, topics, review history).
+    D-07: User chooses scheduling intent.
+    D-10: Interactive one-at-a-time review session.
+
+    Examples:
+        xbm review
+        xbm review --topic python
+        xbm review --days 7  # Postpone all by 7 days
+    """
+    try:
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+        from ..services.review_service import ReviewService
+        from ..repositories.topics import TopicsRepository
+
+        service = ReviewService(conn)
+        topics_repo = TopicsRepository(conn)
+
+        # Resolve topic_id if topic name provided
+        topic_id = None
+        if topic:
+            topic_obj = topics_repo.get_topic_by_name(topic)
+            if not topic_obj:
+                console.print(f"[red]Topic not found: {topic}[/red]")
+                conn.close()
+                raise typer.Exit(1)
+            topic_id = topic_obj['id']
+
+        # Get due posts
+        posts = service.get_due_posts(topic_id=topic_id)
+
+        if not posts:
+            if topic:
+                console.print(f"[yellow]No posts due for topic: {topic}[/yellow]")
+            else:
+                console.print("[yellow]No posts due for review[/yellow]")
+            console.print("[dim]Use 'xbm due' to see upcoming reviews[/dim]")
+            conn.close()
+            return
+
+        console.print(f"[bold green]Starting review session[/bold green]")
+        console.print(f"[dim]{len(posts)} posts due for review[/dim]")
+        console.print()
+
+        # Review each post
+        reviewed_count = 0
+        for post in posts:
+            # Get topics for this post
+            post_topics = topics_repo.get_post_topics(post['x_post_id'])
+
+            # D-05: Display note at top if present
+            note = post.get('note')
+            if note:
+                console.print(Panel(
+                    note,
+                    title="[bold yellow]Your Note[/bold yellow]",
+                    border_style="yellow"
+                ))
+                console.print()
+
+            # Display post content
+            text = post.get('text', '')
+            author = f"@{post.get('author_username', 'unknown')}"
+            display_name = post.get('author_display_name', '')
+
+            header = f"[bold cyan]{author}[/bold cyan]"
+            if display_name:
+                header += f" ({display_name})"
+
+            console.print(Panel(
+                text,
+                title=header,
+                border_style="blue"
+            ))
+
+            # D-06: Display metadata
+            metadata = Table(show_header=False, box=None)
+            metadata.add_column("Label", style="dim")
+            metadata.add_column("Value", style="white")
+
+            published = post.get('created_at', 'Unknown')
+            if published:
+                published = published[:10]
+            metadata.add_row("Published", published)
+
+            topics_str = ", ".join(t['name'] for t in post_topics) or "None"
+            metadata.add_row("Topics", topics_str)
+
+            review_count = post.get('review_count', 0)
+            metadata.add_row("Reviews", str(review_count))
+
+            last_review = post.get('last_reviewed')
+            last_review_str = "Never"
+            if last_review:
+                last_review_str = last_review[:10]
+            metadata.add_row("Last Review", last_review_str)
+
+            user_pref = post.get('user_preference') or "None"
+            metadata.add_row("User Pref", user_pref)
+
+            console.print(metadata)
+            console.print()
+
+            # D-07: Prompt for scheduling choice
+            console.print("[bold]Choose scheduling:[/bold]")
+            console.print("  [1] Keep fresh (3 days)")
+            console.print("  [2] Review again soon (2 weeks)")
+            console.print("  [3] Review later (2 months)")
+            console.print("  [s] Skip")
+            console.print("  [p] Postpone")
+            console.print()
+
+            choice = typer.prompt("Choice", default="2")
+
+            if choice.lower() == 's':
+                console.print("[dim]Skipped[/dim]")
+                console.print()
+                continue
+
+            if choice.lower() == 'p':
+                # Postpone
+                postpone_days = days or typer.prompt("Postpone days", type=int, default=7)
+                next_date = service.process_postpone(post['x_post_id'], postpone_days)
+                console.print(f"[yellow]Postponed for {postpone_days} days (until {next_date.strftime('%Y-%m-%d')})[/yellow]")
+            else:
+                # Map choice to user_choice
+                choice_map = {'1': 'fresh', '2': 'soon', '3': 'later'}
+                user_choice = choice_map.get(choice, 'soon')
+
+                next_date = service.process_review_choice(post['x_post_id'], user_choice)
+                console.print(f"[green]Scheduled for {next_date.strftime('%Y-%m-%d')}[/green]")
+
+            reviewed_count += 1
+            console.print()
+
+        console.print(f"[bold green]Review session complete![/bold green]")
+        console.print(f"[dim]Reviewed {reviewed_count} posts[/dim]")
+
+        conn.close()
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Review session failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()

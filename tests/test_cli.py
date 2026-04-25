@@ -2986,3 +2986,460 @@ class TestDueCommand:
                         assert "AAA" in result.stdout or "..." in result.stdout, (
                             f"Expected truncated content in output: {result.stdout}"
                         )
+
+
+class TestReviewCommand:
+    """Tests for `xbm review` command.
+
+    Tests for:
+    - D-05: Notes displayed at top during review
+    - D-06: Metadata shown (pub date, topics, review history)
+    - D-07: User chooses scheduling intent
+    - D-10: Interactive one-at-a-time review session
+    - CLI-02: User can view resurfaced posts via CLI command
+    """
+
+    def test_review_command_exists(self) -> None:
+        """Verify review command is registered in CLI app.
+
+        CLI-02: User can view resurfaced posts via CLI command.
+        """
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "review" in command_names, f"review command should exist, got: {command_names}"
+
+    def test_review_command_help(self) -> None:
+        """Verify review command shows help."""
+        result = runner.invoke(app, ["review", "--help"])
+
+        assert result.exit_code == 0
+        assert "review" in result.stdout.lower()
+
+    def test_review_command_empty_queue(self, tmp_path: Path) -> None:
+        """Verify review command shows 'No posts due' when queue empty.
+
+        D-10: Interactive one-at-a-time review session.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = []
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["review"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should show no posts due message
+                    assert "No posts due" in result.stdout, (
+                        f"Expected 'No posts due' in output: {result.stdout}"
+                    )
+
+    def test_review_command_displays_note(self, tmp_path: Path) -> None:
+        """Verify review command shows note at top of post.
+
+        D-05: Notes displayed at top during review.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_posts = [
+            {
+                "x_post_id": "post_with_note",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": "Post content here",
+                "note": "This is my personal note",
+                "created_at": "2024-01-15T10:00:00Z",
+                "scheduled_for": "2024-01-20T10:00:00Z",
+                "review_count": 1,
+                "last_reviewed": "2024-01-18T10:00:00Z",
+                "user_preference": "soon",
+            },
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = mock_posts
+                    mock_service_class.return_value = mock_service
+
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_topics_repo = MagicMock()
+                        mock_topics_repo.get_post_topics.return_value = []
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        # Provide input for the interactive prompt (choice '2' for soon)
+                        result = runner.invoke(app, ["review"], input="2\n")
+
+                        # Should succeed or exit after processing
+                        # Note: Interactive command may exit after processing all posts
+                        # Should show note
+                        assert "note" in result.stdout.lower() or "Note" in result.stdout, (
+                            f"Expected note in output: {result.stdout}"
+                        )
+
+    def test_review_command_displays_metadata(self, tmp_path: Path) -> None:
+        """Verify review command shows metadata.
+
+        D-06: Metadata shown (pub date, topics, review history).
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_posts = [
+            {
+                "x_post_id": "post_metadata",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": "Post content",
+                "created_at": "2024-01-15T10:00:00Z",
+                "scheduled_for": "2024-01-20T10:00:00Z",
+                "review_count": 2,
+                "last_reviewed": "2024-01-18T10:00:00Z",
+                "user_preference": "fresh",
+            },
+        ]
+
+        mock_topics = [{"id": 1, "name": "Python"}]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = mock_posts
+                    mock_service_class.return_value = mock_service
+
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_topics_repo = MagicMock()
+                        mock_topics_repo.get_post_topics.return_value = mock_topics
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        result = runner.invoke(app, ["review"], input="2\n")
+
+                        # Should show metadata
+                        assert "Python" in result.stdout, f"Expected topic in output: {result.stdout}"
+                        assert "Reviews" in result.stdout or "review" in result.stdout.lower(), (
+                            f"Expected review count in output: {result.stdout}"
+                        )
+
+    def test_review_command_choice_fresh(self, tmp_path: Path) -> None:
+        """Verify review command 'fresh' choice schedules for 3 days.
+
+        D-07: User chooses scheduling intent.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_posts = [
+            {
+                "x_post_id": "post_fresh",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": "Post content",
+                "created_at": "2024-01-15T10:00:00Z",
+                "scheduled_for": "2024-01-20T10:00:00Z",
+                "review_count": 0,
+                "last_reviewed": None,
+                "user_preference": None,
+            },
+        ]
+
+        from datetime import datetime, timezone, timedelta
+
+        next_date = datetime.now(timezone.utc) + timedelta(days=3)
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = mock_posts
+                    mock_service.process_review_choice.return_value = next_date
+                    mock_service_class.return_value = mock_service
+
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_topics_repo = MagicMock()
+                        mock_topics_repo.get_post_topics.return_value = []
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        result = runner.invoke(app, ["review"], input="1\n")
+
+                        # Should call process_review_choice with 'fresh'
+                        mock_service.process_review_choice.assert_called_once()
+                        call_args = mock_service.process_review_choice.call_args
+                        assert call_args[0][1] == "fresh", (
+                            f"Expected 'fresh' choice, got: {call_args}"
+                        )
+
+    def test_review_command_choice_soon(self, tmp_path: Path) -> None:
+        """Verify review command 'soon' choice schedules for 14 days.
+
+        D-07: User chooses scheduling intent.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_posts = [
+            {
+                "x_post_id": "post_soon",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": "Post content",
+                "created_at": "2024-01-15T10:00:00Z",
+                "scheduled_for": "2024-01-20T10:00:00Z",
+                "review_count": 0,
+                "last_reviewed": None,
+                "user_preference": None,
+            },
+        ]
+
+        from datetime import datetime, timezone, timedelta
+
+        next_date = datetime.now(timezone.utc) + timedelta(days=14)
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = mock_posts
+                    mock_service.process_review_choice.return_value = next_date
+                    mock_service_class.return_value = mock_service
+
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_topics_repo = MagicMock()
+                        mock_topics_repo.get_post_topics.return_value = []
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        result = runner.invoke(app, ["review"], input="2\n")
+
+                        # Should call process_review_choice with 'soon'
+                        mock_service.process_review_choice.assert_called_once()
+                        call_args = mock_service.process_review_choice.call_args
+                        assert call_args[0][1] == "soon", (
+                            f"Expected 'soon' choice, got: {call_args}"
+                        )
+
+    def test_review_command_choice_later(self, tmp_path: Path) -> None:
+        """Verify review command 'later' choice schedules for 60 days.
+
+        D-07: User chooses scheduling intent.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_posts = [
+            {
+                "x_post_id": "post_later",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": "Post content",
+                "created_at": "2024-01-15T10:00:00Z",
+                "scheduled_for": "2024-01-20T10:00:00Z",
+                "review_count": 0,
+                "last_reviewed": None,
+                "user_preference": None,
+            },
+        ]
+
+        from datetime import datetime, timezone, timedelta
+
+        next_date = datetime.now(timezone.utc) + timedelta(days=60)
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = mock_posts
+                    mock_service.process_review_choice.return_value = next_date
+                    mock_service_class.return_value = mock_service
+
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_topics_repo = MagicMock()
+                        mock_topics_repo.get_post_topics.return_value = []
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        result = runner.invoke(app, ["review"], input="3\n")
+
+                        # Should call process_review_choice with 'later'
+                        mock_service.process_review_choice.assert_called_once()
+                        call_args = mock_service.process_review_choice.call_args
+                        assert call_args[0][1] == "later", (
+                            f"Expected 'later' choice, got: {call_args}"
+                        )
+
+    def test_review_command_with_topic_filter(self, tmp_path: Path) -> None:
+        """Verify review command --topic filters by topic.
+
+        D-08: Themed reviews via --topic flag.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_topic = {"id": 1, "name": "Python"}
+
+        mock_posts = [
+            {
+                "x_post_id": "post_python",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": "Python post content",
+                "created_at": "2024-01-15T10:00:00Z",
+                "scheduled_for": "2024-01-20T10:00:00Z",
+                "review_count": 0,
+                "last_reviewed": None,
+                "user_preference": None,
+            },
+        ]
+
+        from datetime import datetime, timezone, timedelta
+
+        next_date = datetime.now(timezone.utc) + timedelta(days=14)
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                    mock_topics_repo = MagicMock()
+                    mock_topics_repo.get_topic_by_name.return_value = mock_topic
+                    mock_topics_repo.get_post_topics.return_value = []
+                    mock_topics_repo_class.return_value = mock_topics_repo
+
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service.get_due_posts.return_value = mock_posts
+                        mock_service.process_review_choice.return_value = next_date
+                        mock_service_class.return_value = mock_service
+
+                        result = runner.invoke(app, ["review", "--topic", "Python"], input="2\n")
+
+                        # Should pass topic_id to get_due_posts
+                        call_kwargs = mock_service.get_due_posts.call_args[1]
+                        assert call_kwargs.get("topic_id") == 1, (
+                            f"Expected topic_id=1, got: {call_kwargs}"
+                        )
+
+    def test_review_command_skip(self, tmp_path: Path) -> None:
+        """Verify review command 'skip' option skips the post.
+
+        D-07: User can skip posts.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_posts = [
+            {
+                "x_post_id": "post_skip",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": "Post content",
+                "created_at": "2024-01-15T10:00:00Z",
+                "scheduled_for": "2024-01-20T10:00:00Z",
+                "review_count": 0,
+                "last_reviewed": None,
+                "user_preference": None,
+            },
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = mock_posts
+                    mock_service_class.return_value = mock_service
+
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_topics_repo = MagicMock()
+                        mock_topics_repo.get_post_topics.return_value = []
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        result = runner.invoke(app, ["review"], input="s\n")
+
+                        # Should NOT call process_review_choice
+                        mock_service.process_review_choice.assert_not_called()
+
+    def test_review_command_postpone(self, tmp_path: Path) -> None:
+        """Verify review command 'postpone' option delays review.
+
+        D-09: Postpone without changing preference.
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_posts = [
+            {
+                "x_post_id": "post_postpone",
+                "author_username": "testuser",
+                "author_display_name": "Test User",
+                "text": "Post content",
+                "created_at": "2024-01-15T10:00:00Z",
+                "scheduled_for": "2024-01-20T10:00:00Z",
+                "review_count": 2,
+                "last_reviewed": "2024-01-18T10:00:00Z",
+                "user_preference": "soon",
+            },
+        ]
+
+        from datetime import datetime, timezone, timedelta
+
+        next_date = datetime.now(timezone.utc) + timedelta(days=7)
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.review_service.ReviewService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.get_due_posts.return_value = mock_posts
+                    mock_service.process_postpone.return_value = next_date
+                    mock_service_class.return_value = mock_service
+
+                    with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                        mock_topics_repo = MagicMock()
+                        mock_topics_repo.get_post_topics.return_value = []
+                        mock_topics_repo_class.return_value = mock_topics_repo
+
+                        # Input: 'p' for postpone, then '7' for days
+                        result = runner.invoke(app, ["review"], input="p\n7\n")
+
+                        # Should call process_postpone
+                        mock_service.process_postpone.assert_called_once()
+                        call_args = mock_service.process_postpone.call_args
+                        assert call_args[0][1] == 7, (
+                            f"Expected 7 days, got: {call_args}"
+                        )
