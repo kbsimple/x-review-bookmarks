@@ -122,13 +122,95 @@ END;
 """
 
 
+# Schema version 4: Phase 4 - Tags, topics, and embeddings for topic organization
+# ORG-01: User can assign tags to bookmarked posts
+# ORG-02: User can create and manage a predefined topic taxonomy
+# ORG-03: Application clusters posts into topics using hybrid approach
+# ORG-04: User can review and approve AI-suggested topic assignments
+SCHEMA_V4_MIGRATION = """
+-- Tags table: User-defined tags for posts
+-- ORG-01: User can assign tags to bookmarked posts
+CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,           -- Tag name (e.g., "python", "ml", "career")
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Post-Tags junction table: Many-to-many relationship
+CREATE TABLE IF NOT EXISTS post_tags (
+    post_id TEXT NOT NULL,               -- References posts.x_post_id
+    tag_id INTEGER NOT NULL,             -- References tags.id
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id, tag_id),
+    FOREIGN KEY (post_id) REFERENCES posts(x_post_id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+-- Index for finding all tags on a post
+CREATE INDEX IF NOT EXISTS idx_post_tags_post ON post_tags(post_id);
+-- Index for finding all posts with a tag
+CREATE INDEX IF NOT EXISTS idx_post_tags_tag ON post_tags(tag_id);
+
+-- Topics table: Predefined topic taxonomy
+-- ORG-02: User can create and manage a predefined topic taxonomy
+CREATE TABLE IF NOT EXISTS topics (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,           -- Topic name (e.g., "Programming", "Machine Learning")
+    description TEXT,                    -- Optional description
+    parent_id INTEGER,                   -- Optional parent topic for hierarchy
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_id) REFERENCES topics(id) ON DELETE SET NULL
+);
+
+-- Post-Topics table: Post-to-topic assignments (user-approved)
+CREATE TABLE IF NOT EXISTS post_topics (
+    post_id TEXT NOT NULL,
+    topic_id INTEGER NOT NULL,
+    confidence REAL,                     -- AI confidence score (0.0-1.0)
+    source TEXT DEFAULT 'user',          -- 'user' or 'ai-approved'
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id, topic_id),
+    FOREIGN KEY (post_id) REFERENCES posts(x_post_id) ON DELETE CASCADE,
+    FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+);
+
+-- Index for finding posts by topic
+CREATE INDEX IF NOT EXISTS idx_post_topics_topic ON post_topics(topic_id);
+
+-- Pending topic assignments: AI suggestions awaiting review
+-- ORG-04: User can review and approve AI-suggested topic assignments
+CREATE TABLE IF NOT EXISTS pending_topic_assignments (
+    id INTEGER PRIMARY KEY,
+    post_id TEXT NOT NULL,
+    topic_id INTEGER NOT NULL,
+    confidence REAL NOT NULL,            -- AI confidence score
+    suggested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(x_post_id) ON DELETE CASCADE,
+    FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+);
+
+-- Index for finding pending assignments
+CREATE INDEX IF NOT EXISTS idx_pending_topic_assignments_post ON pending_topic_assignments(post_id);
+
+-- Post embeddings cache: Store embeddings to avoid recomputation
+-- ORG-03: Application clusters posts into topics using embeddings
+CREATE TABLE IF NOT EXISTS post_embeddings (
+    post_id TEXT PRIMARY KEY,
+    embedding BLOB NOT NULL,             -- 384 floats as binary (1536 bytes for float32)
+    model_name TEXT DEFAULT 'all-MiniLM-L6-v2',
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(x_post_id) ON DELETE CASCADE
+);
+"""
+
+
 def get_schema_version() -> str:
     """Get the current schema version identifier.
 
     Returns:
-        Schema version string (e.g., "v1", "v2", "v3")
+        Schema version string (e.g., "v1", "v2", "v3", "v4")
     """
-    return "v3"
+    return "v4"
 
 
-__all__ = ["SCHEMA_V1", "SCHEMA_V2", "SCHEMA_V3_MIGRATION", "get_schema_version"]
+__all__ = ["SCHEMA_V1", "SCHEMA_V2", "SCHEMA_V3_MIGRATION", "SCHEMA_V4_MIGRATION", "get_schema_version"]
