@@ -6,6 +6,59 @@ import sqlite3
 from pathlib import Path
 
 
+# Phase 4 schema tables for tags, topics, and embeddings
+SCHEMA_V4_TABLES = """
+CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS post_tags (
+    post_id TEXT NOT NULL,
+    tag_id INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id, tag_id),
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS topics (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    parent_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_id) REFERENCES topics(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS post_topics (
+    post_id TEXT NOT NULL,
+    topic_id INTEGER NOT NULL,
+    confidence REAL,
+    source TEXT DEFAULT 'user',
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id, topic_id),
+    FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS pending_topic_assignments (
+    id INTEGER PRIMARY KEY,
+    post_id TEXT NOT NULL,
+    topic_id INTEGER NOT NULL,
+    confidence REAL NOT NULL,
+    suggested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS post_embeddings (
+    post_id TEXT PRIMARY KEY,
+    embedding BLOB NOT NULL,
+    model_name TEXT DEFAULT 'all-MiniLM-L6-v2',
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+
 @pytest.fixture
 def temp_db():
     """Create a temporary SQLite database for testing.
@@ -104,3 +157,92 @@ def mock_tweepy_client():
         "x-rate-limit-reset": "900",
     }
     return client
+
+
+# ============================================================================
+# Phase 4 Fixtures: Tags, Topics, Embeddings
+# ============================================================================
+
+
+@pytest.fixture
+def temp_db_v4(temp_db):
+    """Create a temporary SQLite database with Phase 4 schema tables.
+
+    Extends temp_db with tags, topics, and embeddings tables.
+
+    Yields:
+        sqlite3.Connection: Connection with v4 schema tables created.
+    """
+    # Create posts table first (required for foreign keys)
+    temp_db.execute("""
+        CREATE TABLE IF NOT EXISTS posts (
+            x_post_id TEXT PRIMARY KEY,
+            created_at TIMESTAMP NOT NULL,
+            text TEXT NOT NULL,
+            author_id TEXT NOT NULL,
+            author_username TEXT NOT NULL,
+            author_display_name TEXT,
+            media_urls TEXT,
+            link_urls TEXT,
+            bookmarked_at TIMESTAMP,
+            fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_version INTEGER DEFAULT 1,
+            note TEXT,
+            link_status TEXT DEFAULT 'unchecked'
+        )
+    """)
+
+    # Create Phase 4 tables
+    temp_db.executescript(SCHEMA_V4_TABLES)
+    temp_db.commit()
+
+    yield temp_db
+
+
+@pytest.fixture
+def sample_tags():
+    """Return sample tag data for testing.
+
+    Returns:
+        list[dict]: List of sample tag dictionaries.
+    """
+    return [
+        {"id": 1, "name": "python"},
+        {"id": 2, "name": "ml"},
+        {"id": 3, "name": "career"},
+    ]
+
+
+@pytest.fixture
+def sample_topics():
+    """Return sample topic data for testing.
+
+    Returns:
+        list[dict]: List of sample topic dictionaries.
+    """
+    return [
+        {"id": 1, "name": "Programming", "description": "Software development"},
+        {"id": 2, "name": "Machine Learning", "description": "AI/ML content"},
+        {"id": 3, "name": "Career", "description": "Career advice and insights"},
+    ]
+
+
+@pytest.fixture
+def sample_post_with_text():
+    """Return a sample post with text content suitable for embedding.
+
+    Returns:
+        dict: Sample post dictionary with text content.
+    """
+    return {
+        "x_post_id": "test_post_123",
+        "created_at": "2024-01-15T10:30:00Z",
+        "text": "Python is a great language for machine learning. "
+                "The scikit-learn library makes it easy to build models.",
+        "author_id": "user_456",
+        "author_username": "mldeveloper",
+        "author_display_name": "ML Developer",
+        "media_urls": [],
+        "link_urls": ["https://scikit-learn.org/"],
+        "bookmarked_at": "2024-01-16T08:00:00Z",
+    }
