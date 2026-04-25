@@ -36,9 +36,9 @@ Requirements for initial release (Milestone 1). Each maps to roadmap phases.
 ### Organization
 
 - [x] **ORG-01**: User can assign tags to bookmarked posts
-- [ ] **ORG-02**: User can create and manage a predefined topic taxonomy
+- [x] **ORG-02**: User can create and manage a predefined topic taxonomy
 - [ ] **ORG-03**: Application clusters posts into topics using hybrid approach (predefined + AI-suggested)
-- [ ] **ORG-04**: User can review and approve AI-suggested topic assignments
+- [x] **ORG-04**: User can review and approve AI-suggested topic assignments
 
 ### Notes
 
@@ -139,9 +139,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MAINT-01 | Phase 3 | Pending |
 | MAINT-02 | Phase 3 | Pending |
 | ORG-01 | Phase 4 | Complete |
-| ORG-02 | Phase 4 | Pending |
+| ORG-02 | Phase 4 | Complete |
 | ORG-03 | Phase 4 | Pending |
-| ORG-04 | Phase 4 | Pending |
+| ORG-04 | Phase 4 | Complete |
 | CLI-04 | Phase 4 | Pending |
 | SPAC-01 | Phase 5 | Pending |
 | SPAC-02 | Phase 5 | Pending |
