@@ -204,13 +204,46 @@ CREATE TABLE IF NOT EXISTS post_embeddings (
 """
 
 
+# Schema version 5: Phase 5 - Post review state for spaced repetition scheduling
+# SPAC-01: Review state table for spaced repetition scheduling
+# SPAC-02: get_due_posts query returns posts where scheduled_for <= NOW
+# SPAC-04: Themed reviews filter by topic via post_topics join
+SCHEMA_V5_MIGRATION = """
+-- Post review state: Track FSRS scheduling state for each post
+-- SPAC-01: Database schema V5 includes post_review_state table
+-- D-14: FSRS Card state serialization in fsrs_data column
+-- D-15: Initial scheduled_for seeded from posts.created_at
+CREATE TABLE IF NOT EXISTS post_review_state (
+    post_id TEXT PRIMARY KEY,              -- References posts.x_post_id
+    scheduled_for TIMESTAMP NOT NULL,      -- Next review date (D-15: seeded from created_at)
+    last_reviewed TIMESTAMP,               -- When last reviewed
+    review_count INTEGER DEFAULT 0,        -- Number of times reviewed
+    user_preference TEXT,                  -- Last user choice: 'fresh', 'soon', 'later'
+    stability REAL,                        -- FSRS parameter
+    difficulty REAL,                       -- FSRS parameter
+    state INTEGER DEFAULT 0,                -- FSRS state: 0=new, 1=learning, 2=review, 3=relearning
+    step INTEGER,                           -- FSRS learning step (nullable)
+    fsrs_data TEXT,                         -- FSRS Card JSON serialization (D-14)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(x_post_id) ON DELETE CASCADE
+);
+
+-- Index for due posts query (SPAC-02)
+CREATE INDEX IF NOT EXISTS idx_review_state_scheduled ON post_review_state(scheduled_for);
+
+-- Index for themed reviews join (SPAC-04)
+CREATE INDEX IF NOT EXISTS idx_review_state_post ON post_review_state(post_id);
+"""
+
+
 def get_schema_version() -> str:
     """Get the current schema version identifier.
 
     Returns:
-        Schema version string (e.g., "v1", "v2", "v3", "v4")
+        Schema version string (e.g., "v1", "v2", "v3", "v4", "v5")
     """
-    return "v4"
+    return "v5"
 
 
-__all__ = ["SCHEMA_V1", "SCHEMA_V2", "SCHEMA_V3_MIGRATION", "SCHEMA_V4_MIGRATION", "get_schema_version"]
+__all__ = ["SCHEMA_V1", "SCHEMA_V2", "SCHEMA_V3_MIGRATION", "SCHEMA_V4_MIGRATION", "SCHEMA_V5_MIGRATION", "get_schema_version"]
