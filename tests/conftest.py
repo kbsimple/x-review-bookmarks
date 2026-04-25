@@ -246,3 +246,46 @@ def sample_post_with_text():
         "link_urls": ["https://scikit-learn.org/"],
         "bookmarked_at": "2024-01-16T08:00:00Z",
     }
+
+
+# ============================================================================
+# Phase 5 Fixtures: Spaced Repetition Resurfacing
+# ============================================================================
+
+# Phase 5 schema tables for post_review_state
+SCHEMA_V5_TABLES = """
+CREATE TABLE IF NOT EXISTS post_review_state (
+    post_id TEXT PRIMARY KEY,
+    scheduled_for TIMESTAMP NOT NULL,
+    last_reviewed TIMESTAMP,
+    review_count INTEGER DEFAULT 0,
+    user_preference TEXT,
+    stability REAL,
+    difficulty REAL,
+    state INTEGER DEFAULT 0,
+    step INTEGER,
+    fsrs_data TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(x_post_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_review_state_scheduled ON post_review_state(scheduled_for);
+CREATE INDEX IF NOT EXISTS idx_review_state_post ON post_review_state(post_id);
+"""
+
+
+@pytest.fixture
+def temp_db_v5(temp_db_v4):
+    """Create a temporary SQLite database with Phase 5 schema tables.
+
+    Extends temp_db_v4 with post_review_state table.
+
+    Yields:
+        sqlite3.Connection: Connection with v5 schema tables created.
+    """
+    # Create Phase 5 tables
+    temp_db_v4.executescript(SCHEMA_V5_TABLES)
+    temp_db_v4.commit()
+
+    yield temp_db_v4

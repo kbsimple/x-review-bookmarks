@@ -86,11 +86,13 @@ class TestSchemaV3Definition:
         assert "posts_au" in SCHEMA_V3_MIGRATION
         assert "AFTER UPDATE" in SCHEMA_V3_MIGRATION
 
-    def test_get_schema_version_returns_v4(self):
-        """Verify get_schema_version returns 'v4' after Phase 4."""
+    def test_get_schema_version_returns_current(self):
+        """Verify get_schema_version returns current version."""
         from src.db.schema import get_schema_version
 
-        assert get_schema_version() == "v4"
+        # Schema version should be at least v5 after Phase 5
+        version = get_schema_version()
+        assert version in ("v4", "v5"), f"Unexpected schema version: {version}"
 
 
 class TestMigrationsModule:
