@@ -2459,3 +2459,278 @@ class TestSuggestTopicsCommand:
                     assert "Error" in result.stdout or "failed" in result.stdout.lower(), (
                         f"Expected error message in output: {result.stdout}"
                     )
+
+
+class TestReviewTopicsCommand:
+    """Tests for `xbm review-topics` command.
+
+    Tests for:
+    - CLI-04: User can review and approve AI-suggested topic assignments
+    - ORG-04: User can review and approve AI-suggested topic assignments
+    """
+
+    def test_review_topics_command_exists(self) -> None:
+        """Verify review-topics command is registered in CLI app.
+
+        CLI-04: User can manage topics via CLI commands.
+        """
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "review-topics" in command_names, f"review-topics command should exist, got: {command_names}"
+
+    def test_review_topics_command_help(self) -> None:
+        """Verify review-topics command shows help."""
+        result = runner.invoke(app, ["review-topics", "--help"])
+
+        assert result.exit_code == 0
+        assert "review" in result.stdout.lower() or "topic" in result.stdout.lower()
+
+    def test_review_topics_shows_pending(self, tmp_path: Path) -> None:
+        """Verify review-topics shows pending suggestions.
+
+        ORG-04: User can review and approve AI-suggested topic assignments.
+
+        Expected behavior:
+        - Command retrieves pending suggestions
+        - Shows table with ID, Post, Topic, Confidence
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_pending = [
+            {"id": 1, "post_id": "post_1", "topic_id": 1, "topic_name": "Programming", "confidence": 0.95, "suggested_at": "2024-01-15T10:00:00Z"},
+            {"id": 2, "post_id": "post_2", "topic_id": 2, "topic_name": "Python", "confidence": 0.88, "suggested_at": "2024-01-16T10:00:00Z"},
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                    mock_topics_repo = MagicMock()
+                    mock_topics_repo.get_pending_assignments.return_value = mock_pending
+                    mock_topics_repo_class.return_value = mock_topics_repo
+
+                    result = runner.invoke(app, ["review-topics"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should get pending assignments
+                    mock_topics_repo.get_pending_assignments.assert_called_once()
+
+                    # Should show pending suggestions
+                    assert "Programming" in result.stdout or "pending" in result.stdout.lower(), (
+                        f"Expected suggestions in output: {result.stdout}"
+                    )
+
+    def test_review_topics_approve_suggestion(self, tmp_path: Path) -> None:
+        """Verify review-topics --approve ID approves suggestion.
+
+        ORG-04: User can review and approve AI-suggested topic assignments.
+
+        Expected behavior:
+        - Command approves suggestion
+        - Success message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.topic_suggester.TopicSuggesterService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["review-topics", "--approve", "1"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should approve suggestion
+                    mock_service.approve_suggestion.assert_called_once_with(1)
+
+                    # Should show success message
+                    assert "Approved" in result.stdout or "approved" in result.stdout.lower(), (
+                        f"Expected success message in output: {result.stdout}"
+                    )
+
+    def test_review_topics_reject_suggestion(self, tmp_path: Path) -> None:
+        """Verify review-topics --reject ID rejects suggestion.
+
+        Expected behavior:
+        - Command rejects suggestion
+        - Success message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.topic_suggester.TopicSuggesterService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["review-topics", "--reject", "1"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should reject suggestion
+                    mock_service.reject_suggestion.assert_called_once_with(1)
+
+                    # Should show success message
+                    assert "Rejected" in result.stdout or "rejected" in result.stdout.lower(), (
+                        f"Expected success message in output: {result.stdout}"
+                    )
+
+    def test_review_topics_approve_all(self, tmp_path: Path) -> None:
+        """Verify review-topics --approve-all approves all suggestions.
+
+        Expected behavior:
+        - Command approves all suggestions above threshold
+        - Shows count of approved suggestions
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.topic_suggester.TopicSuggesterService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.approve_all_suggestions.return_value = 5
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["review-topics", "--approve-all"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should approve all suggestions
+                    mock_service.approve_all_suggestions.assert_called_once()
+
+                    # Should show count
+                    assert "5" in result.stdout or "Approved" in result.stdout, (
+                        f"Expected count in output: {result.stdout}"
+                    )
+
+    def test_review_topics_approve_all_with_min_confidence(self, tmp_path: Path) -> None:
+        """Verify review-topics --approve-all --min-confidence filters.
+
+        Expected behavior:
+        - Command passes min_confidence to approve_all_suggestions
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.services.topic_suggester.TopicSuggesterService") as mock_service_class:
+                    mock_service = MagicMock()
+                    mock_service.approve_all_suggestions.return_value = 3
+                    mock_service_class.return_value = mock_service
+
+                    result = runner.invoke(app, ["review-topics", "--approve-all", "--min-confidence", "0.8"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should pass min_confidence
+                    call_kwargs = mock_service.approve_all_suggestions.call_args[1]
+                    assert call_kwargs.get("min_confidence") == 0.8, (
+                        f"Expected min_confidence=0.8, got: {call_kwargs}"
+                    )
+
+    def test_review_topics_filter_by_post(self, tmp_path: Path) -> None:
+        """Verify review-topics --post shows suggestions for specific post.
+
+        Expected behavior:
+        - Command passes post_id to get_pending_assignments
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        mock_pending = [
+            {"id": 1, "post_id": "post_123", "topic_id": 1, "topic_name": "Programming", "confidence": 0.95, "suggested_at": "2024-01-15T10:00:00Z"},
+        ]
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                    mock_topics_repo = MagicMock()
+                    mock_topics_repo.get_pending_assignments.return_value = mock_pending
+                    mock_topics_repo_class.return_value = mock_topics_repo
+
+                    result = runner.invoke(app, ["review-topics", "--post", "post_123"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should pass post_id to get_pending_assignments
+                    call_kwargs = mock_topics_repo.get_pending_assignments.call_args[1]
+                    assert call_kwargs.get("post_id") == "post_123", (
+                        f"Expected post_id=post_123, got: {call_kwargs}"
+                    )
+
+    def test_review_topics_no_pending(self, tmp_path: Path) -> None:
+        """Verify review-topics handles no pending suggestions.
+
+        Expected behavior:
+        - Shows 'No pending suggestions' message
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            with patch("src.cli.main.init_database") as mock_init:
+                mock_conn = MagicMock()
+                mock_init.return_value = mock_conn
+
+                with patch("src.repositories.topics.TopicsRepository") as mock_topics_repo_class:
+                    mock_topics_repo = MagicMock()
+                    mock_topics_repo.get_pending_assignments.return_value = []
+                    mock_topics_repo_class.return_value = mock_topics_repo
+
+                    result = runner.invoke(app, ["review-topics"])
+
+                    # Should succeed
+                    assert result.exit_code == 0, (
+                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                    )
+
+                    # Should show no pending message
+                    assert "No pending" in result.stdout or "no pending" in result.stdout.lower(), (
+                        f"Expected no pending message in output: {result.stdout}"
+                    )

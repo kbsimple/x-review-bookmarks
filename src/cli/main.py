@@ -1181,6 +1181,111 @@ def suggest_topics(
         sys.exit(1)
 
 
+@app.command("review-topics")
+def review_topics(
+    approve: Optional[int] = typer.Option(None, "--approve", "-a", help="Approve suggestion by ID"),
+    reject: Optional[int] = typer.Option(None, "--reject", "-r", help="Reject suggestion by ID"),
+    approve_all: bool = typer.Option(False, "--approve-all", help="Approve all pending suggestions"),
+    min_confidence: float = typer.Option(0.0, "--min-confidence", "-c", help="Min confidence for --approve-all"),
+    post_id: Optional[str] = typer.Option(None, "--post", "-p", help="Filter by post ID"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Database path"),
+) -> None:
+    """Review and approve/reject AI topic suggestions.
+
+    ORG-04: User can review and approve AI-suggested topic assignments.
+
+    Examples:
+        xbm review-topics                    # Show all pending suggestions
+        xbm review-topics --post post_123    # Show suggestions for a post
+        xbm review-topics --approve 1        # Approve suggestion #1
+        xbm review-topics --reject 1         # Reject suggestion #1
+        xbm review-topics --approve-all      # Approve all suggestions
+        xbm review-topics --approve-all --min-confidence 0.8
+    """
+    try:
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+
+        from ..services.topic_suggester import TopicSuggesterService
+        from ..repositories.topics import TopicsRepository
+
+        service = TopicSuggesterService(conn)
+        topics_repo = TopicsRepository(conn)
+
+        if approve is not None:
+            # Approve specific suggestion
+            service.approve_suggestion(approve)
+            console.print(f"[green]Approved suggestion #{approve}[/green]")
+            conn.close()
+            return
+
+        if reject is not None:
+            # Reject specific suggestion
+            service.reject_suggestion(reject)
+            console.print(f"[green]Rejected suggestion #{reject}[/green]")
+            conn.close()
+            return
+
+        if approve_all:
+            # Approve all suggestions above threshold
+            count = service.approve_all_suggestions(min_confidence=min_confidence)
+            console.print(f"[green]Approved {count} suggestions[/green]")
+            conn.close()
+            return
+
+        # Show pending suggestions
+        pending = topics_repo.get_pending_assignments(post_id=post_id)
+
+        if not pending:
+            if post_id:
+                console.print(f"[yellow]No pending suggestions for post {post_id}[/yellow]")
+            else:
+                console.print("[yellow]No pending suggestions[/yellow]")
+            conn.close()
+            return
+
+        # Display suggestions
+        table = Table(title="Pending Topic Suggestions")
+        table.add_column("ID", style="dim")
+        table.add_column("Post", style="cyan")
+        table.add_column("Topic", style="green")
+        table.add_column("Confidence", justify="right")
+        table.add_column("Suggested", style="dim")
+
+        for p in pending:
+            table.add_row(
+                str(p['id']),
+                p['post_id'][:12] + "..." if len(p['post_id']) > 12 else p['post_id'],
+                p.get('topic_name', 'Unknown'),
+                f"{p['confidence']:.2f}",
+                str(p.get('suggested_at', ''))[:10]
+            )
+
+        console.print(table)
+        console.print()
+        console.print(f"[dim]Total: {len(pending)} suggestions[/dim]")
+        console.print("[dim]Use --approve ID or --reject ID to act on suggestions[/dim]")
+
+        conn.close()
+
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Review operation failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI application."""
     app()
