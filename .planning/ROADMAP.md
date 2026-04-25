@@ -71,7 +71,7 @@ Plans:
 **Plans:** 6 plans across 4 waves
 Plans:
 - [x] 03-01-PLAN.md — Schema V3 and FTS5 (note column, link_status column, FTS5 virtual table, migrations)
-- [x] 03-02-PLAN.md — SearchService (FTS5 full-text search, bm25 ranking, author filtering)
+- [x] 03-02-PLAN.md — SearchService (FTS5 full-text search, bm26 ranking, author filtering)
 - [x] 03-03-PLAN.md — Export/Import Services (JSON/CSV export, JSON import, conflict resolution)
 - [x] 03-04-PLAN.md — LinkCheckerService (async concurrent HTTP, semaphore limiting, caching)
 - [x] 03-05-PLAN.md — CLI Commands: search and note
@@ -96,15 +96,21 @@ Plans:
 - [x] 04-05-PLAN.md — CLI commands: tag, topic, suggest-topics, review-topics
 
 ### Phase 5: Spaced Repetition Resurfacing
-**Goal:** Posts are resurfaced for review on an exponential backoff schedule
+**Goal:** Posts are resurfaced for review on a user-controlled schedule with hybrid algorithm support
 **Depends on:** Phase 4
 **Requirements:** SPAC-01, SPAC-02, SPAC-03, SPAC-04, CLI-02
 **Success Criteria** (what must be TRUE):
-  1. Application calculates next review date using exponential backoff from publication date
-  2. User can view posts currently due for review via CLI
-  3. User can trigger themed reviews (posts from specific topics)
-  4. Notes attached to posts are displayed when post is resurfaced for review
-**Plans:** TBD
+  1. Application calculates next review date from publication date with FSRS state tracking
+  2. User can view currently due posts via CLI (`xbm due`)
+  3. User can trigger themed reviews via `--topic` flag
+  4. Notes attached to posts are displayed prominently during review
+  5. User chooses scheduling intent (fresh/soon/later) with defined intervals
+**Plans:** 4 plans across 4 waves
+Plans:
+- [x] 05-01-PLAN.md — Schema V5 and ReviewStateRepository (post_review_state table, CRUD operations)
+- [x] 05-02-PLAN.md — ReviewScheduler service (FSRS Card state, user intervals)
+- [x] 05-03-PLAN.md — CLI commands: due, review (interactive session, themed reviews)
+- [ ] 05-04-PLAN.md — CLI commands: stats, reset, seed (progress tracking, state management)
 
 ## Progress
 
@@ -114,7 +120,7 @@ Plans:
 | 2. Bookmark Fetch and Storage | 4/4 | Complete | 2026-04-23 |
 | 3. Search, Notes, and Import/Export | 6/6 | Complete | 2026-04-23 |
 | 4. Topic Organization | 6/6 | Complete | 2026-04-25 |
-| 5. Spaced Repetition Resurfacing | 0/5 | Not started | - |
+| 5. Spaced Repetition Resurfacing | 3/4 | In Progress | 2026-04-25 |
 
 ## Coverage
 
@@ -149,12 +155,12 @@ Plans:
 | ORG-03 | Phase 4 | Complete |
 | ORG-04 | Phase 4 | Complete |
 | CLI-04 | Phase 4 | Complete |
-| SPAC-01 | Phase 5 | Pending |
-| SPAC-02 | Phase 5 | Pending |
-| SPAC-03 | Phase 5 | Pending |
-| SPAC-04 | Phase 5 | Pending |
-| CLI-02 | Phase 5 | Pending |
+| SPAC-01 | Phase 5 | Complete |
+| SPAC-02 | Phase 5 | Complete |
+| SPAC-03 | Phase 5 | Complete |
+| SPAC-04 | Phase 5 | Complete |
+| CLI-02 | Phase 5 | Complete |
 
 ---
 *Roadmap created: 2026-04-18*
-*Roadmap updated: 2026-04-25 - Phase 4 complete*
+*Roadmap updated: 2026-04-25 - Phase 5 plans created*
