@@ -86,7 +86,14 @@ Plans:
   2. User can create and manage a predefined topic taxonomy
   3. Application suggests topic assignments using hybrid approach (predefined + AI-suggested)
   4. User can review and approve AI-suggested topic assignments
-**Plans:** TBD
+**Plans:** 2/6 plans executed
+Plans:
+- [x] 04-00-PLAN.md — Test infrastructure and dependencies
+- [x] 04-01-PLAN.md — Schema V4 and TagsRepository
+- [ ] 04-02-PLAN.md — TopicsRepository with pending assignment workflow
+- [ ] 04-03-PLAN.md — EmbeddingService and ClusteringService
+- [ ] 04-04-PLAN.md — TopicSuggesterService for hybrid suggestions
+- [ ] 04-05-PLAN.md — CLI commands: tag, topic, suggest-topics, review-topics
 
 ### Phase 5: Spaced Repetition Resurfacing
 **Goal:** Posts are resurfaced for review on an exponential backoff schedule
@@ -106,7 +113,7 @@ Plans:
 | 1. Foundation and Authentication | 5/5 | Complete | 2026-04-18 |
 | 2. Bookmark Fetch and Storage | 4/4 | Complete | 2026-04-23 |
 | 3. Search, Notes, and Import/Export | 6/6 | Complete | 2026-04-23 |
-| 4. Topic Organization | 0/5 | Not started | - |
+| 4. Topic Organization | 2/6 | In Progress|  |
 | 5. Spaced Repetition Resurfacing | 0/5 | Not started | - |
 
 ## Coverage
@@ -150,4 +157,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-04-18*
-*Roadmap updated: 2026-04-23 - Phase 2 and 3 complete*
+*Roadmap updated: 2026-04-24 - Phase 4 planned*
