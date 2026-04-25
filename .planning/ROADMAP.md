@@ -19,7 +19,7 @@
 - [x] **Phase 2: Bookmark Fetch and Storage** - X API integration for fetching and persisting bookmarks
 - [x] **Phase 3: Search, Notes, and Import/Export** - Full-text search, personal notes, and data portability
 - [x] **Phase 4: Topic Organization** - Tags, topic taxonomy, and hybrid clustering
-- [ ] **Phase 5: Spaced Repetition Resurfacing** - FSRS-based scheduling and review delivery
+- [x] **Phase 5: Spaced Repetition Resurfacing** - FSRS-based scheduling and review delivery
 
 ## Phase Details
 
@@ -110,7 +110,7 @@ Plans:
 - [x] 05-01-PLAN.md — Schema V5 and ReviewStateRepository (post_review_state table, CRUD operations)
 - [x] 05-02-PLAN.md — ReviewScheduler service (FSRS Card state, user intervals)
 - [x] 05-03-PLAN.md — CLI commands: due, review (interactive session, themed reviews)
-- [ ] 05-04-PLAN.md — CLI commands: stats, reset, seed (progress tracking, state management)
+- [x] 05-04-PLAN.md — CLI commands: stats, reset, seed (progress tracking, state management)
 
 ## Progress
 
@@ -120,7 +120,7 @@ Plans:
 | 2. Bookmark Fetch and Storage | 4/4 | Complete | 2026-04-23 |
 | 3. Search, Notes, and Import/Export | 6/6 | Complete | 2026-04-23 |
 | 4. Topic Organization | 6/6 | Complete | 2026-04-25 |
-| 5. Spaced Repetition Resurfacing | 3/4 | In Progress | 2026-04-25 |
+| 5. Spaced Repetition Resurfacing | 4/4 | Complete | 2026-04-25 |
 
 ## Coverage
 
@@ -163,4 +163,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-04-18*
-*Roadmap updated: 2026-04-25 - Phase 5 plans created*
+*Roadmap updated: 2026-04-25 - Phase 5 complete, Milestone 1 finished*

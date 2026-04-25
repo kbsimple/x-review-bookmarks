@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-status: In Progress
-last_updated: "2026-04-25T17:10:00.000Z"
+milestone_name: Milestone 1 (CLI + SQLite)
+status: Complete
+last_updated: "2026-04-25T21:30:00.000Z"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 22
-  completed_plans: 24
-  percent: 91
+  completed_plans: 22
+  percent: 100
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -20,20 +20,20 @@ progress:
 
 **Core Value:** Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind
 
-**Current Focus:** Phase 05 — spaced-repetition-resurfacing
+**Current Focus:** Milestone 1 Complete
 
 **Milestone:** Milestone 1 (CLI + SQLite)
 
 ## Current Position
 
-Phase: 5
-Plan: 04 (stats, reset, seed commands)
+Phase: 5 (Complete)
+Status: Milestone finished
 | Field | Value |
 |-------|-------|
 | Phase | 5 |
-| Plan | 04 |
-| Status | Ready to execute |
-| Progress | 75% |
+| Plan | - |
+| Status | Complete |
+| Progress | 100% |
 
 ```
 [::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::] 100%
@@ -42,12 +42,11 @@ Plan: 04 (stats, reset, seed commands)
 ## Performance Metrics
 
 | Metric | Value |
-|--------|-------|--------|
-| Phases completed | 4/5 |
-| Requirements delivered | 37/39 |
-| Plans completed | 24/26 |
-| Sessions this milestone | 6 |
-| Time in current phase | 1 session |
+|--------|-------|
+| Phases completed | 5/5 |
+| Requirements delivered | 34/34 |
+| Plans completed | 22/22 |
+| Sessions this milestone | 7 |
 
 ## Accumulated Context
 
@@ -80,14 +79,6 @@ Plan: 04 (stats, reset, seed commands)
 | 2026-04-25 | `xbm due` for quick view | Non-interactive table view of due posts |
 | 2026-04-25 | Themed reviews via `--topic` flag | Filter by topic for focused review sessions |
 
-- [Phase 04]: approve_pending_assignment moves to post_topics with source='ai-approved'
-- [Phase 04]: INSERT OR REPLACE for idempotent topic assignment
-- [Phase 04]: all-MiniLM-L6-v2 for 384-dim embeddings (22M params, fast inference)
-- [Phase 04]: Embedding cache in SQLite BLOB column (1536 bytes per embedding)
-- [Phase 04]: Cosine similarity threshold of 0.6 for topic suggestions
-- [Phase 04]: K-Means clustering with silhouette scoring for optimal cluster count
-- [Phase 04]: TopicSuggesterService orchestrates embedding + clustering + topics repo
-
 ### Key Files
 
 | File | Purpose |
@@ -96,17 +87,12 @@ Plan: 04 (stats, reset, seed commands)
 | .planning/REQUIREMENTS.md | v1 requirements |
 | .planning/ROADMAP.md | Phase structure |
 | .planning/research/SUMMARY.md | Research findings |
-| .planning/phases/03-search-notes-and-import-export/03-CONTEXT.md | Phase 3 user decisions |
-| .planning/phases/03-search-notes-and-import-export/03-RESEARCH.md | Phase 3 technical research |
-| .planning/phases/04-topic-organization/04-RESEARCH.md | Phase 4 technical research |
-| .planning/phases/04-topic-organization/04-VALIDATION.md | Phase 4 validation strategy |
-| .planning/phases/05-spaced-repetition-resurfacing/05-CONTEXT.md | Phase 5 user decisions |
-| src/repositories/tags.py | TagsRepository for tag CRUD (ORG-01) |
-| src/repositories/topics.py | TopicsRepository for topic CRUD (ORG-02, ORG-04) |
-| src/services/embedding.py | EmbeddingService for text embeddings (ORG-03) |
-| src/services/clustering.py | ClusteringService for topic matching (ORG-03) |
-| src/services/topic_suggester.py | TopicSuggesterService for hybrid suggestions (ORG-03, ORG-04) |
-| src/cli/main.py | CLI commands for tag/topic management (CLI-04) |
+| src/db/schema.py | Schema migrations (v1-v5) |
+| src/repositories/posts.py | PostsRepository for post CRUD |
+| src/repositories/review_state.py | ReviewStateRepository for review state (SPAC-01, SPAC-02) |
+| src/services/review_scheduler.py | ReviewScheduler with FSRS Card state |
+| src/services/review_service.py | ReviewService orchestration layer |
+| src/cli/main.py | CLI commands (sync, search, note, tag, topic, due, review, stats, reset, seed) |
 
 ### Active Blockers
 
@@ -118,15 +104,14 @@ Plan: 04 (stats, reset, seed commands)
 
 ## Session Continuity
 
-**Previous session ended:** Phase 05 context gathered — Spaced Repetition Resurfacing
+**Milestone 1 Complete!**
 
-**Continue with:** Phase 05 planning
-
-**Quick start:**
-
-```
-/gsd-plan-phase 5
-```
+All phases delivered:
+- Phase 1: OAuth 2.0 PKCE + SQLite foundation
+- Phase 2: X API integration, bookmark sync
+- Phase 3: FTS5 search, notes, import/export
+- Phase 4: Tags, topics, hybrid clustering
+- Phase 5: Spaced repetition resurfacing
 
 ## Notes
 
@@ -134,10 +119,10 @@ Plan: 04 (stats, reset, seed commands)
 - Phase 2: X API integration, bookmark sync, incremental updates
 - Phase 3: FTS5 full-text search, personal notes, JSON/CSV export/import, dead link detection
 - Phase 4: Tags, topic taxonomy, hybrid clustering with AI suggestions (complete)
-- Phase 5: User-controlled review scheduling (fresh/soon/later) with hybrid algorithm support
+- Phase 5: User-controlled review scheduling (fresh/soon/later) with FSRS state tracking
 - Critical: XClient uses access_token (OAuth 2.0 User Context), NOT bearer_token
 - FTS5 sync triggers ensure search index stays current with posts table
 
 ---
 *State initialized: 2026-04-18*
-*State updated: 2026-04-25 - Phase 4 complete, ready for Phase 5*
+*State updated: 2026-04-25 - Milestone 1 complete*
