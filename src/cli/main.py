@@ -235,6 +235,12 @@ def sync(
         "-d",
         help="Path to database file (default: data/bookmarks.db)",
     ),
+    limit: Optional[int] = typer.Option(
+        None,
+        "--limit",
+        "-l",
+        help="Maximum number of bookmarks to fetch (default: all)",
+    ),
 ) -> None:
     """Sync bookmarks from X API to local database.
 
@@ -250,6 +256,7 @@ def sync(
 
     Args:
         db_path: Optional path to database file.
+        limit: Maximum number of bookmarks to fetch. If None, fetches all.
 
     Raises:
         SystemExit: On sync failure (exit code 1).
@@ -309,7 +316,7 @@ def sync(
             )
 
             # Run sync
-            result = sync_service.sync()
+            result = sync_service.sync(limit=limit)
 
             # Update progress to complete
             progress.update(task, description=f"Complete! {result.total_fetched} bookmarks synced")

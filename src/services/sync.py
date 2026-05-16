@@ -98,11 +98,14 @@ class SyncService:
         """Create XClient instance. Override in tests for mocking."""
         return XClient(self._access_token)
 
-    def sync(self) -> SyncResult:
+    def sync(self, limit: Optional[int] = None) -> SyncResult:
         """Sync bookmarks from X API to database.
 
         Performs incremental sync if last_sync_bookmark_id exists,
         otherwise performs full sync.
+
+        Args:
+            limit: Maximum number of bookmarks to fetch. If None, fetches all.
 
         Returns:
             SyncResult with counts and status.
@@ -115,11 +118,11 @@ class SyncService:
 
         # Determine sync mode
         if state.last_sync_bookmark_id:
-            return self._incremental_sync(state)
+            return self._incremental_sync(state, limit=limit)
         else:
-            return self._full_sync(state)
+            return self._full_sync(state, limit=limit)
 
-    def _full_sync(self, state: SyncState) -> SyncResult:
+    def _full_sync(self, state: SyncState, limit: Optional[int] = None) -> SyncResult:
         """Perform full sync (first time or reset).
 
         Fetches all bookmarks, stores them, and updates sync state.
@@ -143,6 +146,11 @@ class SyncService:
 
             result.total_fetched += len(fetch_result.tweets)
             result.new_count += (count_after - count_before)
+
+            # Check if we've reached the limit
+            if limit is not None and result.total_fetched >= limit:
+                result.is_complete = True
+                break
 
             # Track highest ID for incremental sync (first tweet of first page is newest)
             if is_first_page and fetch_result.tweets:
@@ -178,11 +186,15 @@ class SyncService:
 
         return result
 
-    def _incremental_sync(self, state: SyncState) -> SyncResult:
+    def _incremental_sync(self, state: SyncState, limit: Optional[int] = None) -> SyncResult:
         """Perform incremental sync.
 
         D-02: Only fetches bookmarks newer than last_sync_bookmark_id.
         Stops when reaching the last known bookmark.
+
+        Args:
+            state: Current sync state.
+            limit: Maximum number of bookmarks to fetch. If None, fetches all.
         """
         result = SyncResult()
         pagination_token = state.pagination_token
@@ -213,6 +225,17 @@ class SyncService:
                 # Store this tweet
                 self._store_tweet(tweet, fetch_result)
                 result.total_fetched += 1
+
+                # Check if we've reached the limit
+                if limit is not None and result.total_fetched >= limit:
+                    result.is_complete = True
+                    # Update sync state with new highest ID
+                    if new_highest_id:
+                        self._sync_state_repo.update_state(
+                            last_sync_bookmark_id=new_highest_id,
+                            reset_pagination=True,
+                        )
+                    return result
 
                 # Track first (newest) tweet ID as potential new highest
                 if new_highest_id is None:
