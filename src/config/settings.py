@@ -48,7 +48,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix='X_',              # X_CLIENT_ID, X_CLIENT_SECRET, etc.
-        env_file='.env',
+        env_file='.env.local',
         case_sensitive=False,
         extra='ignore',               # Ignore extra env vars
     )
