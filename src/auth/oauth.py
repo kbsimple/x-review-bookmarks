@@ -266,11 +266,16 @@ def exchange_code_for_token(callback_path: str) -> tuple[str, str]:
         )
 
     try:
-        # Pass full callback URL for CSRF state validation
-        authorization_response = f"http://127.0.0.1:8080{callback_path}"
-        token_data = _oauth2_handler.fetch_token(
-            authorization_response=authorization_response
-        )
+        # Extract code from callback path
+        from urllib.parse import parse_qs, urlparse
+        qs = parse_qs(urlparse(callback_path).query)
+        code = qs.get("code", [None])[0]
+
+        if not code:
+            raise AuthError("No code parameter in callback URL")
+
+        # Use fetch_token with code parameter
+        token_data = _oauth2_handler.fetch_token(code=code)
 
         access_token = token_data.get("access_token", "")
         refresh_token = token_data.get("refresh_token", "")
