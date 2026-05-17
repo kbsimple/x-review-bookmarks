@@ -51,7 +51,6 @@ data/
 
 # Environment variables (contains secrets)
 .env
-.env.local
 
 # OAuth tokens (security-sensitive)
 tokens.json
