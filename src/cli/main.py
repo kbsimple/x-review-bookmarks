@@ -14,6 +14,11 @@ Usage:
 
 from __future__ import annotations
 
+# Suppress urllib3 OpenSSL warning on macOS (LibreSSL vs OpenSSL)
+# Must be before imports that trigger the warning
+import warnings
+warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL')
+
 import sys
 from pathlib import Path
 from typing import Optional, Union
