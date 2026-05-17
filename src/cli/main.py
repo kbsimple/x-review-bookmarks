@@ -392,6 +392,85 @@ def sync(
 
 
 @app.command()
+def browse(
+    order: str = typer.Option(
+        "newest",
+        "--order", "-o",
+        help="Sort order: newest, oldest, or random",
+    ),
+    limit: int = typer.Option(20, "--limit", "-l", help="Maximum posts to display"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Path to database file"),
+) -> None:
+    """Browse all bookmarked posts.
+
+    Display posts in the specified order for casual browsing.
+
+    Examples:
+        xbm browse                    # Newest first (default)
+        xbm browse --order oldest     # Oldest first
+        xbm browse --order random     # Random order
+        xbm browse -o random -l 50    # 50 random posts
+    """
+    valid_orders = {"newest", "oldest", "random"}
+    if order not in valid_orders:
+        console.print(f"[red]Invalid order '{order}'. Must be one of: {', '.join(valid_orders)}[/red]")
+        raise typer.Exit(1)
+
+    try:
+        if db_path is None:
+            try:
+                settings = Settings()
+                db_path = settings.database_path
+            except Exception:
+                db_path = Path("data/bookmarks.db")
+
+        conn = init_database(db_path)
+        from ..repositories import PostsRepository
+
+        repo = PostsRepository(conn)
+        posts = repo.get_all_ordered(order=order, limit=limit)
+
+        if not posts:
+            console.print("[yellow]No posts found[/yellow]")
+            conn.close()
+            return
+
+        # Display posts in a table
+        table = Table(title=f"Bookmarked Posts ({order})", show_header=True, header_style="bold cyan")
+        table.add_column("Date", style="dim", width=12)
+        table.add_column("Author", style="cyan", width=15)
+        table.add_column("Content", no_wrap=True)
+
+        for post in posts:
+            created = post.get("created_at", "")[:10] if post.get("created_at") else ""
+            author = post.get("author_username", "") or post.get("author_display_name", "")[:15]
+            text = post.get("text", "")[:80]
+            if len(post.get("text", "")) > 80:
+                text += "..."
+            table.add_row(created, f"@{author}" if author else "", text)
+
+        console.print(table)
+
+        # Show summary
+        total = repo.count()
+        console.print()
+        console.print(f"[dim]Showing {len(posts)} of {total} posts[/dim]")
+
+        conn.close()
+
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Failed to browse posts\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
+@app.command()
 def search(
     query: str = typer.Argument(..., help="Search query (supports phrases, prefixes, boolean)"),
     author: Optional[str] = typer.Option(None, "--author", "-a", help="Filter by author username or display name"),

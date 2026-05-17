@@ -146,6 +146,35 @@ class PostsRepository:
 
         return [self._row_to_dict(row) for row in rows]
 
+    def get_all_ordered(
+        self,
+        order: str = "newest",
+        limit: int = 100,
+        offset: int = 0
+    ) -> list[dict[str, Any]]:
+        """Get all posts with specified ordering.
+
+        Args:
+            order: Sort order - "newest", "oldest", or "random".
+            limit: Maximum posts to return.
+            offset: Offset for pagination.
+
+        Returns:
+            List of post dicts.
+        """
+        order_clause = {
+            "newest": "ORDER BY created_at DESC",
+            "oldest": "ORDER BY created_at ASC",
+            "random": "ORDER BY RANDOM()",
+        }.get(order, "ORDER BY created_at DESC")
+
+        rows = self._conn.execute(
+            f"SELECT * FROM posts {order_clause} LIMIT ? OFFSET ?",
+            (limit, offset)
+        ).fetchall()
+
+        return [self._row_to_dict(row) for row in rows]
+
     def count(self) -> int:
         """Get total post count.
 
