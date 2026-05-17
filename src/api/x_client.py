@@ -77,14 +77,14 @@ class XClient:
 
         Args:
             access_token: OAuth 2.0 access token from ensure_authenticated().
-                         NOT bearer_token (causes 403 Forbidden).
 
         Raises:
             ValueError: If access_token is empty.
         """
         if not access_token:
             raise ValueError("access_token required for XClient (OAuth 2.0 User Context)")
-        self._client = tweepy.Client(access_token=access_token)
+        # tweepy uses 'bearer_token' parameter for OAuth 2.0 access tokens
+        self._client = tweepy.Client(bearer_token=access_token)
         self._last_response: Optional[Any] = None
 
     def fetch_bookmarks(
