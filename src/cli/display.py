@@ -73,6 +73,13 @@ def display_post(
         topics_str = ", ".join(t['name'] for t in topics) or "None"
         metadata.add_row("Topics", topics_str)
 
+    # Add link to original post
+    post_id = post.get('x_post_id', '')
+    author_handle = post.get('author_username', '')
+    if post_id and author_handle:
+        link = f"https://x.com/{author_handle}/status/{post_id}"
+        metadata.add_row("Link", f"[link={link}]{link}[/link]")
+
     # Add extra metadata rows (e.g., Reviews, Last Review, User Pref)
     if extra_metadata:
         for label, value in extra_metadata:
