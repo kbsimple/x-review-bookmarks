@@ -225,8 +225,9 @@ def wait_for_callback(port: int = CALLBACK_PORT, timeout: int = 300) -> str:
         server.shutdown()
         raise TimeoutError(f"No callback received within {timeout} seconds")
 
-    server.shutdown()
-    thread.join()
+    # handle_request() processes one request and returns, so thread completes naturally
+    # No need for shutdown() - it can hang on macOS
+    thread.join(timeout=5)
 
     code = received_code[0]
     if code is None:
