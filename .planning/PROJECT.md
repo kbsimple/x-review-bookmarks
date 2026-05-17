@@ -12,34 +12,45 @@ Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in
 
 ### Validated
 
-(None yet — ship to validate)
+Milestone 1 delivered:
+- ✓ OAuth 2.0 PKCE authentication with X API
+- ✓ SQLite storage with WAL mode (posts, tags, topics, review state)
+- ✓ Bookmark sync with incremental updates and rate limit handling
+- ✓ FTS5 full-text search across post content and authors
+- ✓ Personal notes attached to posts
+- ✓ JSON/CSV export and import
+- ✓ Tags and topic taxonomy with hybrid AI suggestions
+- ✓ FSRS-based spaced repetition scheduling
+- ✓ Interactive review sessions via CLI
 
 ### Active
 
-- [ ] Fetch bookmarked posts from X API for authenticated user
-- [ ] Store posts in SQLite with full content (text, author, images, links, media)
-- [ ] Cluster posts into topics using hybrid approach (predefined + AI-suggested)
-- [ ] Resurface posts on exponential backoff schedule based on publication date
-- [ ] View resurfaced posts on Samsung Smart TV
+Milestone v1.1 — Web App with Casting:
+- [ ] FastAPI web application running locally
+- [ ] Shared authentication with CLI (same OAuth 2.0 tokens)
+- [ ] Browse posts with pagination and infinite scroll
+- [ ] Search and filter posts (text, topic, author, date range)
+- [ ] Google Cast integration for TV viewing
 
 ### Out of Scope
 
 - Thread context — only individual bookmarked posts, not conversation threads
 - Real-time sync — scheduled fetches are sufficient
 - Mobile native app — web app with casting as fallback
+- Interactive review workflow (fresh/soon/later) — deferred to v1.2
+- Cloud hosting — local-only deployment for v1.1
 
 ## Context
 
 **Background:** The user bookmarks posts on X that they find valuable. Over time, these bookmarks accumulate without a mechanism to revisit them. The goal is to transform bookmarks from a "save and forget" pattern into an active review system.
 
-**Technical context:** Auth pattern from existing project (kbsimple/X-follow-clusters) will be reused — OAuth 2.0 PKCE with tweepy.
+**Technical context:** Milestone 1 complete with OAuth 2.0 PKCE, SQLite storage, FTS5 search, topic clustering, and FSRS-based spaced repetition. All core CLI functionality is working.
 
 **Scale:** 100-500 bookmarks across 20-30 topics.
 
 **Milestones:**
-- **Milestone 1:** CLI + SQLite — fetch and store bookmarked posts
-- **Milestone 2:** Topic clustering — hybrid model (predefined + AI-suggested topics)
-- **Milestone 3:** Delivery — scheduled resurfacing with Samsung TV viewing
+- **Milestone 1 (v1.0):** CLI + SQLite — COMPLETE
+- **Milestone 2 (v1.1):** Web App with Casting — IN PROGRESS
 
 ## Constraints
 
@@ -58,7 +69,18 @@ Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in
 | Samsung TV as primary target | Matches user's viewing context | — Pending |
 
 ---
-*Last updated: 2026-04-18 after initialization*
+*Last updated: 2026-05-17 after Milestone 2 initialization*
+
+## Current Milestone: v1.1 Web App with Casting
+
+**Goal:** Deliver bookmarked posts to a browser with Google Cast support for TV viewing.
+
+**Target features:**
+- FastAPI + Jinja2 web app running locally
+- Shared authentication with CLI (same OAuth 2.0 tokens)
+- Browse posts with pagination
+- Search and filter posts (text, topic, author, date)
+- Google Cast integration for Chromecast/Smart TV viewing
 
 ## Evolution
 
