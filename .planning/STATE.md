@@ -107,6 +107,7 @@ Status: Milestone finished
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260516 | Add --limit flag to xbm sync | 2026-05-16 | 137c08c | [260516-limit-sync-flag](./quick/260516-limit-sync-flag/) |
+| 260517 | Add xbm browse command with --order flag | 2026-05-17 | d22c284 | inline |
 
 ## Session Continuity
 
