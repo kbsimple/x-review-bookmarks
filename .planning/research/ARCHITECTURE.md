@@ -1,546 +1,658 @@
 # Architecture Research
 
-**Domain:** Python CLI with SQLite storage and X API integration
-**Researched:** 2026-04-18
+**Domain:** FastAPI Web App with Google Cast Integration
+**Context:** Adding web frontend to existing CLI-focused Python application
+**Researched:** 2026-05-17
 **Confidence:** HIGH
 
-## Standard Architecture
+## Existing Architecture Overview
+
+The current application uses a clean layered architecture:
+
+```
+src/
+├── cli/
+│   └── main.py              # Typer CLI entry point (1877 lines)
+├── services/
+│   ├── sync.py              # Bookmark sync from X API
+│   ├── search.py            # FTS5 full-text search
+│   ├── export.py            # JSON/CSV import/export
+│   ├── link_checker.py      # Dead link detection
+│   ├── embedding.py         # Text embeddings (sentence-transformers)
+│   ├── clustering.py        # Topic clustering (K-Means)
+│   ├── topic_suggester.py   # AI topic suggestions
+│   ├── review_scheduler.py  # FSRS spaced repetition
+│   └── review_service.py    # Review workflow logic
+├── repositories/
+│   ├── posts.py             # Post data access
+│   ├── tags.py              # Tag CRUD
+│   ├── topics.py            # Topic taxonomy
+│   ├── sync_state.py        # Sync metadata
+│   └── review_state.py      # Review state persistence
+├── db/
+│   ├── connection.py        # SQLite factory with WAL mode
+│   ├── schema.py            # Table definitions
+│   └── migrations.py        # Schema migrations
+├── auth/
+│   └── oauth.py             # OAuth 2.0 PKCE flow (603 lines)
+├── api/
+│   └── __init__.py          # X API client (placeholder)
+├── config/
+│   └── settings.py          # Pydantic Settings
+└── __init__.py
+```
+
+**Key Patterns:**
+- **Repository Pattern**: Data access abstracted in repositories/
+- **Service Layer**: Business logic in services/
+- **Connection Factory**: `get_connection()` returns SQLite connection with proper PRAGMAs
+- **Token Storage**: `data/tokens.json` for OAuth credentials
+
+## Recommended Web Architecture
 
 ### System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          CLI Layer (Typer)                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │
-│  │ fetch        │  │ topics       │  │ resurface    │             │
-│  │ command      │  │ command      │  │ command      │             │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘             │
-├─────────┴─────────────────┴─────────────────┴───────────────────────┤
-│                        Service Layer                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │
-│  │ FetchService │  │ TopicService │  │SchedulerSvc  │             │
-│  │              │  │              │  │ (FSRS)       │             │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘             │
-├─────────┴─────────────────┴─────────────────┴───────────────────────┤
-│                       Repository Layer                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │
-│  │ PostRepo     │  │ TopicRepo    │  │ScheduleRepo  │             │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘             │
-├─────────┴─────────────────┴─────────────────┴───────────────────────┤
-│                      External Services                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │
-│  │ X API Client │  │ SQLite DB    │  │ Config/Auth │             │
-│  │ (Tweepy)     │  │              │  │ (pydantic)   │             │
-│  └──────────────┘  └──────────────┘  └──────────────┘             │
+│                         CLIENT LAYER                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
+│  │  CLI (Typer)│  │  Browser   │  │  Google Cast Sender (JS)    │ │
+│  │  xbm auth   │  │  Templates │  │  chrome.cast.media API      │ │
+│  └──────┬──────┘  └──────┬──────┘  └─────────────┬───────────────┘ │
+└─────────┼────────────────┼───────────────────────┼─────────────────┘
+          │                │                       │
+          ▼                ▼                       ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                        ENTRY POINT LAYER                             │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                    FastAPI Application                      │   │
+│  │  src/web/app.py                                              │   │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │   │
+│  │  │ API Routes  │  │ Web Routes  │  │ Static Files Mount   │  │   │
+│  │  │ /api/*      │  │ /, /browse  │  │ /static/*, /js/*     │  │   │
+│  │  └──────┬──────┘  └──────┬──────┘  └─────────────────────┘  │   │
+│  └─────────┼────────────────┼─────────────────────────────────────┘
+│            │                │                                        │
+│  ┌─────────┴────────────────┴─────────────────────────────────────┐ │
+│  │                    Auth Middleware                              │ │
+│  │  - Check session cookie OR                                     │ │
+│  │  - Load from data/tokens.json (shared with CLI)                │ │
+│  │  - Refresh tokens on 401                                       │ │
+│  └─────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                       SERVICE LAYER (SHARED)                         │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────────┐   │
+│  │SyncService│  │SearchSvc  │  │ReviewSvc  │  │TopicSuggester │   │
+│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └───────┬───────┘   │
+└────────┼──────────────┼──────────────┼────────────────┼─────────────┘
+         │              │              │                │
+         ▼              ▼              ▼                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      REPOSITORY LAYER (SHARED)                       │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐│
+│  │PostsRepo │  │ TagsRepo │  │TopicsRepo│  │ ReviewStateRepo      ││
+│  └─────┬────┘  └─────┬────┘  └─────┬────┘  └──────────┬───────────┘│
+└────────┼─────────────┼─────────────┼──────────────────┼─────────────┘
+         │             │             │                  │
+         ▼             ▼             ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                        DATA LAYER                                    │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │                     SQLite (data/bookmarks.db)                 │ │
+│  │  - WAL mode enabled (concurrent reads/writes)                  │ │
+│  │  - FTS5 for full-text search                                   │ │
+│  │  - Foreign key constraints enabled                             │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │                     Token Store (data/tokens.json)             │ │
+│  │  - Shared between CLI and Web                                  │ │
+│  │  - OAuth 2.0 access_token, refresh_token                      │ │
+│  └────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| **CLI Layer** | Command parsing, user I/O, output formatting | Typer with Rich for tables/progress |
-| **Service Layer** | Business logic, orchestration, coordination | Plain Python classes with injected deps |
-| **Repository Layer** | Data access abstraction, SQL queries | Repository pattern with SQLite backend |
-| **X API Client** | Authentication, rate limiting, API calls | Tweepy OAuth2UserHandler + Client |
-| **Scheduler** | Spaced repetition calculations | py-fsrs library (FSRS algorithm) |
-| **Config** | Environment vars, credentials, defaults | pydantic-settings BaseSettings |
-| **SQLite** | Persistent storage, caching | Single file DB with WAL mode |
+| Component | Responsibility | Implementation |
+|-----------|----------------|----------------|
+| `src/web/app.py` | FastAPI application factory | Creates app, mounts routers, static files |
+| `src/web/routes/` | Web routes (browse, search) | Jinja2 templates, session auth |
+| `src/web/api/` | JSON API routes | REST endpoints for CRUD operations |
+| `src/web/auth.py` | Web authentication | Session management, token refresh |
+| `src/web/templates/` | Jinja2 HTML templates | Base, browse, search, post detail |
+| `src/web/static/js/cast.js` | Google Cast sender | CastContext initialization, media loading |
+| `src/services/` | Business logic | **REUSED** from CLI implementation |
+| `src/repositories/` | Data access | **REUSED** from CLI implementation |
+| `src/db/connection.py` | Database connections | **REUSED** from CLI implementation |
 
-## Recommended Project Structure
+## Recommended Project Structure (New Files)
 
 ```
-src/x_bookmarked/
-├── __init__.py
-├── cli.py                 # Typer app entry point
-├── main.py                # App initialization, dependency container
-├── config/
+src/
+├── web/                          # NEW: Web application module
 │   ├── __init__.py
-│   └── settings.py        # pydantic-settings configuration
-├── auth/
-│   ├── __init__.py
-│   └── oauth.py           # OAuth 2.0 PKCE flow handler
-├── api/
-│   ├── __init__.py
-│   └── x_client.py        # Tweepy wrapper with rate limiting
-├── db/
-│   ├── __init__.py
-│   ├── connection.py      # SQLite connection manager
-│   ├── migrations.py      # Schema migrations
-│   ├── models.py          # Dataclasses/Pydantic models
-│   └── repositories/
-│       ├── __init__.py
-│       ├── base.py        # Abstract repository interface
-│       ├── posts.py       # Post repository
-│       ├── topics.py      # Topic repository
-│       └── schedule.py    # Resurfacing schedule repository
-├── services/
-│   ├── __init__.py
-│   ├── fetch_service.py   # Orchestrate X API fetch
-│   ├── topic_service.py   # Topic clustering logic
-│   └── scheduler_service.py # Spaced repetition scheduling
-├── scheduler/
-│   ├── __init__.py
-│   └── fsrs_wrapper.py    # FSRS algorithm integration
-└── utils/
-    ├── __init__.py
-    └── logging.py         # Structured logging setup
-
-tests/
-├── conftest.py            # Fixtures, test database
-├── test_repositories/
-├── test_services/
-└── test_cli/
-
-data/
-└── bookmarks.db          # SQLite database file
+│   ├── app.py                    # FastAPI application factory
+│   ├── config.py                 # Web-specific settings (host, port, debug)
+│   ├── auth.py                   # Session-based auth, token sharing with CLI
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── web.py                # Web routes (/, /browse, /search)
+│   │   └── api.py                # JSON API routes (/api/*)
+│   ├── templates/
+│   │   ├── base.html             # Base template with layout, cast SDK
+│   │   ├── browse.html           # Post browsing with pagination
+│   │   ├── search.html           # Search results page
+│   │   └── post.html             # Single post detail view
+│   └── static/
+│       ├── css/
+│       │   └── styles.css        # Application styles
+│       └── js/
+│           ├── main.js           # General client-side logic
+│           └── cast.js           # Google Cast sender integration
+├── cli/                          # EXISTING: CLI module (unchanged)
+├── services/                     # EXISTING: Shared business logic
+├── repositories/                 # EXISTING: Shared data access
+├── db/                           # EXISTING: Database layer
+├── auth/                         # EXISTING: OAuth flow (shared)
+└── config/                       # EXISTING: Settings
 ```
 
 ### Structure Rationale
 
-- **cli.py vs main.py:** CLI handles command parsing only; main.py handles dependency injection container setup
-- **repositories/:** Each domain entity gets its own repository following single responsibility
-- **services/:** One service per major feature area (fetch, topics, scheduling)
-- **scheduler/:** Isolated module for FSRS algorithm - could be swapped for SM-2 if needed
-- **auth/:** Separate module because OAuth flow has its own state management complexity
-- **data/:** SQLite file outside src for easy backup/inspection
+- **`src/web/`**: New module for web-specific code, parallel to `src/cli/`
+- **`routes/`**: Separate web routes from API routes for clarity
+- **`templates/`**: Jinja2 templates for server-side rendering (simpler than SPA)
+- **`static/js/cast.js`**: Isolated Google Cast logic for maintainability
+- **Shared services/**: Both CLI and web use the same business logic
+- **Shared repositories/**: Same data access layer for consistency
 
 ## Architectural Patterns
 
-### Pattern 1: Repository Pattern
+### Pattern 1: Application Factory
 
-**What:** Abstract data access behind interfaces so business logic never touches SQL directly.
-
-**When to use:** Always - essential for testability and clean separation.
-
-**Trade-offs:** More boilerplate upfront, but enables in-memory testing and future database swaps.
+**What:** Create FastAPI app in a function, allowing configuration injection and testing.
+**When:** Always use for FastAPI applications.
+**Trade-offs:** Slightly more complex than global app, but enables testing and config flexibility.
 
 **Example:**
 ```python
-# db/repositories/base.py
-from abc import ABC, abstractmethod
-from typing import Protocol
+# src/web/app.py
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
-class PostRepository(Protocol):
-    """Protocol for dependency injection"""
-    def get_by_id(self, post_id: str) -> Post | None: ...
-    def get_all_bookmarked(self) -> list[Post]: ...
-    def save(self, post: Post) -> None: ...
-    def get_posts_for_resurface(self, due_date: datetime) -> list[Post]: ...
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize database connection pool if needed
+    yield
+    # Shutdown: Cleanup resources
 
-# db/repositories/posts.py
-class SQLitePostRepository:
-    def __init__(self, conn: sqlite3.Connection):
-        self._conn = conn
+def create_app(settings: Settings | None = None) -> FastAPI:
+    if settings is None:
+        settings = Settings()
 
-    def get_by_id(self, post_id: str) -> Post | None:
-        cursor = self._conn.execute(
-            "SELECT * FROM posts WHERE id = ?", (post_id,)
-        )
-        row = cursor.fetchone()
-        return Post.from_row(row) if row else None
-
-    def save(self, post: Post) -> None:
-        self._conn.execute(
-            """INSERT OR REPLACE INTO posts
-               (id, text, author_id, created_at, bookmarked_at, ...)
-               VALUES (?, ?, ?, ?, ?, ...)""",
-            (post.id, post.text, post.author_id, ...)
-        )
-        self._conn.commit()
-```
-
-### Pattern 2: Service Layer Orchestration
-
-**What:** Services coordinate between repositories, external APIs, and business rules. CLI calls services, never repositories directly.
-
-**When to use:** When business logic spans multiple entities or external systems.
-
-**Trade-offs:** Adds a layer, but keeps CLI thin and logic testable without database.
-
-**Example:**
-```python
-# services/fetch_service.py
-class FetchService:
-    def __init__(
-        self,
-        x_client: XClient,
-        post_repo: PostRepository,
-        topic_repo: TopicRepository,
-    ):
-        self._x_client = x_client
-        self._post_repo = post_repo
-        self._topic_repo = topic_repo
-
-    def fetch_and_store_bookmarks(self) -> FetchResult:
-        """Fetch bookmarks from X API and store in database."""
-        bookmarks = self._x_client.get_bookmarks()
-        for bookmark in bookmarks:
-            post = Post.from_x_api(bookmark)
-            self._post_repo.save(post)
-        return FetchResult(count=len(bookmarks))
-```
-
-### Pattern 3: Dependency Injection Container
-
-**What:** Single place to wire up all dependencies. Services receive their dependencies through constructor injection.
-
-**When to use:** For any CLI with multiple services and repositories.
-
-**Trade-offs:** Slightly more setup code, but eliminates hidden global state.
-
-**Example:**
-```python
-# main.py
-from dependency_injector import containers, providers
-from db.connection import get_connection
-from db.repositories.posts import SQLitePostRepository
-from services.fetch_service import FetchService
-
-class Container(containers.DeclarativeContainer):
-    config = providers.Configuration()
-
-    db_connection = providers.Singleton(get_connection, config.db_path)
-
-    post_repo = providers.Singleton(SQLitePostRepository, db_connection)
-    topic_repo = providers.Singleton(SQLiteTopicRepository, db_connection)
-
-    x_client = providers.Singleton(XClient, config.twitter_credentials)
-
-    fetch_service = providers.Singleton(
-        FetchService, x_client, post_repo, topic_repo
+    app = FastAPI(
+        title="X Bookmarked Posts",
+        lifespan=lifespan,
     )
 
-# cli.py
-container = Container()
-container.config.from_dict({"db_path": "data/bookmarks.db"})
+    # Mount static files
+    app.mount("/static", StaticFiles(directory="src/web/static"), name="static")
 
-app = typer.Typer()
+    # Templates
+    templates = Jinja2Templates(directory="src/web/templates")
 
-@app.command()
-def fetch():
-    service = container.fetch_service()
-    result = service.fetch_and_store_bookmarks()
-    typer.echo(f"Fetched {result.count} bookmarks")
+    # Include routers
+    from .routes.web import web_router
+    from .routes.api import api_router
+    app.include_router(web_router, templates=templates)
+    app.include_router(api_router, prefix="/api")
+
+    return app
+
+# For uvicorn
+app = create_app()
 ```
 
-### Pattern 4: SQLite Connection Management
+### Pattern 2: Shared Authentication (CLI + Web)
 
-**What:** Thread-local connection with WAL mode and proper pragmas for performance.
+**What:** Web app reuses OAuth tokens stored by CLI in `data/tokens.json`.
+**When:** Single-user, local-first applications where both CLI and web access same tokens.
+**Trade-offs:** Simpler than implementing separate auth, but requires file-based token sharing.
 
-**When to use:** Any SQLite-based application.
+**Implementation:**
+```python
+# src/web/auth.py
+from fastapi import Request, HTTPException, Depends
+from fastapi.security import HTTPBearer
+from pathlib import Path
+import json
 
-**Trade-offs:** Single connection per thread - fine for CLI, not for concurrent web apps.
+from ..auth.oauth import load_tokens, refresh_access_token
+from ..config import Settings
+
+# Token file path (same as CLI)
+TOKEN_PATH = Path("data/tokens.json")
+
+async def get_current_user(request: Request) -> dict:
+    """
+    Dependency that ensures valid authentication.
+
+    Flow:
+    1. Check session cookie for access token
+    2. Fall back to data/tokens.json (shared with CLI)
+    3. If expired, refresh using refresh_token
+    4. Return user info or raise HTTPException(401)
+    """
+    settings = Settings()
+
+    # Try session cookie first
+    access_token = request.session.get("access_token")
+
+    # Fall back to shared token file
+    if not access_token:
+        tokens = load_tokens(TOKEN_PATH)
+        if tokens:
+            access_token = tokens[0]
+
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Verify token with X API
+    try:
+        user_data = verify_credentials(access_token)
+        return {"username": user_data.username, "access_token": access_token}
+    except AuthError as e:
+        # Token expired - try refresh
+        tokens = load_tokens(TOKEN_PATH)
+        if tokens:
+            new_access, new_refresh = refresh_access_token(
+                settings.client_id,
+                settings.client_secret_value,
+                tokens[1]  # refresh_token
+            )
+            # Save refreshed tokens
+            save_tokens(new_access, new_refresh, TOKEN_PATH)
+            request.session["access_token"] = new_access
+            return {"username": "...", "access_token": new_access}
+
+        raise HTTPException(status_code=401, detail="Authentication expired")
+
+# Usage in routes
+@router.get("/browse")
+async def browse(request: Request, user = Depends(get_current_user)):
+    return templates.TemplateResponse("browse.html", {"request": request, "user": user})
+```
+
+### Pattern 3: Service Layer Injection
+
+**What:** Inject existing service instances into FastAPI routes via Depends().
+**When:** Reusing business logic from CLI in web routes.
+**Trade-offs:** Requires adapting services that expect SQLite connections to work with FastAPI's async model.
 
 **Example:**
 ```python
-# db/connection.py
-import sqlite3
-import threading
-from contextlib import contextmanager
+# src/web/dependencies.py
+from fastapi import Depends
+from sqlite3 import Connection
 
-_thread_local = threading.local()
+from ..db.connection import get_connection
+from ..services.search import SearchService
+from ..repositories.posts import PostsRepository
 
-def get_connection(db_path: str) -> sqlite3.Connection:
-    """Get or create thread-local connection with optimal settings."""
-    if not hasattr(_thread_local, 'conn'):
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row  # Dict-like access
-        # Optimize for single-writer CLI usage
-        conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA synchronous = NORMAL")
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA cache_size = -64000")  # 64MB
-        _thread_local.conn = conn
-    return _thread_local.conn
-
-@contextmanager
-def transaction(conn: sqlite3.Connection):
-    """Context manager for transactions with auto-rollback on error."""
+def get_db() -> Connection:
+    """Dependency that provides a database connection."""
+    conn = get_connection()
     try:
         yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
+    finally:
+        conn.close()
+
+def get_search_service(conn: Connection = Depends(get_db)) -> SearchService:
+    """Dependency that provides a SearchService instance."""
+    return SearchService(conn)
+
+# Usage in routes
+@router.get("/search")
+async def search(
+    query: str,
+    service: SearchService = Depends(get_search_service)
+):
+    results = service.search(query)
+    return {"results": results}
+```
+
+### Pattern 4: Google Cast Sender Integration
+
+**What:** JavaScript module that initializes CastContext and handles media loading.
+**When:** Any web app that needs to cast content to Chromecast/Smart TV.
+**Trade-offs:** Requires HTTPS in production (HTTP only works on localhost).
+
+**Example:**
+```javascript
+// src/web/static/js/cast.js
+
+// Initialize Cast SDK when available
+window['__onGCastApiAvailable'] = function(isAvailable) {
+    if (isAvailable) {
+        initializeCastApi();
+    }
+};
+
+function initializeCastApi() {
+    const context = cast.framework.CastContext.getInstance();
+
+    // Use Default Media Receiver (no custom receiver app needed)
+    context.setOptions({
+        receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+        autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+    });
+
+    // Listen for session changes
+    context.addEventListener(
+        cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+        function(event) {
+            if (event.sessionState === cast.framework.SessionState.SESSION_STARTED) {
+                console.log('Cast session started');
+            } else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
+                console.log('Cast session ended');
+            }
+        }
+    );
+}
+
+function castPost(postId, title, author) {
+    const castSession = cast.framework.CastContext.getInstance().getCurrentSession();
+
+    if (!castSession) {
+        // No active session - prompt user to connect
+        console.log('No cast session active');
+        return;
+    }
+
+    // Create media info for the post
+    const mediaInfo = new chrome.cast.media.MediaInfo(
+        `/api/posts/${postId}/cast`,  // Endpoint that serves media
+        'text/html'  // or appropriate content type
+    );
+
+    mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
+    mediaInfo.metadata.title = title;
+    mediaInfo.metadata.subtitle = `By @${author}`;
+
+    const request = new chrome.cast.media.LoadRequest(mediaInfo);
+    castSession.loadMedia(request)
+        .then(() => console.log('Media loaded successfully'))
+        .catch(error => console.error('Load failed:', error));
+}
+
+// Export for use in main.js
+window.castPost = castPost;
+```
+
+```html
+<!-- src/web/templates/base.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}X Bookmarked Posts{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+</head>
+<body>
+    <!-- Cast button (custom element) -->
+    <google-cast-launcher></google-cast-launcher>
+
+    {% block content %}{% endblock %}
+
+    <!-- Load Cast SDK -->
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+    <script src="{{ url_for('static', path='/js/main.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/cast.js') }}"></script>
+</body>
+</html>
 ```
 
 ## Data Flow
 
-### Fetch Bookmarks Flow
+### Request Flow: Browse Posts
 
 ```
-User: x-bookmarked fetch
-         │
-         ▼
-    ┌─────────┐
-    │ CLI     │ Validates auth, calls service
-    └────┬────┘
-         │
-         ▼
-    ┌──────────────┐
-    │FetchService  │ Orchestrates fetch
-    └──────┬───────┘
-         │ │
-         │ ▼
-         │ ┌─────────┐     ┌──────────┐
-         │ │X Client │────▶│ X API    │
-         │ └─────────┘     └──────────┘
-         │        │
-         │        ▼ (bookmarks data)
-         │ ┌─────────┐
-         │ │PostRepo │
-         │ └────┬────┘
-         │      │
-         ▼      ▼
-    ┌───────────┐
-    │  SQLite   │
-    └───────────┘
-         │
-         ▼
-    Result: "Fetched N bookmarks"
+[Browser Request: GET /browse?topic=python&page=2]
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ FastAPI Route: web.py                                        │
+│ @router.get("/browse")                                       │
+│ async def browse(topic: str | None, page: int = 1, ...)     │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼ Depends(get_current_user)
+┌─────────────────────────────────────────────────────────────┐
+│ Auth Middleware: auth.py                                    │
+│ - Check session cookie for access_token                     │
+│ - Fall back to data/tokens.json                             │
+│ - Verify with X API or refresh if expired                   │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼ Depends(get_posts_repository)
+┌─────────────────────────────────────────────────────────────┐
+│ Repository: PostsRepository(conn)                            │
+│ def get_all(topic_id, limit, offset) -> list[dict]          │
+│ - SQLite query with FTS5 if search query                    │
+│ - Join with post_topics for filtering                       │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Template: browse.html                                        │
+│ {% for post in posts %}                                     │
+│   <div class="post">{{ post.text }}</div>                   │
+│ {% endfor %}                                                 │
+│ <button onclick="castPost({{ post.id }})">Cast</button>     │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+[Browser Response: HTML with posts and Cast buttons]
 ```
 
-### Resurface Schedule Flow
+### Cast Flow: Load Post on TV
 
 ```
-User: x-bookmarked resurface
-         │
-         ▼
-    ┌──────────────────┐
-    │SchedulerService  │ Queries due posts
-    └────────┬─────────┘
-             │
-         ┌───┴────┐
-         ▼        ▼
-    ┌─────────┐  ┌───────────┐
-    │PostRepo │  │ScheduleRepo│
-    └────┬────┘  └─────┬─────┘
-         │             │
-         ▼             ▼
-    ┌─────────────────────┐
-    │      SQLite         │
-    │  posts + schedules  │
-    └─────────────────────┘
-             │
-             ▼
-    ┌──────────────────┐
-    │FSRS Wrapper      │ Calculates next due date
-    └──────────────────┘
-             │
-             ▼
-    Result: Posts to review today
+[User clicks "Cast" button on post]
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ JavaScript: cast.js                                          │
+│ castPost(postId, title, author)                              │
+│ - Check if CastSession active                               │
+│ - Create MediaInfo with post content URL                    │
+│ - Call castSession.loadMedia(request)                       │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Cast SDK → Default Media Receiver                            │
+│ - Receiver requests: GET /api/posts/{id}/cast              │
+│ - Content-Type: text/html (rendered post view)              │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ FastAPI Route: api.py                                        │
+│ @router.get("/api/posts/{id}/cast")                          │
+│ async def get_post_for_cast(id: str)                         │
+│ - Return HTML rendering of post                              │
+│ - Designed for TV display (larger fonts, simpler layout)    │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+[TV displays post content]
 ```
 
-### Topic Assignment Flow
+## Integration Points
 
+### New Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| FastAPI App | `src/web/app.py` | Application factory, router mounting |
+| Web Routes | `src/web/routes/web.py` | HTML endpoints (/, /browse, /search) |
+| API Routes | `src/web/routes/api.py` | JSON endpoints for data |
+| Web Auth | `src/web/auth.py` | Session management, token sharing |
+| Templates | `src/web/templates/` | Jinja2 HTML templates |
+| Static Files | `src/web/static/` | CSS, JavaScript, images |
+| Cast Module | `src/web/static/js/cast.js` | Google Cast sender logic |
+
+### Modified Components
+
+| Component | Changes | Why |
+|-----------|---------|-----|
+| `src/config/settings.py` | Add `web_host`, `web_port`, `session_secret` | Web-specific settings |
+| `pyproject.toml` | Add `fastapi`, `uvicorn`, `jinja2` dependencies | New runtime requirements |
+
+### Shared Components (No Changes)
+
+| Component | Usage |
+|-----------|-------|
+| `src/auth/oauth.py` | Token management (load_tokens, save_tokens, refresh_access_token) |
+| `src/services/*` | Business logic (SearchService, PostsRepository, etc.) |
+| `src/repositories/*` | Data access layer |
+| `src/db/connection.py` | SQLite connection factory |
+| `data/tokens.json` | Shared OAuth token store |
+| `data/bookmarks.db` | Shared SQLite database |
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Duplicating Business Logic
+
+**What people do:** Copy service logic into web routes.
+**Why it's wrong:** Divergence between CLI and web, maintenance burden.
+**Do this instead:** Import and reuse `src/services/` and `src/repositories/` modules.
+
+```python
+# BAD: Duplicating search logic in route
+@router.get("/search")
+async def search(query: str):
+    conn = get_connection()
+    cursor = conn.execute("SELECT * FROM posts WHERE ...")
+    results = cursor.fetchall()
+    return {"results": results}
+
+# GOOD: Reusing existing service
+@router.get("/search")
+async def search(query: str, service: SearchService = Depends(get_search_service)):
+    results = service.search(query)
+    return {"results": [r._asdict() for r in results]}
 ```
-User: x-bookmarked topics cluster
-         │
-         ▼
-    ┌──────────────┐
-    │TopicService  │ Loads unclassified posts
-    └───────┬──────┘
-            │
-   ┌────────┴────────┐
-   ▼                 ▼
-┌─────────┐    ┌────────────┐
-│TopicRepo│    │AI Client   │ (if using LLM)
-└────┬────┘    │or rules    │
-     │         └─────┬──────┘
-     │               │
-     └───────┬───────┘
-             ▼
-    ┌─────────────────┐
-    │Assign topics    │
-    │Update DB        │
-    └─────────────────┘
+
+### Anti-Pattern 2: Global SQLite Connection
+
+**What people do:** Create one global connection for all requests.
+**Why it's wrong:** Thread safety issues, connection leaks, WAL mode doesn't work correctly.
+**Do this instead:** Create connection per request using Depends().
+
+```python
+# BAD: Global connection
+db_connection = get_connection()  # Created at startup
+
+@router.get("/posts")
+async def get_posts():
+    return db_connection.execute("SELECT * FROM posts").fetchall()
+
+# GOOD: Per-request connection
+def get_db():
+    conn = get_connection()
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+@router.get("/posts")
+async def get_posts(conn: Connection = Depends(get_db)):
+    return PostsRepository(conn).get_all()
 ```
 
-### Key Data Flows
+### Anti-Pattern 3: Async SQLite
 
-1. **Fetch Flow:** CLI → FetchService → XClient → X API → FetchService → PostRepo → SQLite
-2. **Resurface Flow:** CLI → SchedulerService → PostRepo + ScheduleRepo → SQLite → FSRS → output
-3. **Topic Flow:** CLI → TopicService → PostRepo + TopicRepo → SQLite → (optional AI) → SQLite update
+**What people do:** Use aiosqlite or async wrappers around SQLite.
+**Why it's wrong:** SQLite doesn't support true async; WAL mode handles concurrent reads; adds complexity for no benefit at 100-500 post scale.
+**Do this instead:** Use synchronous sqlite3 with `run_in_executor()` for blocking operations, or accept sync in FastAPI routes.
+
+```python
+# BAD: Over-engineered async
+async def get_posts():
+    async with aiosqlite.connect("data/bookmarks.db") as db:
+        return await db.execute("SELECT * FROM posts")
+
+# GOOD: Sync is fine for local, single-user app
+@router.get("/posts")
+async def get_posts(conn: Connection = Depends(get_db)):
+    # This is fast enough for local, single-user app
+    return PostsRepository(conn).get_all()
+```
+
+### Anti-Pattern 4: Separate Auth System
+
+**What people do:** Implement new auth system for web (sessions, JWTs).
+**Why it's wrong:** Divergence from CLI, tokens stored in two places, confusion.
+**Do this instead:** Share `data/tokens.json` between CLI and web, use session cookie only for web convenience.
 
 ## Scaling Considerations
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| 100-500 bookmarks | Single-file SQLite sufficient. In-memory operations fast. No indexing needed beyond primary keys. |
-| 500-5K bookmarks | Add indexes on `created_at`, `topic_id`, `next_due`. Consider connection pooling if web interface added. |
-| 5K+ bookmarks | Consider SQLite full-text search for content search. May need background indexing. |
+| 100-500 posts (current) | Monolithic FastAPI + SQLite is perfect |
+| 10k+ posts | Add pagination to all queries, consider indexes |
+| Multiple users | Add user_id column, modify auth to support multi-user |
+| Cloud deployment | Replace file-based tokens with database sessions, add HTTPS |
 
 ### Scaling Priorities
 
-1. **First bottleneck:** SQLite file I/O if database on network drive - keep local
-2. **Second bottleneck:** Full-text search for finding posts by content - add FTS5 virtual table
+1. **First bottleneck:** Cast button doesn't work on HTTP in production
+   - **Fix:** Use ngrok for local development, require HTTPS for production
 
-## Anti-Patterns
+2. **Second bottleneck:** Token refresh during long browser session
+   - **Fix:** Implement automatic token refresh middleware
 
-### Anti-Pattern 1: Business Logic in CLI
+3. **Third bottleneck:** Database locking during sync + browse
+   - **Fix:** WAL mode already handles this; monitor for contention
 
-**What people do:** Put query logic and business rules directly in CLI command functions.
+## Build Order (Considering Dependencies)
 
-**Why it's wrong:** Untestable without CLI invocation, mixes concerns, hard to reuse.
+| Phase | Components | Dependencies |
+|-------|------------|--------------|
+| 1 | `src/web/app.py`, `src/web/routes/web.py`, `src/web/templates/base.html` | FastAPI, Jinja2 |
+| 2 | `src/web/auth.py` | Existing `src/auth/oauth.py` |
+| 3 | `src/web/routes/api.py` | Existing `src/services/`, `src/repositories/` |
+| 4 | `src/web/static/js/main.js`, browse/search templates | None |
+| 5 | `src/web/static/js/cast.js`, cast-specific templates | Cast SDK (external) |
 
-**Do this instead:**
-```python
-# BAD - logic in CLI
-@app.command()
-def fetch():
-    conn = sqlite3.connect("bookmarks.db")
-    client = tweepy.Client(token)
-    bookmarks = client.get_bookmarks()
-    for b in bookmarks:
-        conn.execute("INSERT INTO posts ...")
-    typer.echo("Done")
-
-# GOOD - CLI just calls service
-@app.command()
-def fetch():
-    service = container.fetch_service()
-    result = service.fetch_and_store_bookmarks()
-    typer.echo(f"Fetched {result.count} bookmarks")
-```
-
-### Anti-Pattern 2: Global Database Connection
-
-**What people do:** Create a module-level `conn = sqlite3.connect()` global.
-
-**Why it's wrong:** Hidden state, hard to test, connection leak potential.
-
-**Do this instead:** Use dependency injection container to provide connection, or thread-local storage.
-
-### Anti-Pattern 3: Raw SQL in Services
-
-**What people do:** Call `conn.execute()` directly from service layer.
-
-**Why it's wrong:** Tightly couples services to SQLite, can't test without database.
-
-**Do this instead:** Services call repository interfaces, repositories handle SQL.
-
-### Anti-Pattern 4: Storing Full API Responses
-
-**What people do:** Serialize entire X API JSON response and store as blob.
-
-**Why it's wrong:** Schema hard to query, migrations painful, SQLite JSON functions limited.
-
-**Do this instead:** Extract fields to typed columns, store only necessary data. Use `json` column type for truly flexible fields.
-
-### Anti-Pattern 5: Sync API Calls Without Rate Limiting
-
-**What people do:** Loop through bookmarks calling API without rate limit handling.
-
-**Why it's wrong:** X API rate limits will cause failures, no retry logic.
-
-**Do this instead:** Use Tweepy's `wait_on_rate_limit=True` or implement backoff with `tenacity` library.
-
-## Integration Points
-
-### External Services
-
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| **X API v2** | Tweepy Client + OAuth2UserHandler | PKCE flow required. Tokens expire in 2 hours unless `offline.access` scope. |
-| **FSRS Scheduler** | py-fsrs library | Imported directly, stateless calculations. Store card state in DB. |
-
-### Internal Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| CLI → Services | Direct function calls | Services injected via container |
-| Services → Repositories | Interface (Protocol) | Enables mock repositories for testing |
-| Services → X Client | Interface | Enables mock API for testing |
-| Repositories → SQLite | Direct connection | Connection from container |
-
-### Authentication Flow (OAuth 2.0 PKCE)
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     OAuth 2.0 PKCE Flow                             │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  1. CLI generates PKCE pair (code_verifier, code_challenge)        │
-│                     │                                               │
-│                     ▼                                               │
-│  2. CLI opens browser to X authorization URL with code_challenge   │
-│                     │                                               │
-│                     ▼                                               │
-│  3. User authorizes in browser                                     │
-│                     │                                               │
-│                     ▼                                               │
-│  4. X redirects to callback URL with authorization code           │
-│                     │                                               │
-│                     ▼                                               │
-│  5. CLI exchanges code + code_verifier for access_token            │
-│                     │                                               │
-│                     ▼                                               │
-│  6. CLI stores token (optionally refresh_token for offline.access) │
-│                     │                                               │
-│                     ▼                                               │
-│  7. CLI creates Tweepy Client with access_token                    │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-**Key Implementation Points:**
-- Use `tweepy.OAuth2UserHandler` for PKCE flow
-- Store tokens securely (not in source control)
-- Use `offline.access` scope for long-running CLI that doesn't require re-auth
-- Refresh tokens before they expire (2 hour default)
-
-## Build Order Implications
-
-Based on dependency analysis, recommended build order:
-
-### Phase 1: Core Infrastructure
-1. **Project structure** - Create folder layout
-2. **Configuration** - pydantic-settings for env vars
-3. **Database layer** - Connection manager, migrations, basic models
-4. **Repository interfaces** - Protocols/ABCs for repositories
-
-### Phase 2: Data Foundation
-5. **Repository implementations** - SQLite repositories for posts, topics
-6. **Test fixtures** - In-memory SQLite for fast tests
-7. **Domain models** - Post, Topic, Schedule dataclasses
-
-### Phase 3: External Integration
-8. **OAuth 2.0 PKCE handler** - Authentication flow
-9. **X API client wrapper** - Tweepy client with rate limiting
-10. **Token storage** - Secure credential persistence
-
-### Phase 4: Core Features
-11. **FetchService** - Bookmark retrieval and storage
-12. **CLI fetch command** - Wire up to fetch service
-13. **TopicService** - Clustering logic (predefined + optional AI)
-
-### Phase 5: Spaced Repetition
-14. **FSRS wrapper** - Integrate py-fsrs
-15. **ScheduleRepository** - Store/retrieve review schedules
-16. **SchedulerService** - Calculate due dates, query due posts
-17. **CLI resurface command** - Display posts due for review
-
-### Phase 6: Delivery (Future Milestone)
-18. **Web server** - FastAPI for Samsung TV / casting
-19. **Web endpoints** - REST API for scheduled posts
+**Rationale:**
+1. Phase 1 establishes the basic web framework (can test with static content)
+2. Phase 2 enables auth-protected routes (required before meaningful data access)
+3. Phase 3 exposes data via JSON API (enables dynamic UI)
+4. Phase 4 adds client-side interactivity
+5. Phase 5 adds Cast integration (depends on Phase 4 for post display)
 
 ## Sources
 
-- [Python CLI Architecture: Building Interfaces with Typer & argparse](https://medium.com/@kaushikking89/python-cli-architecture-building-interfaces-with-typer-argparse-fc2239c255ed) - HIGH confidence
-- [Python CLI Tools with Click and Typer Guide](https://devtoolbox.dedyn.io/blog/python-click-typer-cli-guide) - HIGH confidence
-- [Stop Writing Scripts: 5 Production CLI Patterns](https://dev.to/leejackson/building-a-production-ready-python-cli-tool-with-logging-error-handling-and-auto-updates-in-2026-58ca) - HIGH confidence
-- [Python CLI Apps Opinionated Whitepaper](https://kb.adrianbacceli.com/00_Toolbox/Runbooks/Python-CLI-Apps-%E2%80%93-Opinionated-Whitepaper--and-Runbook) - MEDIUM confidence
-- [sqlite-utils by Simon Willison](https://github.com/simonw/sqlite-utils) - HIGH confidence
-- [Advanced SQLite: Repository Pattern](https://logicandlegacy.blogspot.com/2026/04/advanced-python-sqlite-indices-n1.html) - HIGH confidence
-- [Database Interoperability with Repository Pattern](https://sudoblark.com/blog/database-interoperability-in-python-with-the-repository-enterprise-pattern/) - MEDIUM confidence
-- [Tweepy Authentication Documentation](http://docs.tweepy.org/en/latest/authentication.html) - HIGH confidence (official)
-- [How to Implement Twitter OAuth 2.0 with PKCE using Tweepy](https://medium.com/%40nkangprecious26/table-of-contents-155038d8f0c3) - MEDIUM confidence
-- [X OAuth 2.0 Authorization Code Flow Documentation](https://docs.x.com/fundamentals/authentication/oauth-2-0/authorization-code) - HIGH confidence (official)
-- [py-fsrs Spaced Repetition Library](https://github.com/open-spaced-repetition/py-fsrs) - HIGH confidence
-- [Social Media Database Schema Example](https://github.com/ssahibsingh/Social-Media-Database-Project/blob/main/schema.sql) - MEDIUM confidence
-- [Dependency Injector CLI Tutorial](https://python-dependency-injector.ets-labs.org/tutorials/cli.html) - HIGH confidence
+- [FastAPI Templates Documentation](https://fastapi.tiangolo.com/advanced/templates) — HIGH confidence (official)
+- [FastAPI Project Structure Guide 2026](https://dev.to/thesius_code_7a136ae718b7/production-ready-fastapi-project-structure-2026-guide-b1g) — MEDIUM confidence (community)
+- [Google Cast Web Sender Integration](https://developers.google.com/cast/docs/web_sender/integrate) — HIGH confidence (official)
+- [OAuth Token Sharing Patterns](https://kharkevich.org/2024/11/30/oidc-cli-auth/) — MEDIUM confidence (community blog)
+- [FastAPI OAuth Examples](https://github.com/lukasthaler/fastapi-oauth-examples) — MEDIUM confidence (community repo)
+- [Existing x-bookmarked-posts source](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/) — HIGH confidence (project reference)
 
 ---
-*Architecture research for: Python CLI + SQLite + X API*
-*Researched: 2026-04-18*
+*Architecture research for: FastAPI web app with Google Cast integration*
+*Researched: 2026-05-17*

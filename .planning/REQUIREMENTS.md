@@ -71,6 +71,33 @@ Requirements for initial release (Milestone 1). Each maps to roadmap phases.
 - [ ] **MAINT-01**: Application detects and flags dead links in stored posts
 - [ ] **MAINT-02**: Application can filter dead links from review queue
 
+## v1.1 Requirements
+
+Requirements for Milestone 2 (Web App with Casting). Each maps to roadmap phases.
+
+### Web Foundation
+
+- [ ] **WEB-01**: User can access application via web browser at localhost
+- [ ] **WEB-02**: Web app serves posts over HTTPS (required for Google Cast)
+- [ ] **WEB-03**: Web app authenticates using shared CLI tokens (data/tokens.json)
+- [ ] **WEB-04**: User can browse posts with cursor-based pagination
+- [ ] **WEB-05**: User can search posts by text content (FTS5)
+- [ ] **WEB-06**: User can filter posts by topic, author, date range
+
+### Cast Integration
+
+- [ ] **CAST-01**: User sees Cast button in web app header
+- [ ] **CAST-02**: User can connect to Chromecast/Smart TV devices
+- [ ] **CAST-03**: User can cast post content to TV screen
+- [ ] **CAST-04**: Mini controller displays during active cast session
+- [ ] **CAST-05**: Cast session state persists across navigation
+
+### Custom Web Receiver
+
+- [ ] **RCVR-01**: Custom Web Receiver displays post text and images on TV
+- [ ] **RCVR-02**: Receiver handles post content loading from web app
+- [ ] **RCVR-03**: Receiver displays post author and publication date
+
 ## v2 Requirements
 
 Deferred to future release (Milestone 2/3). Tracked but not in current roadmap.
@@ -112,6 +139,8 @@ Explicitly excluded. Documented to prevent scope creep.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
+### v1 Requirements (Complete)
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | AUTH-01 | Phase 1 | Complete |
@@ -119,41 +148,61 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-03 | Phase 1 | Complete |
 | STOR-01 | Phase 1 | Complete |
 | STOR-02 | Phase 1 | Complete |
-| DATA-01 | Phase 2 | Pending |
-| DATA-02 | Phase 2 | Pending |
-| DATA-03 | Phase 2 | Pending |
-| DATA-04 | Phase 2 | Pending |
-| DATA-05 | Phase 2 | Pending |
-| STOR-03 | Phase 2 | Pending |
-| CLI-01 | Phase 2 | Pending |
-| CLI-05 | Phase 2 | Pending |
-| SRCH-01 | Phase 3 | Pending |
-| SRCH-02 | Phase 3 | Pending |
-| SRCH-03 | Phase 3 | Pending |
-| NOTE-01 | Phase 3 | Pending |
-| NOTE-02 | Phase 3 | Pending |
-| CLI-03 | Phase 3 | Pending |
-| IMEX-01 | Phase 3 | Pending |
-| IMEX-02 | Phase 3 | Pending |
-| IMEX-03 | Phase 3 | Pending |
-| MAINT-01 | Phase 3 | Pending |
-| MAINT-02 | Phase 3 | Pending |
+| DATA-01 | Phase 2 | Complete |
+| DATA-02 | Phase 2 | Complete |
+| DATA-03 | Phase 2 | Complete |
+| DATA-04 | Phase 2 | Complete |
+| DATA-05 | Phase 2 | Complete |
+| STOR-03 | Phase 2 | Complete |
+| CLI-01 | Phase 2 | Complete |
+| CLI-05 | Phase 2 | Complete |
+| SRCH-01 | Phase 3 | Complete |
+| SRCH-02 | Phase 3 | Complete |
+| SRCH-03 | Phase 3 | Complete |
+| NOTE-01 | Phase 3 | Complete |
+| NOTE-02 | Phase 3 | Complete |
+| CLI-03 | Phase 3 | Complete |
+| IMEX-01 | Phase 3 | Complete |
+| IMEX-02 | Phase 3 | Complete |
+| IMEX-03 | Phase 3 | Complete |
+| MAINT-01 | Phase 3 | Complete |
+| MAINT-02 | Phase 3 | Complete |
 | ORG-01 | Phase 4 | Complete |
 | ORG-02 | Phase 4 | Complete |
-| ORG-03 | Phase 4 | Pending |
+| ORG-03 | Phase 4 | Complete |
 | ORG-04 | Phase 4 | Complete |
-| CLI-04 | Phase 4 | Pending |
-| SPAC-01 | Phase 5 | Pending |
-| SPAC-02 | Phase 5 | Pending |
-| SPAC-03 | Phase 5 | Pending |
-| SPAC-04 | Phase 5 | Pending |
-| CLI-02 | Phase 5 | Pending |
+| CLI-04 | Phase 4 | Complete |
+| SPAC-01 | Phase 5 | Complete |
+| SPAC-02 | Phase 5 | Complete |
+| SPAC-03 | Phase 5 | Complete |
+| SPAC-04 | Phase 5 | Complete |
+| CLI-02 | Phase 5 | Complete |
+
+### v1.1 Requirements (Pending)
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| WEB-01 | Phase 6 | Pending |
+| WEB-02 | Phase 6 | Pending |
+| WEB-03 | Phase 6 | Pending |
+| WEB-04 | Phase 6 | Pending |
+| WEB-05 | Phase 6 | Pending |
+| WEB-06 | Phase 6 | Pending |
+| CAST-01 | Phase 7 | Pending |
+| CAST-02 | Phase 7 | Pending |
+| CAST-03 | Phase 7 | Pending |
+| CAST-04 | Phase 7 | Pending |
+| CAST-05 | Phase 7 | Pending |
+| RCVR-01 | Phase 7 | Pending |
+| RCVR-02 | Phase 7 | Pending |
+| RCVR-03 | Phase 7 | Pending |
 
 **Coverage:**
-- v1 requirements: 34 total
-- Mapped to phases: 34
+- v1 requirements: 34 total (Complete)
+- v1.1 requirements: 14 total
+- Mapped to phases: 14
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-18*
-*Last updated: 2026-04-18 after roadmap creation*
+*Last updated: 2026-05-17 after v1.1 requirements added*
