@@ -408,7 +408,7 @@ def browse(
 ) -> None:
     """Browse all bookmarked posts.
 
-    Display posts in the specified order for casual browsing.
+    Display full post content in the specified order for casual browsing.
 
     Examples:
         xbm browse                    # Newest first (default)
@@ -431,8 +431,10 @@ def browse(
 
         conn = init_database(db_path)
         from ..repositories import PostsRepository
+        from ..repositories.topics import TopicsRepository
 
         repo = PostsRepository(conn)
+        topics_repo = TopicsRepository(conn)
         posts = repo.get_all_ordered(order=order, limit=limit)
 
         if not posts:
@@ -440,25 +442,64 @@ def browse(
             conn.close()
             return
 
-        # Display posts in a table
-        table = Table(title=f"Bookmarked Posts ({order})", show_header=True, header_style="bold cyan")
-        table.add_column("Date", style="dim", width=12)
-        table.add_column("Author", style="cyan", width=15)
-        table.add_column("Content", no_wrap=True)
-
-        for post in posts:
-            created = post.get("created_at", "")[:10] if post.get("created_at") else ""
-            author = post.get("author_username", "") or post.get("author_display_name", "")[:15]
-            text = post.get("text", "")[:80]
-            if len(post.get("text", "")) > 80:
-                text += "..."
-            table.add_row(created, f"@{author}" if author else "", text)
-
-        console.print(table)
-
-        # Show summary
+        # Show session header
         total = repo.count()
         console.print()
+        console.print(f"[bold]Browsing {len(posts)} of {total} posts ({order})[/bold]")
+        console.print()
+
+        # Display each post in full (like review mode)
+        for i, post in enumerate(posts, 1):
+            # Get topics for this post
+            post_topics = topics_repo.get_post_topics(post['x_post_id'])
+
+            # Display note if present
+            note = post.get('note')
+            if note:
+                console.print(Panel(
+                    note,
+                    title="[bold yellow]Your Note[/bold yellow]",
+                    border_style="yellow"
+                ))
+                console.print()
+
+            # Display post content
+            text = post.get('text', '')
+            author = f"@{post.get('author_username', 'unknown')}"
+            display_name = post.get('author_display_name', '')
+
+            header = f"[bold cyan]{author}[/bold cyan]"
+            if display_name:
+                header += f" ({display_name})"
+
+            console.print(Panel(
+                text,
+                title=header,
+                border_style="blue"
+            ))
+
+            # Display metadata
+            metadata = Table(show_header=False, box=None, padding=(0, 2))
+            metadata.add_column("Label", style="dim")
+            metadata.add_column("Value", style="white")
+
+            published = post.get('created_at', 'Unknown')
+            if published:
+                published = published[:10]
+            metadata.add_row("Published", published)
+
+            topics_str = ", ".join(t['name'] for t in post_topics) or "None"
+            metadata.add_row("Topics", topics_str)
+
+            console.print(metadata)
+            console.print()
+
+            # Show separator between posts (except last)
+            if i < len(posts):
+                console.print("[dim]" + "─" * 60 + "[/dim]")
+                console.print()
+
+        # Show summary
         console.print(f"[dim]Showing {len(posts)} of {total} posts[/dim]")
 
         conn.close()
