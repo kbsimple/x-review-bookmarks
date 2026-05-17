@@ -1648,10 +1648,13 @@ def review(
 def stats(
     db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Database path"),
 ) -> None:
-    """Display review statistics and progress.
+    """Display post statistics and review progress.
 
-    D-12: Shows total posts, due count, reviewed count.
-    CLI-02: User can view review statistics via CLI.
+    Shows:
+    - Date range of posts (oldest to newest)
+    - Total posts count
+    - Posts per month breakdown
+    - Review statistics and progress
 
     Examples:
         xbm stats
@@ -1666,22 +1669,78 @@ def stats(
 
         conn = init_database(db_path)
         from ..services.review_service import ReviewService
+        from ..repositories.posts import PostsRepository
 
+        posts_repo = PostsRepository(conn)
         service = ReviewService(conn)
-        stats_data = service.get_review_stats()
 
-        # Build stats table (D-12)
-        table = Table(title="Review Statistics")
+        # Get post statistics
+        post_stats = posts_repo.get_post_stats()
+        review_stats = service.get_review_stats()
+
+        # Display post statistics section
+        console.print()
+        console.print(Panel(
+            Text.assemble(
+                ("Post Statistics", "bold cyan"),
+            ),
+            border_style="cyan",
+        ))
+
+        # Date range line
+        if post_stats['total'] > 0:
+            console.print(f"  [dim]Date Range:[/dim] {post_stats['oldest_date']} to {post_stats['newest_date']}")
+            console.print(f"  [dim]Total Posts:[/dim] {post_stats['total']}")
+            console.print()
+
+            # Posts by month (like Claude's context usage display)
+            if post_stats['by_month']:
+                console.print("  [bold]Posts by Month:[/bold]")
+                console.print()
+
+                # Calculate max for bar scaling
+                max_count = max(post_stats['by_month'].values()) if post_stats['by_month'] else 1
+                bar_width = 20  # Max bar width in characters
+
+                # Sort months descending (most recent first)
+                sorted_months = sorted(post_stats['by_month'].items(), key=lambda x: x[0], reverse=True)
+
+                for month, count in sorted_months:
+                    # Calculate bar length
+                    bar_len = int((count / max_count) * bar_width) if max_count > 0 else 0
+                    bar = "█" * bar_len + "░" * (bar_width - bar_len)
+
+                    # Calculate percentage
+                    pct = (count / post_stats['total']) * 100 if post_stats['total'] > 0 else 0
+
+                    # Format: "  2026-05 ████████░░░░░░░░░░░░ 12 (12%)"
+                    console.print(f"    {month} {bar} {count} ({pct:.0f}%)")
+
+                console.print()
+        else:
+            console.print("  [dim]No posts in database[/dim]")
+            console.print()
+
+        # Display review statistics section
+        console.print(Panel(
+            Text.assemble(
+                ("Review Statistics", "bold yellow"),
+            ),
+            border_style="yellow",
+        ))
+
+        # Build stats table
+        table = Table(show_header=False, box=None, padding=(0, 2))
         table.add_column("Metric", style="dim")
-        table.add_column("Count", justify="right")
+        table.add_column("Value", justify="right")
 
-        table.add_row("Total Posts", str(stats_data['total_posts']))
-        table.add_row("Posts Due", str(stats_data['due_count']))
-        table.add_row("Posts Reviewed", str(stats_data['reviewed_count']))
+        table.add_row("Total Posts", str(review_stats['total_posts']))
+        table.add_row("Posts Due", str(review_stats['due_count']))
+        table.add_row("Posts Reviewed", str(review_stats['reviewed_count']))
 
         # Calculate percentage
-        if stats_data['total_posts'] > 0:
-            reviewed_pct = (stats_data['reviewed_count'] / stats_data['total_posts']) * 100
+        if review_stats['total_posts'] > 0:
+            reviewed_pct = (review_stats['reviewed_count'] / review_stats['total_posts']) * 100
             table.add_row("Review Progress", f"{reviewed_pct:.1f}%")
         else:
             table.add_row("Review Progress", "N/A")
@@ -1689,15 +1748,16 @@ def stats(
         console.print(table)
 
         # Show encouragement message
-        if stats_data['due_count'] > 0:
+        if review_stats['due_count'] > 0:
             console.print()
-            console.print(f"[bold yellow]{stats_data['due_count']} posts awaiting review[/bold yellow]")
+            console.print(f"[bold yellow]{review_stats['due_count']} posts awaiting review[/bold yellow]")
             console.print("[dim]Use 'xbm review' to start reviewing[/dim]")
-        elif stats_data['total_posts'] > 0:
+        elif review_stats['total_posts'] > 0:
             console.print()
             console.print("[bold green]All caught up![/bold green]")
             console.print("[dim]No posts due for review[/dim]")
 
+        console.print()
         conn.close()
 
     except Exception as e:

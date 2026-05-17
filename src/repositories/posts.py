@@ -275,3 +275,48 @@ class PostsRepository:
         ).fetchall()
 
         return [self._row_to_dict(row) for row in rows]
+
+    def get_post_stats(self) -> dict[str, Any]:
+        """Get post statistics for display.
+
+        Returns aggregate statistics about posts:
+        - oldest_date: Date of oldest post
+        - newest_date: Date of newest post
+        - total: Total number of posts
+        - by_month: Dict mapping YYYY-MM to count
+
+        Returns:
+            Dict with statistics.
+        """
+        # Get date range and total
+        row = self._conn.execute(
+            """SELECT
+                MIN(created_at) as oldest,
+                MAX(created_at) as newest,
+                COUNT(*) as total
+               FROM posts"""
+        ).fetchone()
+
+        result = {
+            'oldest_date': row['oldest'][:10] if row['oldest'] else None,
+            'newest_date': row['newest'][:10] if row['newest'] else None,
+            'total': row['total'] if row else 0,
+            'by_month': {}
+        }
+
+        if row['total'] == 0:
+            return result
+
+        # Get posts by month
+        rows = self._conn.execute(
+            """SELECT
+                strftime('%Y-%m', created_at) as month,
+                COUNT(*) as count
+               FROM posts
+               GROUP BY month
+               ORDER BY month DESC"""
+        ).fetchall()
+
+        result['by_month'] = {r['month']: r['count'] for r in rows}
+
+        return result
