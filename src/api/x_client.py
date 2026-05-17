@@ -89,7 +89,7 @@ class XClient:
 
     def fetch_bookmarks(
         self,
-        max_results: int = 100,
+        max_results: int = 50,  # X API bug: max_results=100 doesn't return next_token
         pagination_token: Optional[str] = None
     ) -> BookmarkFetchResult:
         """Fetch a page of bookmarks from X API.

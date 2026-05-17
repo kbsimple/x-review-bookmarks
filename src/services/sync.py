@@ -271,7 +271,7 @@ class SyncService:
         D-03: Auto-wait when approaching rate limit.
         """
         result = self._client.fetch_bookmarks(
-            max_results=100,
+            max_results=50,  # X API bug: max_results=100 doesn't return next_token
             pagination_token=pagination_token,
         )
 
