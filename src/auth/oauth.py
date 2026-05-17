@@ -190,7 +190,8 @@ def wait_for_callback(port: int = CALLBACK_PORT, timeout: int = 300) -> str:
             if self.path.startswith(CALLBACK_PATH):
                 qs = parse_qs(urlparse(self.path).query)
                 if "code" in qs:
-                    received_code[0] = qs["code"][0]
+                    # Store the full callback URL path for CSRF state validation
+                    received_code[0] = self.path
                     code_received.set()
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -225,9 +226,9 @@ def wait_for_callback(port: int = CALLBACK_PORT, timeout: int = 300) -> str:
         server.shutdown()
         raise TimeoutError(f"No callback received within {timeout} seconds")
 
-    # handle_request() processes one request and returns, so thread completes naturally
-    # No need for shutdown() - it can hang on macOS
-    thread.join(timeout=5)
+    # Use server_close() instead of shutdown() - cleaner and doesn't block
+    server.server_close()
+    thread.join()
 
     code = received_code[0]
     if code is None:
@@ -236,14 +237,15 @@ def wait_for_callback(port: int = CALLBACK_PORT, timeout: int = 300) -> str:
     return code
 
 
-def exchange_code_for_token(code: str) -> tuple[str, str]:
+def exchange_code_for_token(callback_path: str) -> tuple[str, str]:
     """Exchange authorization code for access and refresh tokens.
 
     Uses the OAuth2UserHandler stored by get_authorization_url() to
     fetch the access token and refresh token using the authorization code.
 
     Args:
-        code: Authorization code returned from X OAuth redirect.
+        callback_path: Full callback URL path from wait_for_callback()
+            (e.g. "/callback?code=...&state=...").
 
     Returns:
         Tuple of (access_token, refresh_token).
@@ -252,8 +254,8 @@ def exchange_code_for_token(code: str) -> tuple[str, str]:
         AuthError: If OAuth2UserHandler not initialized or token exchange fails.
 
     Example:
-        >>> code = wait_for_callback()
-        >>> access_token, refresh_token = exchange_code_for_token(code)
+        >>> callback_path = wait_for_callback()
+        >>> access_token, refresh_token = exchange_code_for_token(callback_path)
     """
     global _oauth2_handler
 
@@ -264,8 +266,11 @@ def exchange_code_for_token(code: str) -> tuple[str, str]:
         )
 
     try:
-        # fetch_token returns dict with access_token, refresh_token, etc.
-        token_data = _oauth2_handler.fetch_token(code=code)
+        # Pass full callback URL for CSRF state validation
+        authorization_response = f"http://127.0.0.1:8080{callback_path}"
+        token_data = _oauth2_handler.fetch_token(
+            authorization_response=authorization_response
+        )
 
         access_token = token_data.get("access_token", "")
         refresh_token = token_data.get("refresh_token", "")
