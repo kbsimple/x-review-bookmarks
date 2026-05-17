@@ -432,6 +432,7 @@ def browse(
         conn = init_database(db_path)
         from ..repositories import PostsRepository
         from ..repositories.topics import TopicsRepository
+        from .display import display_post, display_post_separator
 
         repo = PostsRepository(conn)
         topics_repo = TopicsRepository(conn)
@@ -448,58 +449,15 @@ def browse(
         console.print(f"[bold]Browsing {len(posts)} of {total} posts ({order})[/bold]")
         console.print()
 
-        # Display each post in full (like review mode)
+        # Display each post
         for i, post in enumerate(posts, 1):
-            # Get topics for this post
             post_topics = topics_repo.get_post_topics(post['x_post_id'])
-
-            # Display note if present
-            note = post.get('note')
-            if note:
-                console.print(Panel(
-                    note,
-                    title="[bold yellow]Your Note[/bold yellow]",
-                    border_style="yellow"
-                ))
-                console.print()
-
-            # Display post content
-            text = post.get('text', '')
-            author = f"@{post.get('author_username', 'unknown')}"
-            display_name = post.get('author_display_name', '')
-
-            header = f"[bold cyan]{author}[/bold cyan]"
-            if display_name:
-                header += f" ({display_name})"
-
-            console.print(Panel(
-                text,
-                title=header,
-                border_style="blue"
-            ))
-
-            # Display metadata
-            metadata = Table(show_header=False, box=None, padding=(0, 2))
-            metadata.add_column("Label", style="dim")
-            metadata.add_column("Value", style="white")
-
-            published = post.get('created_at', 'Unknown')
-            if published:
-                published = published[:10]
-            metadata.add_row("Published", published)
-
-            topics_str = ", ".join(t['name'] for t in post_topics) or "None"
-            metadata.add_row("Topics", topics_str)
-
-            console.print(metadata)
-            console.print()
+            display_post(console, post, topics=post_topics)
 
             # Show separator between posts (except last)
             if i < len(posts):
-                console.print("[dim]" + "─" * 60 + "[/dim]")
-                console.print()
+                display_post_separator(console)
 
-        # Show summary
         console.print(f"[dim]Showing {len(posts)} of {total} posts[/dim]")
 
         conn.close()
@@ -1586,57 +1544,21 @@ def review(
             # Get topics for this post
             post_topics = topics_repo.get_post_topics(post['x_post_id'])
 
-            # D-05: Display note at top if present
-            note = post.get('note')
-            if note:
-                console.print(Panel(
-                    note,
-                    title="[bold yellow]Your Note[/bold yellow]",
-                    border_style="yellow"
-                ))
-                console.print()
-
-            # Display post content
-            text = post.get('text', '')
-            author = f"@{post.get('author_username', 'unknown')}"
-            display_name = post.get('author_display_name', '')
-
-            header = f"[bold cyan]{author}[/bold cyan]"
-            if display_name:
-                header += f" ({display_name})"
-
-            console.print(Panel(
-                text,
-                title=header,
-                border_style="blue"
-            ))
-
-            # D-06: Display metadata
-            metadata = Table(show_header=False, box=None)
-            metadata.add_column("Label", style="dim")
-            metadata.add_column("Value", style="white")
-
-            published = post.get('created_at', 'Unknown')
-            if published:
-                published = published[:10]
-            metadata.add_row("Published", published)
-
-            topics_str = ", ".join(t['name'] for t in post_topics) or "None"
-            metadata.add_row("Topics", topics_str)
-
+            # Build extra metadata for review-specific fields
             review_count = post.get('review_count', 0)
-            metadata.add_row("Reviews", str(review_count))
-
             last_review = post.get('last_reviewed')
-            last_review_str = "Never"
-            if last_review:
-                last_review_str = last_review[:10]
-            metadata.add_row("Last Review", last_review_str)
-
+            last_review_str = "Never" if not last_review else last_review[:10]
             user_pref = post.get('user_preference') or "None"
-            metadata.add_row("User Pref", user_pref)
 
-            console.print(metadata)
+            extra_metadata = [
+                ("Reviews", str(review_count)),
+                ("Last Review", last_review_str),
+                ("User Pref", user_pref),
+            ]
+
+            # Display post using shared module
+            from .display import display_post
+            display_post(console, post, topics=post_topics, extra_metadata=extra_metadata)
             console.print()
 
             # D-07: Prompt for scheduling choice
