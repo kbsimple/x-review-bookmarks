@@ -3481,7 +3481,13 @@ class TestStatsCommand:
         mock_settings = MagicMock()
         mock_settings.database_path = tmp_path / "test.db"
 
-        mock_stats = {
+        mock_post_stats = {
+            "total": 0,
+            "oldest_date": None,
+            "newest_date": None,
+            "by_month": {},
+        }
+        mock_review_stats = {
             "total_posts": 0,
             "due_count": 0,
             "reviewed_count": 0,
@@ -3492,27 +3498,32 @@ class TestStatsCommand:
                 mock_conn = MagicMock()
                 mock_init.return_value = mock_conn
 
-                with patch("src.services.review_service.ReviewService") as mock_service_class:
-                    mock_service = MagicMock()
-                    mock_service.get_review_stats.return_value = mock_stats
-                    mock_service_class.return_value = mock_service
+                with patch("src.repositories.posts.PostsRepository") as mock_repo_class:
+                    mock_repo = MagicMock()
+                    mock_repo.get_post_stats.return_value = mock_post_stats
+                    mock_repo_class.return_value = mock_repo
 
-                    result = runner.invoke(app, ["stats"])
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service.get_review_stats.return_value = mock_review_stats
+                        mock_service_class.return_value = mock_service
 
-                    # Should succeed
-                    assert result.exit_code == 0, (
-                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
-                    )
+                        result = runner.invoke(app, ["stats"])
 
-                    # Should show 0 posts
-                    assert "0" in result.stdout, (
-                        f"Expected '0' in output: {result.stdout}"
-                    )
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
 
-                    # Should show N/A for progress percentage
-                    assert "N/A" in result.stdout or "0" in result.stdout, (
-                        f"Expected N/A or 0 for progress: {result.stdout}"
-                    )
+                        # Should show 0 posts
+                        assert "0" in result.stdout, (
+                            f"Expected '0' in output: {result.stdout}"
+                        )
+
+                        # Should show N/A for progress percentage
+                        assert "N/A" in result.stdout or "0" in result.stdout, (
+                            f"Expected N/A or 0 for progress: {result.stdout}"
+                        )
 
     def test_stats_command_with_posts(self, tmp_path: Path) -> None:
         """Verify stats command shows table format with counts.
@@ -3522,7 +3533,13 @@ class TestStatsCommand:
         mock_settings = MagicMock()
         mock_settings.database_path = tmp_path / "test.db"
 
-        mock_stats = {
+        mock_post_stats = {
+            "total": 100,
+            "oldest_date": "2024-01-15",
+            "newest_date": "2024-12-20",
+            "by_month": {"2024-12": 50, "2024-11": 50},
+        }
+        mock_review_stats = {
             "total_posts": 100,
             "due_count": 15,
             "reviewed_count": 50,
@@ -3533,31 +3550,36 @@ class TestStatsCommand:
                 mock_conn = MagicMock()
                 mock_init.return_value = mock_conn
 
-                with patch("src.services.review_service.ReviewService") as mock_service_class:
-                    mock_service = MagicMock()
-                    mock_service.get_review_stats.return_value = mock_stats
-                    mock_service_class.return_value = mock_service
+                with patch("src.repositories.posts.PostsRepository") as mock_repo_class:
+                    mock_repo = MagicMock()
+                    mock_repo.get_post_stats.return_value = mock_post_stats
+                    mock_repo_class.return_value = mock_repo
 
-                    result = runner.invoke(app, ["stats"])
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service.get_review_stats.return_value = mock_review_stats
+                        mock_service_class.return_value = mock_service
 
-                    # Should succeed
-                    assert result.exit_code == 0, (
-                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
-                    )
+                        result = runner.invoke(app, ["stats"])
 
-                    # Should show table with counts
-                    assert "100" in result.stdout, (
-                        f"Expected total (100) in output: {result.stdout}"
-                    )
-                    assert "15" in result.stdout, (
-                        f"Expected due count (15) in output: {result.stdout}"
-                    )
-                    assert "50" in result.stdout, (
-                        f"Expected reviewed count (50) in output: {result.stdout}"
-                    )
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
 
-                    # Should call get_review_stats
-                    mock_service.get_review_stats.assert_called_once()
+                        # Should show table with counts
+                        assert "100" in result.stdout, (
+                            f"Expected total (100) in output: {result.stdout}"
+                        )
+                        assert "15" in result.stdout, (
+                            f"Expected due count (15) in output: {result.stdout}"
+                        )
+                        assert "50" in result.stdout, (
+                            f"Expected reviewed count (50) in output: {result.stdout}"
+                        )
+
+                        # Should call get_review_stats
+                        mock_service.get_review_stats.assert_called_once()
 
     def test_stats_command_progress_calculation(self, tmp_path: Path) -> None:
         """Verify stats command calculates review progress percentage.
@@ -3567,8 +3589,14 @@ class TestStatsCommand:
         mock_settings = MagicMock()
         mock_settings.database_path = tmp_path / "test.db"
 
+        mock_post_stats = {
+            "total": 100,
+            "oldest_date": "2024-01-15",
+            "newest_date": "2024-12-20",
+            "by_month": {"2024-12": 50, "2024-11": 50},
+        }
         # 50 reviewed out of 100 = 50%
-        mock_stats = {
+        mock_review_stats = {
             "total_posts": 100,
             "due_count": 15,
             "reviewed_count": 50,
@@ -3579,29 +3607,40 @@ class TestStatsCommand:
                 mock_conn = MagicMock()
                 mock_init.return_value = mock_conn
 
-                with patch("src.services.review_service.ReviewService") as mock_service_class:
-                    mock_service = MagicMock()
-                    mock_service.get_review_stats.return_value = mock_stats
-                    mock_service_class.return_value = mock_service
+                with patch("src.repositories.posts.PostsRepository") as mock_repo_class:
+                    mock_repo = MagicMock()
+                    mock_repo.get_post_stats.return_value = mock_post_stats
+                    mock_repo_class.return_value = mock_repo
 
-                    result = runner.invoke(app, ["stats"])
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service.get_review_stats.return_value = mock_review_stats
+                        mock_service_class.return_value = mock_service
 
-                    # Should succeed
-                    assert result.exit_code == 0, (
-                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
-                    )
+                        result = runner.invoke(app, ["stats"])
 
-                    # Should show 50.0% progress
-                    assert "50" in result.stdout, (
-                        f"Expected 50% progress in output: {result.stdout}"
-                    )
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should show 50.0% progress
+                        assert "50" in result.stdout, (
+                            f"Expected 50% progress in output: {result.stdout}"
+                        )
 
     def test_stats_command_shows_encouragement_when_due(self, tmp_path: Path) -> None:
         """Verify stats command shows encouragement message when posts due."""
         mock_settings = MagicMock()
         mock_settings.database_path = tmp_path / "test.db"
 
-        mock_stats = {
+        mock_post_stats = {
+            "total": 100,
+            "oldest_date": "2024-01-15",
+            "newest_date": "2024-12-20",
+            "by_month": {"2024-12": 50, "2024-11": 50},
+        }
+        mock_review_stats = {
             "total_posts": 100,
             "due_count": 15,  # Posts due
             "reviewed_count": 50,
@@ -3612,24 +3651,35 @@ class TestStatsCommand:
                 mock_conn = MagicMock()
                 mock_init.return_value = mock_conn
 
-                with patch("src.services.review_service.ReviewService") as mock_service_class:
-                    mock_service = MagicMock()
-                    mock_service.get_review_stats.return_value = mock_stats
-                    mock_service_class.return_value = mock_service
+                with patch("src.repositories.posts.PostsRepository") as mock_repo_class:
+                    mock_repo = MagicMock()
+                    mock_repo.get_post_stats.return_value = mock_post_stats
+                    mock_repo_class.return_value = mock_repo
 
-                    result = runner.invoke(app, ["stats"])
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service.get_review_stats.return_value = mock_review_stats
+                        mock_service_class.return_value = mock_service
 
-                    # Should show due posts message
-                    assert "15" in result.stdout and ("due" in result.stdout.lower() or "awaiting" in result.stdout.lower()), (
-                        f"Expected due count message in output: {result.stdout}"
-                    )
+                        result = runner.invoke(app, ["stats"])
+
+                        # Should show due posts message
+                        assert "15" in result.stdout and ("due" in result.stdout.lower() or "awaiting" in result.stdout.lower()), (
+                            f"Expected due count message in output: {result.stdout}"
+                        )
 
     def test_stats_command_shows_caught_up_when_no_due(self, tmp_path: Path) -> None:
         """Verify stats command shows 'caught up' message when no posts due."""
         mock_settings = MagicMock()
         mock_settings.database_path = tmp_path / "test.db"
 
-        mock_stats = {
+        mock_post_stats = {
+            "total": 100,
+            "oldest_date": "2024-01-15",
+            "newest_date": "2024-12-20",
+            "by_month": {"2024-12": 50, "2024-11": 50},
+        }
+        mock_review_stats = {
             "total_posts": 100,
             "due_count": 0,  # No posts due
             "reviewed_count": 50,
@@ -3640,22 +3690,27 @@ class TestStatsCommand:
                 mock_conn = MagicMock()
                 mock_init.return_value = mock_conn
 
-                with patch("src.services.review_service.ReviewService") as mock_service_class:
-                    mock_service = MagicMock()
-                    mock_service.get_review_stats.return_value = mock_stats
-                    mock_service_class.return_value = mock_service
+                with patch("src.repositories.posts.PostsRepository") as mock_repo_class:
+                    mock_repo = MagicMock()
+                    mock_repo.get_post_stats.return_value = mock_post_stats
+                    mock_repo_class.return_value = mock_repo
 
-                    result = runner.invoke(app, ["stats"])
+                    with patch("src.services.review_service.ReviewService") as mock_service_class:
+                        mock_service = MagicMock()
+                        mock_service.get_review_stats.return_value = mock_review_stats
+                        mock_service_class.return_value = mock_service
 
-                    # Should succeed
-                    assert result.exit_code == 0, (
-                        f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
-                    )
+                        result = runner.invoke(app, ["stats"])
 
-                    # Should show caught up message
-                    assert "caught up" in result.stdout.lower() or "No posts due" in result.stdout, (
-                        f"Expected caught up message in output: {result.stdout}"
-                    )
+                        # Should succeed
+                        assert result.exit_code == 0, (
+                            f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+                        )
+
+                        # Should show caught up message
+                        assert "caught up" in result.stdout.lower() or "No posts due" in result.stdout, (
+                            f"Expected caught up message in output: {result.stdout}"
+                        )
 
 
 class TestResetCommand:

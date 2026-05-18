@@ -11,16 +11,26 @@ from src.config import Settings
 class TestSettingsRequiredFields:
     """Tests for required field validation."""
 
-    def test_settings_raises_error_when_client_id_missing(self):
+    def test_settings_raises_error_when_client_id_missing(self, monkeypatch):
         """Test 1: Settings() raises ValidationError when X_CLIENT_ID missing."""
+        # Clear env vars so Settings() can't load from environment
+        monkeypatch.delenv("X_CLIENT_ID", raising=False)
+        monkeypatch.delenv("X_CLIENT_SECRET", raising=False)
+
+        # Override .env file location to prevent loading from file
         with pytest.raises(ValidationError) as exc_info:
-            Settings()
+            Settings(_env_file=Path("/dev/null"))
         assert "client_id" in str(exc_info.value).lower()
 
-    def test_settings_raises_error_when_client_secret_missing(self):
+    def test_settings_raises_error_when_client_secret_missing(self, monkeypatch):
         """Settings() raises ValidationError when X_CLIENT_SECRET missing."""
+        # Clear env vars so Settings() can't load from environment
+        monkeypatch.delenv("X_CLIENT_ID", raising=False)
+        monkeypatch.delenv("X_CLIENT_SECRET", raising=False)
+
+        # Override .env file location to prevent loading from file
         with pytest.raises(ValidationError) as exc_info:
-            Settings(client_id="test")
+            Settings(client_id="test", _env_file=Path("/dev/null"))
         assert "client_secret" in str(exc_info.value).lower()
 
 

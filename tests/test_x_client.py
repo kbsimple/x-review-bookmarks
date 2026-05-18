@@ -35,7 +35,8 @@ class TestXClient:
         """Verify XClient passes access_token to tweepy.Client.
 
         D-05: Dedicated api/x_client.py module wrapping tweepy.Client.
-        Must use access_token parameter, NOT bearer_token.
+        Note: Tweepy uses 'bearer_token' parameter for OAuth 2.0 access tokens
+        (confusing naming, but this is the correct parameter for user context auth).
         """
         from src.api.x_client import XClient
 
@@ -45,8 +46,8 @@ class TestXClient:
 
             client = XClient("test_access_token_123")
 
-            # Verify tweepy.Client was called with access_token, not bearer_token
-            mock_client_class.assert_called_once_with(access_token="test_access_token_123")
+            # Verify tweepy.Client was called with bearer_token (tweepy's param name for OAuth 2.0 access tokens)
+            mock_client_class.assert_called_once_with(bearer_token="test_access_token_123")
 
     def test_fetch_bookmarks_returns_result(self):
         """Verify fetch_bookmarks returns BookmarkFetchResult with correct structure.
