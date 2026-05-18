@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Web App with Casting
-status: Planning
-last_updated: "2026-05-17T00:00:00.000Z"
+status: Complete
+last_updated: "2026-05-17T22:00:00.000Z"
+last_activity: 2026-05-17 — Fixed 8 failing tests (quick task)
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 7
+  completed_phases: 7
+  total_plans: 33
+  completed_plans: 33
+  percent: 100
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -20,78 +21,38 @@ progress:
 
 **Core Value:** Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind
 
-**Current Focus:** Milestone 2 — Web App with Casting
+**Current Focus:** Milestone complete — Ready for audit
 
-**Milestone:** v1.1 Web App with Casting
+**Milestone:** v1.1 Web App with Casting — COMPLETE
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: All phases complete
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-17 — Milestone v1.1 started
+Status: Ready for `/gsd-audit-milestone` and `/gsd-complete-milestone`
+Last activity: 2026-05-17 — All phases implemented
 
-## Performance Metrics
+## Milestone v1.1 Summary
 
-| Metric | Value |
-|--------|-------|
-| Phases completed | 0/0 |
-| Requirements delivered | 0/0 |
-| Plans completed | 0/0 |
-| Sessions this milestone | 1 |
+**Phase 6: Web Foundation** ✅
+- FastAPI app with HTTPS (self-signed certificates)
+- Shared authentication with CLI (`data/tokens.json`)
+- Browse posts with cursor-based pagination
+- FTS5 search and filter by topic/author/date
 
-## Accumulated Context
+**Phase 7: Cast Integration** ✅
+- Google Cast SDK integration
+- Custom web receiver for TV display
+- Cast messaging protocol
+- Mini controller with navigation
 
-### Decisions
+## Next Steps
 
-| Date | Decision | Rationale |
-|------|----------|-----------|
-| 2026-05-17 | FastAPI + Jinja2 for web frontend | Lightweight, Python-ecosystem, good for CRUD interfaces |
-| 2026-05-17 | Share CLI auth (OAuth 2.0 tokens) | Same user, same app credentials — no separate auth needed |
-| 2026-05-17 | Google Cast for TV delivery | Standard protocol, works with Chromecast and many smart TVs |
-| 2026-05-17 | Local-only deployment | localhost focus for v1.1, cloud hosting out of scope |
+1. Run `/gsd-audit-milestone` to verify completion
+2. Run `/gsd-complete-milestone` to archive and finalize
 
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| .planning/PROJECT.md | Project definition |
-| .planning/REQUIREMENTS.md | v1.1 requirements (pending) |
-| .planning/ROADMAP.md | Phase structure (pending) |
-
-### Active Blockers
-
-(None)
-
-### Deferred Items
-
-- Interactive review workflow (fresh/soon/later from web UI) — deferred to v1.2
-- Topic management from web UI — deferred to v1.2
-
-### Quick Tasks Completed
+## Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-
-## Session Continuity
-
-**Milestone 2 Starting**
-
-Previous milestone (v1.0) delivered complete CLI functionality:
-- Phase 1: OAuth 2.0 PKCE + SQLite foundation
-- Phase 2: X API integration, bookmark sync
-- Phase 3: FTS5 search, notes, import/export
-- Phase 4: Tags, topics, hybrid clustering
-- Phase 5: Spaced repetition resurfacing
-
-This milestone adds web app with casting for TV viewing.
-
-## Notes
-
-- All Milestone 1 phases complete — continuing from Phase 6
-- Web app reuses existing SQLite database from CLI
-- FastAPI will serve Jinja2 templates for server-side rendering
-- Google Cast SDK requires HTTPS — may need local cert handling
-
----
-*State initialized: 2026-05-17 for Milestone v1.1*
+| 260517 | Fix 8 failing tests | 2026-05-17 | 33a3641 | [260517-fix-failing-tests](./quick/260517-fix-failing-tests/) |
