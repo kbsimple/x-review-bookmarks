@@ -168,9 +168,9 @@ Plans:
   3. Embedded posts have an available flag that indicates deleted/protected originals
   4. Original post content (text, author, media) is queryable from embedded_posts table
 Plans:
-- [ ] 08-00-PLAN.md — Test scaffolding (migration tests, repository tests, sync tests)
-- [ ] 08-01-PLAN.md — Schema migration V6 and XClient expansions
-- [ ] 08-02-PLAN.md — EmbeddedPostsRepository creation
+- [x] 08-00-PLAN.md — Test scaffolding (migration tests, repository tests, sync tests)
+- [x] 08-01-PLAN.md — Schema migration V6 and XClient expansions
+- [x] 08-02-PLAN.md — EmbeddedPostsRepository creation
 - [ ] 08-03-PLAN.md — SyncService integration
 
 ### Phase 9: Web Display
@@ -229,7 +229,7 @@ Plans:
 | 5. Spaced Repetition Resurfacing | 4/4 | Complete | 2026-04-25 |
 | 6. Web Foundation | 4/4 | Complete | 2026-05-17 |
 | 7. Cast Integration | 4/4 | Complete | 2026-05-17 |
-| 8. Storage Foundation | 0/4 | Not started | - |
+| 8. Storage Foundation | 2/4 | In Progress | 2026-06-04 |
 | 9. Web Display | 0/4 | Not started | - |
 | 10. CLI Display | 0/3 | Not started | - |
 | 11. Cast Display | 0/3 | Not started | - |
