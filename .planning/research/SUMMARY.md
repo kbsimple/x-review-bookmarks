@@ -1,105 +1,173 @@
 # Project Research Summary
 
-**Project:** X Bookmarked Posts Organizer — Web App with Casting (v1.1)
-**Domain:** FastAPI web application with Google Cast integration
-**Researched:** 2026-05-17
+**Project:** X Bookmarked Posts Organizer
+**Domain:** Python CLI + FastAPI web app with Google Cast integration
+**Milestone:** v1.2 — Embedded Post Rendering (retweets and quote tweets)
+**Researched:** 2026-06-04
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Milestone v1.1 adds a FastAPI web frontend with Google Cast integration to the existing CLI application. Research recommends FastAPI 0.136+ with Jinja2 templates for server-side rendering, aiosqlite for async database operations, and the Google Cast Web Sender SDK for TV display. The web app shares OAuth tokens and SQLite database with the existing CLI, avoiding duplication.
+This milestone adds embedded post rendering (retweets and quote tweets) to an existing Python CLI and FastAPI web application. The core insight from research is that X API v2 separates referenced content into an `includes` object rather than nesting it inline — this architectural detail drives the entire implementation strategy. Embedded posts must be fetched via expansions, stored in a separate database table, and rendered with defensive handling for deleted/protected originals.
 
-Key risks: SQLite thread safety (mitigated by WAL mode and per-request connections), HTTPS requirement for Cast SDK (mitigated by mkcert for development), and Default Media Receiver limitations for text content (requires custom Web Receiver).
+The recommended approach uses the existing Tweepy 4.16+ client with additional expansions (`referenced_tweets.id`, `referenced_tweets.id.author_id`, `referenced_tweets.id.attachments.media_keys`) to fetch embedded content in a single API call. Store embedded posts in a new `embedded_posts` table (NOT as JSON blobs in the parent post) to avoid duplication and enable proper querying. All three display surfaces (web, CLI, Cast) can be implemented in parallel once storage is complete.
+
+Key risks include: assuming referenced content is in the main response (it is in `includes`), forgetting to request the `referenced_tweets` field (expansions alone are not enough), not handling deleted/protected originals gracefully, and storing embedded content as denormalized JSON blobs. Each of these causes distinct failure modes that must be prevented at the sync layer.
 
 ## Key Findings
 
-### Recommended Stack
+### Recommended Stack Additions
 
-**New additions for v1.1:**
-- **FastAPI 0.136+** — Web framework with native Jinja2Templates support
-- **aiosqlite 0.20+** — Async SQLite driver (sync sqlite3 blocks event loop)
-- **Jinja2 3.1.6** — HTML templating
-- **python-multipart 0.0.28** — Form data parsing
-- **mkcert** — Local HTTPS certificates (required for Cast SDK)
-- **Web Sender SDK** — JavaScript SDK for Cast button
+**No new dependencies required.** Tweepy 4.16+ already supports `referenced_tweets` expansions. The existing FastAPI, Jinja2, and Rich infrastructure handles the display layer.
+
+**Critical X API changes:**
+- `EXPANSIONS`: Add `referenced_tweets.id`, `referenced_tweets.id.author_id`, `referenced_tweets.id.attachments.media_keys`
+- `TWEET_FIELDS`: Add `referenced_tweets` field to see the reference type
+- Access embedded content from `response.includes['tweets']`, NOT from `response.data`
 
 ### Expected Features
 
 **Must have (table stakes):**
-- Cast button with connection states
-- Session management (connect/disconnect)
-- Mini controller during active cast
-- HTTPS secure context
-- Post browsing with cursor pagination
-- Search/filter extending FTS5
+- Retweet indicator showing "Reposted from @username" — users need to know content is reshared
+- Quote tweet nested display with commentary above original — standard X/Twitter pattern
+- Original author attribution on embedded posts — must credit original author
+- Original content display (text, media, links) — embedded posts must show full content
+- Link to original on X — deep link for full context
 
-**Should have (differentiators):**
-- Custom Web Receiver for text/image content
-- Media Browse landing page on TV
-- Shared authentication with CLI
+**Should have (competitive):**
+- Visual hierarchy distinguishing retweeter from original author — cleaner UX
+- Media inheritance from embedded posts — images/videos inline
+- CLI Rich Tree/Panel display — terminal-native visualization
+- Cast nested card rendering — TV-optimized display
 
 **Defer (v2+):**
-- Touch-optimized receiver UI
-- Voice commands
-- Reading position persistence
+- Search indexed content — include referenced text in FTS5 (P2)
+- Recursive quote chains — flatten to 1 level, link deeper
 
 ### Architecture Approach
 
-FastAPI as parallel module to CLI (`src/web/` alongside `src/cli/`), sharing service and repository layers. OAuth tokens in `data/tokens.json` shared between CLI and web. Per-request DB connections with WAL mode.
+Embedded posts use a normalized reference pattern: the `posts` table gets `post_type` ('original', 'retweet', 'quote') and `embedded_post_id` columns, while a new `embedded_posts` table stores the original content. This separates context data from bookmark data and prevents duplication when the same original is referenced by multiple bookmarks.
 
 **Major components:**
-1. `src/web/app.py` — FastAPI application factory
-2. `src/web/routes/web.py` — HTML routes
-3. `src/web/routes/api.py` — JSON API
-4. `src/web/static/js/cast.js` — Cast sender integration
-5. `src/web/auth.py` — Session auth with token sharing
+1. **Schema migration (v6)** — Add `post_type`, `embedded_post_id` columns to posts; create `embedded_posts` table
+2. **XClient expansion update** — Add referenced_tweets expansions to bookmark fetch
+3. **SyncService enhancement** — Extract and store embedded posts during sync
+4. **EmbeddedPostsRepository** — New repository for embedded_posts CRUD
+5. **Template macro** — `embedded_post.html` Jinja2 component for nested rendering
 
 ### Critical Pitfalls
 
-1. **SQLite thread safety** — Use `check_same_thread=False` and per-request connections
-2. **HTTPS required for Cast** — Self-signed certs rejected; use mkcert
-3. **Never store tokens in localStorage** — XSS vulnerability; read server-side
-4. **Event loop blocking** — Use async drivers or sync `def` routes
-5. **Custom Web Receiver needed** — Default Media Receiver is video-focused
+1. **Referenced content in wrong location** — Embedded tweets appear in `includes.tweets`, NOT in `response.data`. Must build lookup dictionary from includes.
+
+2. **Missing referenced_tweets field** — Expansions fetch the content, but `tweet.fields=referenced_tweets` is required to see the reference IDs. Include BOTH.
+
+3. **Deleted/protected originals not handled** — X API omits deleted content from `includes` without error. Must show "Original post unavailable" placeholder.
+
+4. **Storing as JSON blobs** — Causes data duplication, stale content, query complexity. Use separate normalized table.
+
+5. **Missing media from embedded posts** — Requires chained expansion `referenced_tweets.id.attachments.media_keys`. Embedded images will not render without it.
 
 ## Implications for Roadmap
 
-### Phase 6: Web Foundation
-**Rationale:** HTTPS and database connectivity are prerequisites.
-**Delivers:** FastAPI app, HTTPS, shared auth, post browsing, search/filter
-**Addresses:** Table stakes (HTTPS, browsing, search), pitfalls (thread safety, auth)
+### Phase 1: Storage Foundation
 
-### Phase 7: Cast Integration
-**Rationale:** Requires secure context from Phase 6.
-**Delivers:** Cast button, session management, Custom Web Receiver, mini controller
-**Addresses:** Differentiators (Cast, custom receiver)
+**Rationale:** All display surfaces depend on stored embedded post data. Must complete schema, repository, and sync before any rendering work.
 
-### Phase 8: Enhanced Features (Optional)
-**Rationale:** Polish after core validates.
-**Delivers:** Reading position persistence, touch UI, topic collections on TV
+**Delivers:** Database schema migration, embedded_posts table, EmbeddedPostsRepository, XClient expansion update, SyncService modification to extract/store embedded content.
+
+**Addresses:** Table stakes features for original content display and author attribution.
+
+**Avoids:** Pitfalls 1-4 (wrong location, missing field, deleted originals, JSON blobs) by implementing correct storage pattern from the start.
+
+### Phase 2: Web Rendering
+
+**Rationale:** Web app is primary interface. Template changes build on storage foundation.
+
+**Delivers:** `embedded_post.html` Jinja2 macro, modified `browse.html` template, FastAPI route changes to include embedded data in responses.
+
+**Uses:** Jinja2 templating (existing), embedded_posts table (Phase 1), Tweepy includes pattern (established).
+
+**Implements:** Visual hierarchy for retweets/quotes, media inheritance, deleted original placeholder handling.
+
+### Phase 3: Cast Integration
+
+**Rationale:** Cast receiver shares similar rendering logic to web but needs TV-optimized layout. Can be developed in parallel with Phase 2 after storage complete.
+
+**Delivers:** Modified `receiver.html` with nested post card component, API endpoint changes for Cast data format.
+
+**Uses:** Same embedded_posts data (Phase 1), similar visual patterns to web (Phase 2).
+
+### Phase 4: CLI Enhancement
+
+**Rationale:** CLI uses Rich library for terminal display. Different rendering paradigm but same data source.
+
+**Delivers:** Rich Panel/Tree components for embedded posts in CLI output.
+
+**Uses:** EmbeddedPostsRepository (Phase 1), Rich library (existing).
+
+### Phase Ordering Rationale
+
+- **Storage first:** All display surfaces depend on embedded post data being stored correctly
+- **Web before Cast/CLI:** Web is primary interface; template patterns can be adapted to other surfaces
+- **Cast and CLI can parallelize:** After storage and web patterns are established, both Cast and CLI can be developed independently
+- **Single storage phase prevents rework:** Getting the schema and sync right upfront avoids costly migrations later
+
+### Research Flags
+
+Phases likely needing deeper research during planning:
+- **Phase 1:** None — X API documentation is comprehensive, Tweepy patterns are well-established
+- **Phase 2:** None — Jinja2 template patterns are standard, existing `browse.html` provides clear structure
+- **Phase 3:** Minor — May need testing on actual Chromecast device for nested card sizing
+- **Phase 4:** Minor — Rich Tree/Panel for nested content is straightforward, existing CLI patterns apply
+
+Phases with standard patterns (skip research-phase):
+- **Phase 1:** Standard SQLite migration pattern, well-documented Tweepy expansions, established repository pattern
+- **Phase 2:** Standard Jinja2 macro pattern, existing template structure
+- **Phase 3:** Standard Cast receiver pattern, existing receiver infrastructure
+- **Phase 4:** Standard Rich Panel/Tree pattern, existing CLI structure
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Official FastAPI, Jinja2, Google Cast docs verified |
-| Features | HIGH | Google Cast Design Checklist official |
-| Architecture | HIGH | Existing codebase analyzed, patterns established |
-| Pitfalls | HIGH | Multiple sources for each pitfall |
+| Stack | HIGH | No new dependencies; Tweepy 4.16+ supports all required features. X API v2 expansions documented. |
+| Features | HIGH | X/Twitter patterns well-established. Retweet/quote display is standard UX. Official API docs authoritative. |
+| Architecture | HIGH | Clear separation between bookmark storage and embedded content storage. Existing patterns apply. |
+| Pitfalls | HIGH | Official X API docs explain includes structure. Multiple sources confirm expansion requirements. |
 
 **Overall confidence:** HIGH
+
+### Gaps to Address
+
+No significant gaps. Research was comprehensive with official X API documentation and existing project patterns providing clear guidance.
+
+Minor validation needed:
+- **Cast nested card sizing:** Test on actual device to ensure text readability for embedded posts
+- **Long text truncation:** Verify display_text_range handling for quote tweet commentary
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Google Cast Web Sender Integration](https://developers.google.com/cast/docs/web_sender/integrate)
-- [Google Cast Design Checklist](https://developers.google.com/cast/docs/design_checklist)
+
+- [X API Expansions Documentation](https://docs.x.com/x-api/fundamentals/expansions) — Referenced tweets structure
+- [X API Data Dictionary](https://docs.x.com/x-api/fundamentals/data-dictionary) — Tweet object fields
+- [Tweepy Expansions and Fields](https://docs.tweepy.org/en/stable/expansions_and_fields.html) — Library usage patterns
+- [Tweepy Models Documentation](https://docs.tweepy.org/en/stable/v2_models.html) — Tweet object structure
 
 ### Secondary (MEDIUM confidence)
-- [FastAPI Project Structure Guide 2026](https://dev.to/thesius_code_7a136ae718b7/production-ready-fastapi-project-structure-2026-guide-b1g)
-- [OAuth Token Sharing Patterns](https://kharkevich.org/2024/11/30/oidc-cli-auth/)
+
+- [The Hard Problem of Rendering Tweets](https://www.swyx.io/the-hard-problem-of-rendering-tweets) — Nested content complexity
+- [Twitter Quote-Tweet Redesign Analysis](https://www.toluw.com/design/twitter-quote-tweet-redesign) — UX patterns for embedded posts
+
+### Tertiary (Project References)
+
+- src/api/x_client.py — Current expansion pattern
+- src/services/sync.py — Current sync structure
+- src/db/schema.py — Current schema pattern
+- src/repositories/posts.py — Current repository pattern
+- src/web/templates/browse.html — Current template structure
+- src/web/templates/receiver.html — Current Cast receiver
 
 ---
-*Research completed: 2026-05-17*
+*Research completed: 2026-06-04*
 *Ready for roadmap: yes*

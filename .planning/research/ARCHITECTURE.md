@@ -1,25 +1,27 @@
 # Architecture Research
 
-**Domain:** FastAPI Web App with Google Cast Integration
-**Context:** Adding web frontend to existing CLI-focused Python application
-**Researched:** 2026-05-17
+**Domain:** X Bookmarked Posts Organizer - Retweet/Quote Tweet Support (Milestone v1.2)
+**Context:** Adding embedded post rendering to existing FastAPI + SQLite + Cast architecture
+**Researched:** 2026-06-04
 **Confidence:** HIGH
 
-## Existing Architecture Overview
+---
+
+## Part 1: Existing Architecture Overview
 
 The current application uses a clean layered architecture:
 
 ```
 src/
 ├── cli/
-│   └── main.py              # Typer CLI entry point (1877 lines)
+│   └── main.py              # Typer CLI entry point
 ├── services/
 │   ├── sync.py              # Bookmark sync from X API
 │   ├── search.py            # FTS5 full-text search
 │   ├── export.py            # JSON/CSV import/export
 │   ├── link_checker.py      # Dead link detection
-│   ├── embedding.py         # Text embeddings (sentence-transformers)
-│   ├── clustering.py        # Topic clustering (K-Means)
+│   ├── embedding.py         # Text embeddings
+│   ├── clustering.py        # Topic clustering
 │   ├── topic_suggester.py   # AI topic suggestions
 │   ├── review_scheduler.py  # FSRS spaced repetition
 │   └── review_service.py    # Review workflow logic
@@ -34,625 +36,724 @@ src/
 │   ├── schema.py            # Table definitions
 │   └── migrations.py        # Schema migrations
 ├── auth/
-│   └── oauth.py             # OAuth 2.0 PKCE flow (603 lines)
+│   └── oauth.py             # OAuth 2.0 PKCE flow
 ├── api/
-│   └── __init__.py          # X API client (placeholder)
-├── config/
-│   └── settings.py          # Pydantic Settings
-└── __init__.py
+│   └── x_client.py          # X API client (tweepy wrapper)
+├── web/
+│   ├── app.py               # FastAPI application
+│   ├── routes/              # Web routes (browse, search, cast)
+│   └── templates/           # Jinja2 templates
+└── config/
+    └── settings.py          # Pydantic Settings
 ```
 
 **Key Patterns:**
 - **Repository Pattern**: Data access abstracted in repositories/
 - **Service Layer**: Business logic in services/
-- **Connection Factory**: `get_connection()` returns SQLite connection with proper PRAGMAs
+- **Connection Factory**: `init_database()` returns SQLite connection with proper PRAGMAs
 - **Token Storage**: `data/tokens.json` for OAuth credentials
 
-## Recommended Web Architecture
+---
 
-### System Overview
+## Part 2: Embedded Post Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         CLIENT LAYER                                 │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
-│  │  CLI (Typer)│  │  Browser   │  │  Google Cast Sender (JS)    │ │
-│  │  xbm auth   │  │  Templates │  │  chrome.cast.media API      │ │
-│  └──────┬──────┘  └──────┬──────┘  └─────────────┬───────────────┘ │
-└─────────┼────────────────┼───────────────────────┼─────────────────┘
-          │                │                       │
-          ▼                ▼                       ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                        ENTRY POINT LAYER                             │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │                    FastAPI Application                      │   │
-│  │  src/web/app.py                                              │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │   │
-│  │  │ API Routes  │  │ Web Routes  │  │ Static Files Mount   │  │   │
-│  │  │ /api/*      │  │ /, /browse  │  │ /static/*, /js/*     │  │   │
-│  │  └──────┬──────┘  └──────┬──────┘  └─────────────────────┘  │   │
-│  └─────────┼────────────────┼─────────────────────────────────────┘
-│            │                │                                        │
-│  ┌─────────┴────────────────┴─────────────────────────────────────┐ │
-│  │                    Auth Middleware                              │ │
-│  │  - Check session cookie OR                                     │ │
-│  │  - Load from data/tokens.json (shared with CLI)                │ │
-│  │  - Refresh tokens on 401                                       │ │
-│  └─────────────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                       SERVICE LAYER (SHARED)                         │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────────┐   │
-│  │SyncService│  │SearchSvc  │  │ReviewSvc  │  │TopicSuggester │   │
-│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └───────┬───────┘   │
-└────────┼──────────────┼──────────────┼────────────────┼─────────────┘
-         │              │              │                │
-         ▼              ▼              ▼                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                      REPOSITORY LAYER (SHARED)                       │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐│
-│  │PostsRepo │  │ TagsRepo │  │TopicsRepo│  │ ReviewStateRepo      ││
-│  └─────┬────┘  └─────┬────┘  └─────┬────┘  └──────────┬───────────┘│
-└────────┼─────────────┼─────────────┼──────────────────┼─────────────┘
-         │             │             │                  │
-         ▼             ▼             ▼                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                        DATA LAYER                                    │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                     SQLite (data/bookmarks.db)                 │ │
-│  │  - WAL mode enabled (concurrent reads/writes)                  │ │
-│  │  - FTS5 for full-text search                                   │ │
-│  │  - Foreign key constraints enabled                             │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                                                      │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                     Token Store (data/tokens.json)             │ │
-│  │  - Shared between CLI and Web                                  │ │
-│  │  - OAuth 2.0 access_token, refresh_token                      │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | Implementation |
-|-----------|----------------|----------------|
-| `src/web/app.py` | FastAPI application factory | Creates app, mounts routers, static files |
-| `src/web/routes/` | Web routes (browse, search) | Jinja2 templates, session auth |
-| `src/web/api/` | JSON API routes | REST endpoints for CRUD operations |
-| `src/web/auth.py` | Web authentication | Session management, token refresh |
-| `src/web/templates/` | Jinja2 HTML templates | Base, browse, search, post detail |
-| `src/web/static/js/cast.js` | Google Cast sender | CastContext initialization, media loading |
-| `src/services/` | Business logic | **REUSED** from CLI implementation |
-| `src/repositories/` | Data access | **REUSED** from CLI implementation |
-| `src/db/connection.py` | Database connections | **REUSED** from CLI implementation |
-
-## Recommended Project Structure (New Files)
+### System Overview with Embedded Posts
 
 ```
-src/
-├── web/                          # NEW: Web application module
-│   ├── __init__.py
-│   ├── app.py                    # FastAPI application factory
-│   ├── config.py                 # Web-specific settings (host, port, debug)
-│   ├── auth.py                   # Session-based auth, token sharing with CLI
-│   ├── routes/
-│   │   ├── __init__.py
-│   │   ├── web.py                # Web routes (/, /browse, /search)
-│   │   └── api.py                # JSON API routes (/api/*)
-│   ├── templates/
-│   │   ├── base.html             # Base template with layout, cast SDK
-│   │   ├── browse.html           # Post browsing with pagination
-│   │   ├── search.html           # Search results page
-│   │   └── post.html             # Single post detail view
-│   └── static/
-│       ├── css/
-│       │   └── styles.css        # Application styles
-│       └── js/
-│           ├── main.js           # General client-side logic
-│           └── cast.js           # Google Cast sender integration
-├── cli/                          # EXISTING: CLI module (unchanged)
-├── services/                     # EXISTING: Shared business logic
-├── repositories/                 # EXISTING: Shared data access
-├── db/                           # EXISTING: Database layer
-├── auth/                         # EXISTING: OAuth flow (shared)
-└── config/                       # EXISTING: Settings
++------------------------------------------------------------------+
+|                        Presentation Layer                         |
++------------------------------------------------------------------+
+|  +-------------+  +-------------+  +---------------------------+ |
+|  |   CLI App   |  |  FastAPI    |  |   Cast Receiver (HTML/JS) | |
+|  |   (Typer)   |  |   Routes    |  |   Runs on Chromecast      | |
+|  +------+------+  +------+------+  +-------------+-------------+ |
+         |                |                        |
++--------v----------------v------------------------v---------------+
+|                        Service Layer                              |
++------------------------------------------------------------------+
+|  +-------------+  +-------------+  +-------------+              |
+|  | SyncService |  |SearchService|  |ReviewService|   ...        |
+|  +------+------+  +------+------+  +------+------+              |
+|         |                                                          |
+|         v  (NEW: extracts embedded posts)                         |
+|  +-------------------+                                             |
+|  | EmbeddedPostRepo |  <-- NEW: stores embedded posts            |
+|  +-------------------+                                             |
++------------------------------------------------------------------+
+         |
++--------v--------------------------+
+|        Repository Layer           |
++----------------------------------+
+|  +-------------+  +-------------+|
+|  | PostsRepo   |  |EmbeddedRepo||
+|  +------+------+  +-------------+|
++----------------------------------+
+         |
++--------v--------------------------+
+|        SQLite Database            |
++----------------------------------+
+|  posts | embedded_posts | topics |
++----------------------------------+
 ```
 
-### Structure Rationale
+### Data Flow for Embedded Posts
 
-- **`src/web/`**: New module for web-specific code, parallel to `src/cli/`
-- **`routes/`**: Separate web routes from API routes for clarity
-- **`templates/`**: Jinja2 templates for server-side rendering (simpler than SPA)
-- **`static/js/cast.js`**: Isolated Google Cast logic for maintainability
-- **Shared services/**: Both CLI and web use the same business logic
-- **Shared repositories/**: Same data access layer for consistency
+```
+X API Bookmarks Endpoint
+         |
+         v
++-------------------+
+|    XClient        |  (MODIFIED: fetches referenced_tweets)
+| fetch_bookmarks() |
++-------------------+
+         |
+         v  BookmarkFetchResult
+         |   - tweets[]
+         |   - users{}
+         |   - media{}
+         |   - referenced_tweets{}  <-- NEW
+         |
++-------------------+
+|   SyncService     |
+|  _store_tweet()  |  (MODIFIED: extracts embedded posts)
++-------------------+
+         |
+         +--------------------------+
+         |                          |
+         v                          v
++-------------------+    +-------------------+
+|  PostsRepository  |    | EmbeddedPostRepo  |
+|  upsert_post()    |    | upsert_embedded() |
++-------------------+    +-------------------+
+         |                          |
+         v                          v
+     posts table              embedded_posts table
+     (post_type,              (original tweet data)
+      embedded_post_id)
+         |
+         v
++-------------------+
+|  FastAPI Routes   |
+|  /browse, /api    |
++-------------------+
+         |
+         v
+   Jinja2 Templates
+   (browse.html with
+    embedded_post.html macro)
+         |
+         v
++-------------------+
+|   Cast Receiver   |
+|   (MODIFIED)      |
++-------------------+
+```
 
-## Architectural Patterns
+---
 
-### Pattern 1: Application Factory
+## Part 3: Database Schema Changes
 
-**What:** Create FastAPI app in a function, allowing configuration injection and testing.
-**When:** Always use for FastAPI applications.
-**Trade-offs:** Slightly more complex than global app, but enables testing and config flexibility.
+### Schema Version 6: Embedded Posts
 
-**Example:**
+```sql
+-- Schema version 6: Embedded posts for retweets and quote tweets
+-- EMB-01: Store embedded post data for retweets and quote tweets
+-- EMB-02: Embedded posts display with full original content
+
+-- Add columns to posts table to track post type
+ALTER TABLE posts ADD COLUMN post_type TEXT DEFAULT 'original';
+-- Values: 'original', 'retweet', 'quote'
+
+ALTER TABLE posts ADD COLUMN embedded_post_id TEXT;
+-- References embedded_posts.x_post_id of the embedded/quoted post
+-- For retweets: the original tweet ID
+-- For quotes: the quoted tweet ID
+
+-- Create embedded_posts table for storing referenced posts
+-- These are NOT bookmarks - they're context for bookmarked posts
+CREATE TABLE IF NOT EXISTS embedded_posts (
+    x_post_id TEXT PRIMARY KEY,        -- Original tweet ID
+    created_at TIMESTAMP NOT NULL,     -- Original publication date
+    text TEXT NOT NULL,                -- Original text content
+    author_id TEXT NOT NULL,           -- Original author ID
+    author_username TEXT NOT NULL,     -- Original @handle
+    author_display_name TEXT,          -- Original display name
+    media_urls TEXT,                   -- JSON array of media URLs
+    link_urls TEXT,                    -- JSON array of link URLs
+    fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index for finding embedded posts by author
+CREATE INDEX IF NOT EXISTS idx_embedded_posts_author ON embedded_posts(author_id);
+
+-- Index for finding posts that reference a specific embedded post
+CREATE INDEX IF NOT EXISTS idx_posts_embedded_id ON posts(embedded_post_id);
+```
+
+### Entity Relationships
+
+```
+posts (bookmarked)
+    |
+    +-- post_type = 'original' --> No embedded content
+    |
+    +-- post_type = 'retweet' --> embedded_post_id --> embedded_posts
+    |                                                     |
+    |                                                     v
+    |                                              Original tweet data
+    |
+    +-- post_type = 'quote' --> embedded_post_id --> embedded_posts
+                                                       |
+                                                       v
+                                                Original tweet data
+```
+
+**Key Insight:** Embedded posts are NOT bookmarks. They're context data for retweets and quotes. They shouldn't appear in search results, review queue, or exports independently.
+
+---
+
+## Part 4: X API Integration Changes
+
+### X API v2 Referenced Tweets Structure
+
+From official X API documentation, retweets and quote tweets contain a `referenced_tweets` field:
+
+```json
+// Retweet example
+{
+  "data": [{
+    "id": "1229851574555508737",
+    "text": "RT @suhemparack: I built an Alexa Skill for Twitter...",
+    "referenced_tweets": [{
+      "type": "retweeted",
+      "id": "1229843515603144704"
+    }]
+  }]
+}
+
+// Quote tweet example
+{
+  "data": [{
+    "id": "1328399838128467969",
+    "text": "My commentary here https://t.co/...",
+    "referenced_tweets": [{
+      "type": "quoted",
+      "id": "1327011423252144128"
+    }]
+  }]
+}
+```
+
+### Modified XClient Expansions
+
 ```python
-# src/web/app.py
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+class XClient:
+    # Current expansions
+    EXPANSIONS = "author_id,attachments.media_keys"
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: Initialize database connection pool if needed
-    yield
-    # Shutdown: Cleanup resources
-
-def create_app(settings: Settings | None = None) -> FastAPI:
-    if settings is None:
-        settings = Settings()
-
-    app = FastAPI(
-        title="X Bookmarked Posts",
-        lifespan=lifespan,
+    # EMB-01: Add referenced_tweets expansions for embedded posts
+    EXPANSIONS = (
+        "author_id,attachments.media_keys,"
+        "referenced_tweets.id,"
+        "referenced_tweets.id.author_id,"
+        "referenced_tweets.id.attachments.media_keys"
     )
 
-    # Mount static files
-    app.mount("/static", StaticFiles(directory="src/web/static"), name="static")
-
-    # Templates
-    templates = Jinja2Templates(directory="src/web/templates")
-
-    # Include routers
-    from .routes.web import web_router
-    from .routes.api import api_router
-    app.include_router(web_router, templates=templates)
-    app.include_router(api_router, prefix="/api")
-
-    return app
-
-# For uvicorn
-app = create_app()
+    # Add referenced_tweets to tweet fields
+    TWEET_FIELDS = (
+        "created_at,public_metrics,attachments,entities,referenced_tweets"
+    )
 ```
 
-### Pattern 2: Shared Authentication (CLI + Web)
+### Modified BookmarkFetchResult
 
-**What:** Web app reuses OAuth tokens stored by CLI in `data/tokens.json`.
-**When:** Single-user, local-first applications where both CLI and web access same tokens.
-**Trade-offs:** Simpler than implementing separate auth, but requires file-based token sharing.
-
-**Implementation:**
 ```python
-# src/web/auth.py
-from fastapi import Request, HTTPException, Depends
-from fastapi.security import HTTPBearer
-from pathlib import Path
-import json
-
-from ..auth.oauth import load_tokens, refresh_access_token
-from ..config import Settings
-
-# Token file path (same as CLI)
-TOKEN_PATH = Path("data/tokens.json")
-
-async def get_current_user(request: Request) -> dict:
-    """
-    Dependency that ensures valid authentication.
-
-    Flow:
-    1. Check session cookie for access token
-    2. Fall back to data/tokens.json (shared with CLI)
-    3. If expired, refresh using refresh_token
-    4. Return user info or raise HTTPException(401)
-    """
-    settings = Settings()
-
-    # Try session cookie first
-    access_token = request.session.get("access_token")
-
-    # Fall back to shared token file
-    if not access_token:
-        tokens = load_tokens(TOKEN_PATH)
-        if tokens:
-            access_token = tokens[0]
-
-    if not access_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    # Verify token with X API
-    try:
-        user_data = verify_credentials(access_token)
-        return {"username": user_data.username, "access_token": access_token}
-    except AuthError as e:
-        # Token expired - try refresh
-        tokens = load_tokens(TOKEN_PATH)
-        if tokens:
-            new_access, new_refresh = refresh_access_token(
-                settings.client_id,
-                settings.client_secret_value,
-                tokens[1]  # refresh_token
-            )
-            # Save refreshed tokens
-            save_tokens(new_access, new_refresh, TOKEN_PATH)
-            request.session["access_token"] = new_access
-            return {"username": "...", "access_token": new_access}
-
-        raise HTTPException(status_code=401, detail="Authentication expired")
-
-# Usage in routes
-@router.get("/browse")
-async def browse(request: Request, user = Depends(get_current_user)):
-    return templates.TemplateResponse("browse.html", {"request": request, "user": user})
+@dataclass
+class BookmarkFetchResult:
+    tweets: list[Any] = field(default_factory=list)
+    users: dict[str, Any] = field(default_factory=dict)
+    media: dict[str, Any] = field(default_factory=dict)
+    # EMB-01: Add referenced_tweets dict
+    referenced_tweets: dict[str, Any] = field(default_factory=dict)
+    next_token: Optional[str] = None
+    result_count: int = 0
+    rate_limit: RateLimitInfo = field(default_factory=RateLimitInfo)
 ```
 
-### Pattern 3: Service Layer Injection
+### Sync Service Changes
 
-**What:** Inject existing service instances into FastAPI routes via Depends().
-**When:** Reusing business logic from CLI in web routes.
-**Trade-offs:** Requires adapting services that expect SQLite connections to work with FastAPI's async model.
-
-**Example:**
 ```python
-# src/web/dependencies.py
-from fastapi import Depends
-from sqlite3 import Connection
+def _store_tweet(self, tweet: Any, fetch_result: BookmarkFetchResult) -> None:
+    """Store a single tweet with embedded post handling."""
 
-from ..db.connection import get_connection
-from ..services.search import SearchService
-from ..repositories.posts import PostsRepository
+    # Determine post type from referenced_tweets
+    post_type = "original"
+    embedded_post_id = None
 
-def get_db() -> Connection:
-    """Dependency that provides a database connection."""
-    conn = get_connection()
-    try:
-        yield conn
-    finally:
-        conn.close()
+    if hasattr(tweet, 'referenced_tweets') and tweet.referenced_tweets:
+        for ref in tweet.referenced_tweets:
+            if ref.type == "retweeted":
+                post_type = "retweet"
+                embedded_post_id = str(ref.id)
+                break
+            elif ref.type == "quoted":
+                post_type = "quote"
+                embedded_post_id = str(ref.id)
+                break
 
-def get_search_service(conn: Connection = Depends(get_db)) -> SearchService:
-    """Dependency that provides a SearchService instance."""
-    return SearchService(conn)
+    # Store embedded post data if present
+    if embedded_post_id and embedded_post_id in fetch_result.referenced_tweets:
+        self._store_embedded_post(
+            fetch_result.referenced_tweets[embedded_post_id],
+            fetch_result
+        )
 
-# Usage in routes
-@router.get("/search")
-async def search(
-    query: str,
-    service: SearchService = Depends(get_search_service)
-):
-    results = service.search(query)
-    return {"results": results}
+    # Store main post
+    post = {
+        'x_post_id': str(tweet.id),
+        'created_at': tweet.created_at.isoformat(),
+        'text': tweet.text,
+        'author_id': str(tweet.author_id),
+        'author_username': author.username,
+        'author_display_name': author.name,
+        'media_urls': [...],
+        'link_urls': [...],
+        'post_type': post_type,
+        'embedded_post_id': embedded_post_id,
+    }
+    self._posts_repo.upsert_post(post)
 ```
 
-### Pattern 4: Google Cast Sender Integration
+---
 
-**What:** JavaScript module that initializes CastContext and handles media loading.
-**When:** Any web app that needs to cast content to Chromecast/Smart TV.
-**Trade-offs:** Requires HTTPS in production (HTTP only works on localhost).
+## Part 5: Template Rendering Patterns
 
-**Example:**
-```javascript
-// src/web/static/js/cast.js
-
-// Initialize Cast SDK when available
-window['__onGCastApiAvailable'] = function(isAvailable) {
-    if (isAvailable) {
-        initializeCastApi();
-    }
-};
-
-function initializeCastApi() {
-    const context = cast.framework.CastContext.getInstance();
-
-    // Use Default Media Receiver (no custom receiver app needed)
-    context.setOptions({
-        receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-        autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
-    });
-
-    // Listen for session changes
-    context.addEventListener(
-        cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
-        function(event) {
-            if (event.sessionState === cast.framework.SessionState.SESSION_STARTED) {
-                console.log('Cast session started');
-            } else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
-                console.log('Cast session ended');
-            }
-        }
-    );
-}
-
-function castPost(postId, title, author) {
-    const castSession = cast.framework.CastContext.getInstance().getCurrentSession();
-
-    if (!castSession) {
-        // No active session - prompt user to connect
-        console.log('No cast session active');
-        return;
-    }
-
-    // Create media info for the post
-    const mediaInfo = new chrome.cast.media.MediaInfo(
-        `/api/posts/${postId}/cast`,  // Endpoint that serves media
-        'text/html'  // or appropriate content type
-    );
-
-    mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-    mediaInfo.metadata.title = title;
-    mediaInfo.metadata.subtitle = `By @${author}`;
-
-    const request = new chrome.cast.media.LoadRequest(mediaInfo);
-    castSession.loadMedia(request)
-        .then(() => console.log('Media loaded successfully'))
-        .catch(error => console.error('Load failed:', error));
-}
-
-// Export for use in main.js
-window.castPost = castPost;
-```
+### Jinja2 Macro for Embedded Posts
 
 ```html
-<!-- src/web/templates/base.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{% block title %}X Bookmarked Posts{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
-</head>
-<body>
-    <!-- Cast button (custom element) -->
-    <google-cast-launcher></google-cast-launcher>
+<!-- templates/components/embedded_post.html -->
+{% macro render_embedded_post(embedded_post, post_type) %}
+<div class="embedded-post-container border-l-4 pl-4 my-3
+            {% if post_type == 'retweet' %}border-green-500 bg-green-50{% else %}border-blue-500 bg-blue-50{% endif %}">
+    {% if post_type == 'retweet' %}
+    <div class="text-sm text-gray-500 mb-1">
+        <span class="font-medium text-green-600">Retweeted</span>
+    </div>
+    {% elif post_type == 'quote' %}
+    <div class="text-sm text-gray-500 mb-1">
+        <span class="font-medium text-blue-600">Quoting</span>
+    </div>
+    {% endif %}
 
-    {% block content %}{% endblock %}
-
-    <!-- Load Cast SDK -->
-    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
-    <script src="{{ url_for('static', path='/js/main.js') }}"></script>
-    <script src="{{ url_for('static', path='/js/cast.js') }}"></script>
-</body>
-</html>
+    <div class="embedded-post">
+        <div class="flex items-center gap-2 mb-2">
+            <span class="font-medium text-gray-900">@{{ embedded_post.author_username }}</span>
+            <span class="text-xs text-gray-400">{{ embedded_post.created_at[:10] }}</span>
+        </div>
+        <p class="text-gray-700">{{ embedded_post.text[:300] }}{% if embedded_post.text|length > 300 %}...{% endif %}</p>
+        {% if embedded_post.media_urls and embedded_post.media_urls|length > 0 %}
+        <div class="embedded-images mt-2">
+            <img src="{{ embedded_post.media_urls[0] }}" alt="" class="rounded max-w-xs">
+        </div>
+        {% endif %}
+        <a href="https://x.com/{{ embedded_post.author_username }}/status/{{ embedded_post.x_post_id }}"
+           target="_blank" class="text-xs text-blue-500 hover:underline mt-2 inline-block">
+            View original on X
+        </a>
+    </div>
+</div>
+{% endmacro %}
 ```
 
-## Data Flow
+### Modified browse.html Template
 
-### Request Flow: Browse Posts
+```html
+{% extends "base.html" %}
+{% from "components/embedded_post.html" import render_embedded_post %}
 
-```
-[Browser Request: GET /browse?topic=python&page=2]
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│ FastAPI Route: web.py                                        │
-│ @router.get("/browse")                                       │
-│ async def browse(topic: str | None, page: int = 1, ...)     │
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼ Depends(get_current_user)
-┌─────────────────────────────────────────────────────────────┐
-│ Auth Middleware: auth.py                                    │
-│ - Check session cookie for access_token                     │
-│ - Fall back to data/tokens.json                             │
-│ - Verify with X API or refresh if expired                   │
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼ Depends(get_posts_repository)
-┌─────────────────────────────────────────────────────────────┐
-│ Repository: PostsRepository(conn)                            │
-│ def get_all(topic_id, limit, offset) -> list[dict]          │
-│ - SQLite query with FTS5 if search query                    │
-│ - Join with post_topics for filtering                       │
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Template: browse.html                                        │
-│ {% for post in posts %}                                     │
-│   <div class="post">{{ post.text }}</div>                   │
-│ {% endfor %}                                                 │
-│ <button onclick="castPost({{ post.id }})">Cast</button>     │
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼
-[Browser Response: HTML with posts and Cast buttons]
-```
+{% block content %}
+<div class="space-y-6">
+    {% for post in posts %}
+    <div class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
+        <div class="flex items-start justify-between mb-2">
+            <span class="text-sm text-gray-500">
+                {% if post.post_type == 'retweet' %}
+                <span class="text-green-600 font-medium">Retweet</span> by
+                {% elif post.post_type == 'quote' %}
+                <span class="text-blue-600 font-medium">Quote</span> by
+                {% endif %}
+                @{{ post.author_username }}
+            </span>
+            <span class="text-xs text-gray-400">{{ post.created_at[:10] }}</span>
+        </div>
 
-### Cast Flow: Load Post on TV
+        {% if post.post_type == 'retweet' %}
+        {# Retweet: Show embedded post only (retweets have no added text) #}
+        {% if post.embedded_post %}
+        {{ render_embedded_post(post.embedded_post, 'retweet') }}
+        {% else %}
+        <div class="text-gray-400 italic">Original post no longer available</div>
+        {% endif %}
 
-```
-[User clicks "Cast" button on post]
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│ JavaScript: cast.js                                          │
-│ castPost(postId, title, author)                              │
-│ - Check if CastSession active                               │
-│ - Create MediaInfo with post content URL                    │
-│ - Call castSession.loadMedia(request)                       │
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Cast SDK → Default Media Receiver                            │
-│ - Receiver requests: GET /api/posts/{id}/cast              │
-│ - Content-Type: text/html (rendered post view)              │
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│ FastAPI Route: api.py                                        │
-│ @router.get("/api/posts/{id}/cast")                          │
-│ async def get_post_for_cast(id: str)                         │
-│ - Return HTML rendering of post                              │
-│ - Designed for TV display (larger fonts, simpler layout)    │
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼
-[TV displays post content]
+        {% elif post.post_type == 'quote' %}
+        {# Quote: Show user's commentary first, then embedded post #}
+        <p class="text-gray-800 mb-3">{{ post.text[:200] }}{% if post.text|length > 200 %}...{% endif %}</p>
+        {% if post.embedded_post %}
+        {{ render_embedded_post(post.embedded_post, 'quote') }}
+        {% else %}
+        <div class="text-gray-400 italic">Quoted post no longer available</div>
+        {% endif %}
+
+        {% else %}
+        {# Original post #}
+        <p class="text-gray-800 mb-3">{{ post.text[:200] }}{% if post.text|length > 200 %}...{% endif %}</p>
+        {% endif %}
+
+        {# Rest of post card (images, tags, topics, etc.) #}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
 ```
 
-## Integration Points
+---
 
-### New Components
+## Part 6: Repository Changes
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| FastAPI App | `src/web/app.py` | Application factory, router mounting |
-| Web Routes | `src/web/routes/web.py` | HTML endpoints (/, /browse, /search) |
-| API Routes | `src/web/routes/api.py` | JSON endpoints for data |
-| Web Auth | `src/web/auth.py` | Session management, token sharing |
-| Templates | `src/web/templates/` | Jinja2 HTML templates |
-| Static Files | `src/web/static/` | CSS, JavaScript, images |
-| Cast Module | `src/web/static/js/cast.js` | Google Cast sender logic |
-
-### Modified Components
-
-| Component | Changes | Why |
-|-----------|---------|-----|
-| `src/config/settings.py` | Add `web_host`, `web_port`, `session_secret` | Web-specific settings |
-| `pyproject.toml` | Add `fastapi`, `uvicorn`, `jinja2` dependencies | New runtime requirements |
-
-### Shared Components (No Changes)
-
-| Component | Usage |
-|-----------|-------|
-| `src/auth/oauth.py` | Token management (load_tokens, save_tokens, refresh_access_token) |
-| `src/services/*` | Business logic (SearchService, PostsRepository, etc.) |
-| `src/repositories/*` | Data access layer |
-| `src/db/connection.py` | SQLite connection factory |
-| `data/tokens.json` | Shared OAuth token store |
-| `data/bookmarks.db` | Shared SQLite database |
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Duplicating Business Logic
-
-**What people do:** Copy service logic into web routes.
-**Why it's wrong:** Divergence between CLI and web, maintenance burden.
-**Do this instead:** Import and reuse `src/services/` and `src/repositories/` modules.
+### PostsRepository Modifications
 
 ```python
-# BAD: Duplicating search logic in route
-@router.get("/search")
-async def search(query: str):
-    conn = get_connection()
-    cursor = conn.execute("SELECT * FROM posts WHERE ...")
-    results = cursor.fetchall()
-    return {"results": results}
+def get_by_id(self, x_post_id: str) -> Optional[dict[str, Any]]:
+    """Get a post by x_post_id with embedded post data."""
 
-# GOOD: Reusing existing service
-@router.get("/search")
-async def search(query: str, service: SearchService = Depends(get_search_service)):
-    results = service.search(query)
-    return {"results": [r._asdict() for r in results]}
+    row = self._conn.execute(
+        "SELECT * FROM posts WHERE x_post_id = ?",
+        (x_post_id,)
+    ).fetchone()
+
+    if row is None:
+        return None
+
+    post = self._row_to_dict(row)
+
+    # EMB-02: Load embedded post if present
+    if post.get('embedded_post_id'):
+        embedded = self._conn.execute(
+            "SELECT * FROM embedded_posts WHERE x_post_id = ?",
+            (post['embedded_post_id'],)
+        ).fetchone()
+
+        if embedded:
+            post['embedded_post'] = self._embedded_row_to_dict(embedded)
+
+    return post
+
+def _row_to_dict(self, row: sqlite3.Row) -> dict[str, Any]:
+    """Convert a database row to dict, parsing JSON fields."""
+    return {
+        'x_post_id': row['x_post_id'],
+        'created_at': row['created_at'],
+        'text': row['text'],
+        'author_id': row['author_id'],
+        'author_username': row['author_username'],
+        'author_display_name': row['author_display_name'],
+        'media_urls': json.loads(row['media_urls']) if row['media_urls'] else [],
+        'link_urls': json.loads(row['link_urls']) if row['link_urls'] else [],
+        'bookmarked_at': row['bookmarked_at'],
+        'fetched_at': row['fetched_at'],
+        'sync_version': row['sync_version'],
+        'note': row['note'] if 'note' in row.keys() else None,
+        'link_status': row['link_status'] if 'link_status' in row.keys() else 'unchecked',
+        'post_type': row['post_type'] if 'post_type' in row.keys() else 'original',
+        'embedded_post_id': row['embedded_post_id'] if 'embedded_post_id' in row.keys() else None,
+    }
+
+def _embedded_row_to_dict(self, row: sqlite3.Row) -> dict[str, Any]:
+    """Convert embedded post row to dict."""
+    return {
+        'x_post_id': row['x_post_id'],
+        'created_at': row['created_at'],
+        'text': row['text'],
+        'author_id': row['author_id'],
+        'author_username': row['author_username'],
+        'author_display_name': row['author_display_name'],
+        'media_urls': json.loads(row['media_urls']) if row['media_urls'] else [],
+        'link_urls': json.loads(row['link_urls']) if row['link_urls'] else [],
+    }
 ```
 
-### Anti-Pattern 2: Global SQLite Connection
-
-**What people do:** Create one global connection for all requests.
-**Why it's wrong:** Thread safety issues, connection leaks, WAL mode doesn't work correctly.
-**Do this instead:** Create connection per request using Depends().
+### New EmbeddedPostsRepository
 
 ```python
-# BAD: Global connection
-db_connection = get_connection()  # Created at startup
+class EmbeddedPostsRepository:
+    """Repository for embedded_posts table CRUD operations."""
 
-@router.get("/posts")
-async def get_posts():
-    return db_connection.execute("SELECT * FROM posts").fetchall()
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
 
-# GOOD: Per-request connection
-def get_db():
-    conn = get_connection()
-    try:
-        yield conn
-    finally:
-        conn.close()
+    def upsert_embedded_post(self, post: dict[str, Any]) -> None:
+        """Insert or update an embedded post."""
+        self._conn.execute(
+            """
+            INSERT INTO embedded_posts (
+                x_post_id, created_at, text, author_id, author_username,
+                author_display_name, media_urls, link_urls
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(x_post_id) DO UPDATE SET
+                created_at = excluded.created_at,
+                text = excluded.text,
+                author_id = excluded.author_id,
+                author_username = excluded.author_username,
+                author_display_name = excluded.author_display_name,
+                media_urls = excluded.media_urls,
+                link_urls = excluded.link_urls
+            """,
+            (
+                post['x_post_id'],
+                post['created_at'],
+                post['text'],
+                post['author_id'],
+                post['author_username'],
+                post.get('author_display_name'),
+                json.dumps(post.get('media_urls', [])),
+                json.dumps(post.get('link_urls', [])),
+            )
+        )
+        self._conn.commit()
 
-@router.get("/posts")
-async def get_posts(conn: Connection = Depends(get_db)):
-    return PostsRepository(conn).get_all()
+    def get_by_id(self, x_post_id: str) -> Optional[dict[str, Any]]:
+        """Get an embedded post by ID."""
+        row = self._conn.execute(
+            "SELECT * FROM embedded_posts WHERE x_post_id = ?",
+            (x_post_id,)
+        ).fetchone()
+        return self._row_to_dict(row) if row else None
 ```
 
-### Anti-Pattern 3: Async SQLite
+---
 
-**What people do:** Use aiosqlite or async wrappers around SQLite.
-**Why it's wrong:** SQLite doesn't support true async; WAL mode handles concurrent reads; adds complexity for no benefit at 100-500 post scale.
-**Do this instead:** Use synchronous sqlite3 with `run_in_executor()` for blocking operations, or accept sync in FastAPI routes.
+## Part 7: Cast Receiver Changes
 
-```python
-# BAD: Over-engineered async
-async def get_posts():
-    async with aiosqlite.connect("data/bookmarks.db") as db:
-        return await db.execute("SELECT * FROM posts")
+### Modified receiver.html
 
-# GOOD: Sync is fine for local, single-user app
-@router.get("/posts")
-async def get_posts(conn: Connection = Depends(get_db)):
-    # This is fast enough for local, single-user app
-    return PostsRepository(conn).get_all()
+```html
+<script>
+function loadPost(post) {
+    // Hide loading, show content
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('post-container').classList.add('active');
+
+    // Update author
+    document.getElementById('author-avatar').textContent = '@';
+    document.getElementById('author-name').textContent = post.author_username || 'Unknown';
+    document.getElementById('post-date').textContent = formatDate(post.created_at);
+
+    // Handle different post types
+    const contentEl = document.getElementById('post-content');
+
+    if (post.post_type === 'retweet' && post.embedded_post) {
+        // Retweet: Show "Retweeted" header, then original content
+        contentEl.innerHTML = `
+            <div class="retweet-header" style="color: #22c55e; font-size: 1.5rem; margin-bottom: 1rem;">
+                Retweeted from @${post.embedded_post.author_username}
+            </div>
+            <div class="original-content">${post.embedded_post.text || 'No content'}</div>
+        `;
+        loadEmbeddedMedia(post.embedded_post);
+    } else if (post.post_type === 'quote' && post.embedded_post) {
+        // Quote: Show user's commentary, then quoted post
+        contentEl.innerHTML = `
+            <div class="quote-content" style="margin-bottom: 2rem;">${post.text || 'No content'}</div>
+            <div class="quoted-post" style="border-left: 4px solid #3b82f6; padding-left: 1.5rem; color: #888;">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">Quoting @${post.embedded_post.author_username}</div>
+                <div>${post.embedded_post.text || 'No content'}</div>
+            </div>
+        `;
+        loadEmbeddedMedia(post.embedded_post);
+    } else {
+        // Original post
+        contentEl.textContent = post.text || 'No content';
+        loadPostMedia(post);
+    }
+
+    // Update topics
+    updateTopics(post.topics);
+}
+
+function loadEmbeddedMedia(embeddedPost) {
+    const imagesContainer = document.getElementById('post-images');
+    imagesContainer.innerHTML = '';
+    if (embeddedPost.media_urls && embeddedPost.media_urls.length > 0) {
+        embeddedPost.media_urls.forEach(url => {
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Embedded post image';
+            imagesContainer.appendChild(img);
+        });
+    }
+}
+</script>
 ```
 
-### Anti-Pattern 4: Separate Auth System
+---
 
-**What people do:** Implement new auth system for web (sessions, JWTs).
-**Why it's wrong:** Divergence from CLI, tokens stored in two places, confusion.
-**Do this instead:** Share `data/tokens.json` between CLI and web, use session cookie only for web convenience.
+## Part 8: Anti-Patterns to Avoid
 
-## Scaling Considerations
+### Anti-Pattern 1: Storing Embedded Posts in Same Table
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 100-500 posts (current) | Monolithic FastAPI + SQLite is perfect |
-| 10k+ posts | Add pagination to all queries, consider indexes |
-| Multiple users | Add user_id column, modify auth to support multi-user |
-| Cloud deployment | Replace file-based tokens with database sessions, add HTTPS |
+**What people do:** Add all embedded post columns to the `posts` table.
 
-### Scaling Priorities
+**Why it's wrong:**
+- Embedded posts are NOT bookmarks - they're context
+- They shouldn't appear in search results, review queue, or exports
+- Duplicate storage if multiple people retweet the same original
 
-1. **First bottleneck:** Cast button doesn't work on HTTP in production
-   - **Fix:** Use ngrok for local development, require HTTPS for production
+**Do this instead:** Separate `embedded_posts` table with no user association.
 
-2. **Second bottleneck:** Token refresh during long browser session
-   - **Fix:** Implement automatic token refresh middleware
+### Anti-Pattern 2: Fetching Embedded Posts On-Demand
 
-3. **Third bottleneck:** Database locking during sync + browse
-   - **Fix:** WAL mode already handles this; monitor for contention
+**What people do:** Fetch original tweet from X API when user views a retweet.
 
-## Build Order (Considering Dependencies)
+**Why it's wrong:**
+- Rate limits (180 requests/15 min)
+- Latency for user
+- Fails if original tweet is deleted
+- No offline capability
 
-| Phase | Components | Dependencies |
-|-------|------------|--------------|
-| 1 | `src/web/app.py`, `src/web/routes/web.py`, `src/web/templates/base.html` | FastAPI, Jinja2 |
-| 2 | `src/web/auth.py` | Existing `src/auth/oauth.py` |
-| 3 | `src/web/routes/api.py` | Existing `src/services/`, `src/repositories/` |
-| 4 | `src/web/static/js/main.js`, browse/search templates | None |
-| 5 | `src/web/static/js/cast.js`, cast-specific templates | Cast SDK (external) |
+**Do this instead:** Fetch and store embedded posts during sync.
+
+### Anti-Pattern 3: Ignoring Deleted Originals
+
+**What people do:** Assume referenced posts always exist in API response.
+
+**Why it's wrong:**
+- Original tweet may be deleted
+- X API may not return referenced tweet data
+- Author may have blocked user
+
+**Do this instead:** Gracefully handle missing embedded posts with fallback UI.
+
+### Anti-Pattern 4: Recursive Quote Chains
+
+**What people do:** Try to render quote-of-quote-of-quote chains.
+
+**Why it's wrong:**
+- X flattens quote chains in bookmarks
+- Complexity grows exponentially
+- Edge cases multiply
+
+**Do this instead:** Only store/render one level of embedded post.
+
+---
+
+## Part 9: Integration Points
+
+### Modified Files
+
+| File | Change Type | Description |
+|------|-------------|-------------|
+| `src/db/schema.py` | MODIFY | Add SCHEMA_V6_MIGRATION |
+| `src/api/x_client.py` | MODIFY | Add referenced_tweets expansions |
+| `src/services/sync.py` | MODIFY | Extract and store embedded posts |
+| `src/repositories/posts.py` | MODIFY | Load embedded post data |
+| `src/repositories/embedded_posts.py` | NEW | Repository for embedded_posts table |
+| `src/web/templates/browse.html` | MODIFY | Render embedded posts |
+| `src/web/templates/components/embedded_post.html` | NEW | Macro for embedded post rendering |
+| `src/web/templates/receiver.html` | MODIFY | Cast receiver embedded post display |
+| `src/web/routes/cast.py` | MODIFY | API returns embedded post data |
+| `src/cli/main.py` | MODIFY | CLI renders embedded posts |
+
+### Build Order (Dependencies)
+
+```
+1. SCHEMA_V6_MIGRATION (database)
+   |
+   v
+2. EmbeddedPostsRepository (new)
+   |
+   v
+3. XClient modifications (API layer)
+   |
+   v
+4. SyncService modifications (service layer)
+   |
+   v
+5. PostsRepository modifications (repository layer)
+   |
+   v
+6. Template changes (presentation layer)
+   |
+   v
+7. Cast API changes (API layer)
+   |
+   v
+8. CLI rendering (CLI layer)
+```
 
 **Rationale:**
-1. Phase 1 establishes the basic web framework (can test with static content)
-2. Phase 2 enables auth-protected routes (required before meaningful data access)
-3. Phase 3 exposes data via JSON API (enables dynamic UI)
-4. Phase 4 adds client-side interactivity
-5. Phase 5 adds Cast integration (depends on Phase 4 for post display)
+1. Schema must exist before repositories
+2. Repository must exist before sync can use it
+3. XClient must fetch referenced_tweets before sync can process them
+4. Sync must store embedded posts before templates can display them
+5. Templates need repository methods to load embedded data
+6. Cast receiver depends on API returning embedded data
+7. CLI depends on same repository methods as web
+
+---
+
+## Part 10: Scaling Considerations
+
+| Concern | At 100 bookmarks | At 500 bookmarks | At 1000 bookmarks |
+|---------|-----------------|------------------|-------------------|
+| Embedded posts storage | ~20-50 embedded posts | ~100-200 embedded posts | ~200-400 embedded posts |
+| Storage overhead | Negligible (<1MB) | Low (~2-5MB) | Low (~5-10MB) |
+| Query performance | Single JOIN on get_by_id | Add index on embedded_post_id | Consider lazy loading |
+| API rate limits | Not affected (stored at sync time) | Same | Same |
+
+### Cleanup Strategy
+
+Embedded posts should be cleaned up when no posts reference them:
+
+```python
+def cleanup_orphaned_embedded_posts(self) -> int:
+    """Remove embedded posts with no references."""
+    result = self._conn.execute("""
+        DELETE FROM embedded_posts
+        WHERE x_post_id NOT IN (
+            SELECT DISTINCT embedded_post_id
+            FROM posts
+            WHERE embedded_post_id IS NOT NULL
+        )
+    """)
+    self._conn.commit()
+    return result.rowcount
+```
+
+---
 
 ## Sources
 
-- [FastAPI Templates Documentation](https://fastapi.tiangolo.com/advanced/templates) — HIGH confidence (official)
-- [FastAPI Project Structure Guide 2026](https://dev.to/thesius_code_7a136ae718b7/production-ready-fastapi-project-structure-2026-guide-b1g) — MEDIUM confidence (community)
-- [Google Cast Web Sender Integration](https://developers.google.com/cast/docs/web_sender/integrate) — HIGH confidence (official)
-- [OAuth Token Sharing Patterns](https://kharkevich.org/2024/11/30/oidc-cli-auth/) — MEDIUM confidence (community blog)
-- [FastAPI OAuth Examples](https://github.com/lukasthaler/fastapi-oauth-examples) — MEDIUM confidence (community repo)
-- [Existing x-bookmarked-posts source](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/) — HIGH confidence (project reference)
+### X API Documentation
+- [X API Data Dictionary](https://docs.x.com/x-api/fundamentals/data-dictionary) — HIGH confidence (official)
+- [X API Fields Reference](https://docs.x.com/x-api/fundamentals/fields) — HIGH confidence (official)
+- [X API Post Lookup](https://docs.x.com/x-api/posts/post-lookup-by-post-id) — HIGH confidence (official)
+
+### Template Patterns
+- [Jinja2 Macros Documentation](https://jinja.palletsprojects.com/en/3.1.x/templates/#macros) — HIGH confidence (official)
+- [FastAPI Jinja2 Templates Guide](https://realpython.com/fastapi-jinja2-template/) — HIGH confidence (community)
+
+### Database Patterns
+- [Twitter Database Design Patterns](https://thelinuxcode.com/how-i-design-a-database-for-a-twitterstyle-platform-in-2026/) — MEDIUM confidence (community)
+- [SQLite Foreign Keys](https://www.sqlite.org/foreignkeys.html) — HIGH confidence (official)
+
+### Existing Codebase
+- [src/db/schema.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/db/schema.py) — HIGH confidence (project reference)
+- [src/services/sync.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/services/sync.py) — HIGH confidence (project reference)
+- [src/repositories/posts.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/repositories/posts.py) — HIGH confidence (project reference)
+- [src/web/templates/browse.html](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/web/templates/browse.html) — HIGH confidence (project reference)
+- [src/web/templates/receiver.html](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/web/templates/receiver.html) — HIGH confidence (project reference)
+- [src/api/x_client.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/api/x_client.py) — HIGH confidence (project reference)
 
 ---
-*Architecture research for: FastAPI web app with Google Cast integration*
-*Researched: 2026-05-17*
+*Architecture research for: Embedded Post Rendering (Milestone v1.2)*
+*Researched: 2026-06-04*
