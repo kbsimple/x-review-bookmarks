@@ -19,7 +19,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Optional
 
-from .schema import SCHEMA_V3_MIGRATION, SCHEMA_V4_MIGRATION, SCHEMA_V5_MIGRATION
+from .schema import SCHEMA_V3_MIGRATION, SCHEMA_V4_MIGRATION, SCHEMA_V5_MIGRATION, SCHEMA_V6_MIGRATION
 
 
 def get_schema_version_int(conn: sqlite3.Connection) -> int:
@@ -148,6 +148,48 @@ def migrate_to_v5(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_to_v6(conn: sqlite3.Connection) -> None:
+    """Migrate from v5 to v6: Add embedded_posts table and post columns.
+
+    Idempotent: Safe to call multiple times. Checks PRAGMA user_version
+    before applying changes.
+
+    STR-01: Embedded posts table stores original tweet content for retweets/quotes.
+    STR-02: Posts table gains post_type and embedded_post_id columns.
+
+    Args:
+        conn: SQLite connection.
+    """
+    current_version = get_schema_version_int(conn)
+
+    # Idempotent: Skip if already at v6 or higher
+    if current_version >= 6:
+        return
+
+    # Create embedded_posts table
+    # This uses IF NOT EXISTS for idempotency
+    conn.executescript(SCHEMA_V6_MIGRATION)
+
+    # Add post_type column (D-02)
+    # SQLite doesn't support ALTER TABLE IF NOT EXISTS, so use try/except
+    try:
+        conn.execute("ALTER TABLE posts ADD COLUMN post_type TEXT DEFAULT 'original'")
+    except sqlite3.OperationalError:
+        # Column already exists, which is fine for idempotency
+        pass
+
+    # Add embedded_post_id column (D-02)
+    try:
+        conn.execute("ALTER TABLE posts ADD COLUMN embedded_post_id TEXT")
+    except sqlite3.OperationalError:
+        # Column already exists, which is fine for idempotency
+        pass
+
+    # Set schema version to 6
+    conn.execute("PRAGMA user_version = 6")
+    conn.commit()
+
+
 def run_migrations(conn: sqlite3.Connection) -> int:
     """Run all pending database migrations.
 
@@ -175,7 +217,10 @@ def run_migrations(conn: sqlite3.Connection) -> int:
     if current_version < 5:
         migrate_to_v5(conn)
 
+    if current_version < 6:
+        migrate_to_v6(conn)
+
     return get_schema_version_int(conn)
 
 
-__all__ = ["get_schema_version_int", "migrate_to_v3", "migrate_to_v4", "migrate_to_v5", "run_migrations"]
+__all__ = ["get_schema_version_int", "migrate_to_v3", "migrate_to_v4", "migrate_to_v5", "migrate_to_v6", "run_migrations"]
