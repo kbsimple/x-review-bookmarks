@@ -44,6 +44,7 @@ class BookmarkFetchResult:
         tweets: List of Tweet objects from response.data
         users: Dict mapping user_id to User object (from includes)
         media: Dict mapping media_key to Media object (from includes)
+        referenced_tweets: Dict mapping tweet_id to Tweet object (from includes.tweets for embedded posts)
         next_token: Pagination token for next page, or None
         result_count: Number of results in this page
         rate_limit: Rate limit info from response headers
@@ -51,6 +52,7 @@ class BookmarkFetchResult:
     tweets: list[Any] = field(default_factory=list)
     users: dict[str, Any] = field(default_factory=dict)
     media: dict[str, Any] = field(default_factory=dict)
+    referenced_tweets: dict[str, Any] = field(default_factory=dict)
     next_token: Optional[str] = None
     result_count: int = 0
     rate_limit: RateLimitInfo = field(default_factory=RateLimitInfo)
@@ -67,8 +69,9 @@ class XClient:
     """
 
     # D-03: Expansions for full content (DATA-02)
-    EXPANSIONS = "author_id,attachments.media_keys"
-    TWEET_FIELDS = "created_at,public_metrics,attachments,entities"
+    # D-04: referenced_tweets.id.* for embedded posts (STR-01)
+    EXPANSIONS = "author_id,attachments.media_keys,referenced_tweets.id,referenced_tweets.id.author_id,referenced_tweets.id.attachments.media_keys"
+    TWEET_FIELDS = "created_at,public_metrics,attachments,entities,referenced_tweets"
     USER_FIELDS = "username,name,profile_image_url"
     MEDIA_FIELDS = "url,preview_image_url,height,width,alt_text"
 
@@ -127,6 +130,7 @@ class XClient:
             tweets=list(response.data) if response.data else [],
             users={u.id: u for u in response.includes.get('users', [])} if response.includes else {},
             media={m.media_key: m for m in response.includes.get('media', [])} if response.includes else {},
+            referenced_tweets={str(t.id): t for t in response.includes.get('tweets', [])} if response.includes else {},
             next_token=response.meta.get('next_token') if response.meta else None,
             result_count=response.meta.get('result_count', 0) if response.meta else 0,
             rate_limit=rate_limit,
