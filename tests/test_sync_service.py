@@ -634,3 +634,281 @@ class TestStoreTweet:
         stored = posts_repo.get_by_id("100")
         assert stored is not None
         assert 'https://example.com' in stored['link_urls']
+
+
+class TestEmbeddedPostsSync:
+    """Tests for embedded post handling during sync.
+
+    STR-02: Posts table gains post_type column for retweet/quote/original distinction.
+    STR-03: Unavailable originals marked and stored for graceful handling.
+    """
+
+    def test_store_tweet_sets_post_type_original(self, db_with_schema, posts_repo):
+        """Verify original posts have post_type='original' and no embedded_post_id.
+
+        STR-02: Original posts have post_type='original'.
+        """
+        from src.services.sync import SyncService
+
+        # Tweet without referenced_tweets is an original post
+        tweet = MockTweet(id="100", text="Original post content", author_id="user1")
+        users = {"user1": MockUser(id="user1", username="testuser", name="Test User")}
+
+        fetch_result = BookmarkFetchResult(
+            tweets=[tweet],
+            users=users,
+            media={},
+            next_token=None,
+            result_count=1,
+            rate_limit=RateLimitInfo(remaining=180, reset_at=time.time() + 900),
+        )
+
+        def mock_fetch(max_results=100, pagination_token=None):
+            return fetch_result
+
+        with patch.object(SyncService, '_create_client') as mock_client_factory:
+            mock_client = MagicMock()
+            mock_client.fetch_bookmarks = mock_fetch
+            mock_client_factory.return_value = mock_client
+
+            sync_service = SyncService("test_token", db_with_schema)
+            sync_service.sync()
+
+        # Verify post_type and embedded_post_id
+        stored = posts_repo.get_by_id("100")
+        assert stored is not None
+        assert stored.get("post_type") == "original"
+        assert stored.get("embedded_post_id") is None
+
+    def test_store_tweet_sets_post_type_retweet(self, db_with_schema, posts_repo):
+        """Verify retweets have post_type='retweet' and embedded_post_id set.
+
+        STR-02: Retweets have post_type='retweet' and reference embedded post.
+        """
+        from src.services.sync import SyncService
+
+        # Create a retweet with referenced_tweets
+        retweet = MagicMock()
+        retweet.id = "200"
+        retweet.text = "RT @original_author: This is being retweeted"
+        retweet.author_id = "user2"
+        retweet.referenced_tweets = [MagicMock(type="retweeted", id="100")]
+
+        # Original tweet in includes
+        original_tweet = MagicMock()
+        original_tweet.id = "100"
+        original_tweet.text = "This is the original tweet content"
+        original_tweet.author_id = "user1"
+        original_tweet.created_at = MagicMock(isoformat=lambda: "2024-01-01T00:00:00Z")
+
+        users = {
+            "user1": MockUser(id="user1", username="original_author", name="Original Author"),
+            "user2": MockUser(id="user2", username="retweeter", name="Retweeter"),
+        }
+
+        fetch_result = BookmarkFetchResult(
+            tweets=[retweet],
+            users=users,
+            media={},
+            next_token=None,
+            result_count=1,
+            rate_limit=RateLimitInfo(remaining=180, reset_at=time.time() + 900),
+        )
+
+        # Add includes with referenced tweets
+        fetch_result.includes = {"tweets": [original_tweet]}
+
+        def mock_fetch(max_results=100, pagination_token=None):
+            return fetch_result
+
+        with patch.object(SyncService, '_create_client') as mock_client_factory:
+            mock_client = MagicMock()
+            mock_client.fetch_bookmarks = mock_fetch
+            mock_client_factory.return_value = mock_client
+
+            sync_service = SyncService("test_token", db_with_schema)
+            sync_service.sync()
+
+        # Verify retweet post
+        stored = posts_repo.get_by_id("200")
+        assert stored is not None
+        assert stored.get("post_type") == "retweet"
+        assert stored.get("embedded_post_id") == "100"
+
+    def test_store_tweet_sets_post_type_quote(self, db_with_schema, posts_repo):
+        """Verify quote tweets have post_type='quote' and embedded_post_id set.
+
+        STR-02: Quote tweets have post_type='quote' and reference embedded post.
+        """
+        from src.services.sync import SyncService
+
+        # Create a quote tweet with referenced_tweets
+        quote_tweet = MagicMock()
+        quote_tweet.id = "300"
+        quote_tweet.text = "My commentary on this quote"
+        quote_tweet.author_id = "user2"
+        quote_tweet.referenced_tweets = [MagicMock(type="quoted", id="100")]
+
+        # Original tweet in includes
+        original_tweet = MagicMock()
+        original_tweet.id = "100"
+        original_tweet.text = "Original quoted content"
+        original_tweet.author_id = "user1"
+        original_tweet.created_at = MagicMock(isoformat=lambda: "2024-01-01T00:00:00Z")
+
+        users = {
+            "user1": MockUser(id="user1", username="quoted_author", name="Quoted Author"),
+            "user2": MockUser(id="user2", username="quoter", name="Quoter"),
+        }
+
+        fetch_result = BookmarkFetchResult(
+            tweets=[quote_tweet],
+            users=users,
+            media={},
+            next_token=None,
+            result_count=1,
+            rate_limit=RateLimitInfo(remaining=180, reset_at=time.time() + 900),
+        )
+
+        # Add includes with referenced tweets
+        fetch_result.includes = {"tweets": [original_tweet]}
+
+        def mock_fetch(max_results=100, pagination_token=None):
+            return fetch_result
+
+        with patch.object(SyncService, '_create_client') as mock_client_factory:
+            mock_client = MagicMock()
+            mock_client.fetch_bookmarks = mock_fetch
+            mock_client_factory.return_value = mock_client
+
+            sync_service = SyncService("test_token", db_with_schema)
+            sync_service.sync()
+
+        # Verify quote post
+        stored = posts_repo.get_by_id("300")
+        assert stored is not None
+        assert stored.get("post_type") == "quote"
+        assert stored.get("embedded_post_id") == "100"
+
+    def test_store_tweet_handles_unavailable_embedded(self, db_with_schema, posts_repo):
+        """Verify retweets with unavailable originals are handled gracefully.
+
+        STR-03: Unavailable originals marked with available=False.
+        """
+        from src.services.sync import SyncService
+        from src.repositories.embedded_posts import EmbeddedPostsRepository
+
+        embedded_repo = EmbeddedPostsRepository(db_with_schema)
+
+        # Create a retweet where the original is not available
+        retweet = MagicMock()
+        retweet.id = "400"
+        retweet.text = "RT @deleted_user: [unavailable]"
+        retweet.author_id = "user2"
+        retweet.referenced_tweets = [MagicMock(type="retweeted", id="deleted_100")]
+
+        users = {
+            "user2": MockUser(id="user2", username="retweeter", name="Retweeter"),
+        }
+
+        fetch_result = BookmarkFetchResult(
+            tweets=[retweet],
+            users=users,
+            media={},
+            next_token=None,
+            result_count=1,
+            rate_limit=RateLimitInfo(remaining=180, reset_at=time.time() + 900),
+        )
+
+        # No includes.tweets - original is unavailable
+        fetch_result.includes = {"tweets": []}
+
+        def mock_fetch(max_results=100, pagination_token=None):
+            return fetch_result
+
+        with patch.object(SyncService, '_create_client') as mock_client_factory:
+            mock_client = MagicMock()
+            mock_client.fetch_bookmarks = mock_fetch
+            mock_client_factory.return_value = mock_client
+
+            sync_service = SyncService("test_token", db_with_schema)
+            sync_service.sync()
+
+        # Verify embedded post created as unavailable
+        embedded = embedded_repo.get_by_id("deleted_100")
+        assert embedded is not None
+        assert embedded.get("available") is False
+
+        # Verify retweet still stored with correct post_type
+        stored = posts_repo.get_by_id("400")
+        assert stored is not None
+        assert stored.get("post_type") == "retweet"
+        assert stored.get("embedded_post_id") == "deleted_100"
+
+    def test_store_tweet_stores_embedded_post_content(self, db_with_schema, posts_repo):
+        """Verify embedded post content is stored for available originals.
+
+        STR-01: Embedded posts stored in separate table with full content.
+        """
+        from src.services.sync import SyncService
+        from src.repositories.embedded_posts import EmbeddedPostsRepository
+
+        embedded_repo = EmbeddedPostsRepository(db_with_schema)
+
+        # Create a retweet with available original
+        retweet = MagicMock()
+        retweet.id = "500"
+        retweet.text = "RT @original_author"
+        retweet.author_id = "user2"
+        retweet.referenced_tweets = [MagicMock(type="retweeted", id="original_500")]
+
+        # Original tweet available in includes
+        original_tweet = MagicMock()
+        original_tweet.id = "original_500"
+        original_tweet.text = "This is the original content from the author"
+        original_tweet.author_id = "user1"
+        original_tweet.author_username = "original_author"
+        original_tweet.author_name = "Original Author"
+        original_tweet.created_at = MagicMock(isoformat=lambda: "2024-01-01T00:00:00Z")
+        original_tweet.entities = {}
+
+        users = {
+            "user1": MockUser(id="user1", username="original_author", name="Original Author"),
+            "user2": MockUser(id="user2", username="retweeter", name="Retweeter"),
+        }
+
+        fetch_result = BookmarkFetchResult(
+            tweets=[retweet],
+            users=users,
+            media={},
+            next_token=None,
+            result_count=1,
+            rate_limit=RateLimitInfo(remaining=180, reset_at=time.time() + 900),
+        )
+
+        # Add includes with referenced tweets
+        fetch_result.includes = {"tweets": [original_tweet]}
+
+        def mock_fetch(max_results=100, pagination_token=None):
+            return fetch_result
+
+        with patch.object(SyncService, '_create_client') as mock_client_factory:
+            mock_client = MagicMock()
+            mock_client.fetch_bookmarks = mock_fetch
+            mock_client_factory.return_value = mock_client
+
+            sync_service = SyncService("test_token", db_with_schema)
+            sync_service.sync()
+
+        # Verify embedded post stored with content
+        embedded = embedded_repo.get_by_id("original_500")
+        assert embedded is not None
+        assert embedded.get("text") == "This is the original content from the author"
+        assert embedded.get("author_username") == "original_author"
+        assert embedded.get("available") is True
+
+        # Verify retweet stored correctly
+        stored = posts_repo.get_by_id("500")
+        assert stored is not None
+        assert stored.get("post_type") == "retweet"
+        assert stored.get("embedded_post_id") == "original_500"
