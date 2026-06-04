@@ -237,13 +237,33 @@ CREATE INDEX IF NOT EXISTS idx_review_state_post ON post_review_state(post_id);
 """
 
 
+# Schema version 6: Phase 8 - Embedded posts for retweets and quote tweets
+# STR-01: Embedded posts table stores original tweet content
+# STR-02: Posts table gains post_type and embedded_post_id columns
+SCHEMA_V6_MIGRATION = """
+-- STR-01: Embedded posts table for retweet/quote original content
+-- D-01: Columns mirror posts table structure for normalization
+CREATE TABLE IF NOT EXISTS embedded_posts (
+    x_post_id TEXT PRIMARY KEY,           -- Original tweet ID
+    created_at TIMESTAMP NOT NULL,        -- Publication date
+    text TEXT NOT NULL,                    -- Original tweet text
+    author_id TEXT NOT NULL,               -- X user ID
+    author_username TEXT NOT NULL,         -- @handle
+    author_display_name TEXT,              -- Display name
+    media_urls TEXT,                       -- JSON array of media URLs
+    link_urls TEXT,                        -- JSON array of link URLs
+    available INTEGER DEFAULT 1            -- Boolean: 1=available, 0=deleted/protected
+);
+"""
+
+
 def get_schema_version() -> str:
     """Get the current schema version identifier.
 
     Returns:
-        Schema version string (e.g., "v1", "v2", "v3", "v4", "v5")
+        Schema version string (e.g., "v1", "v2", "v3", "v4", "v5", "v6")
     """
-    return "v5"
+    return "v6"
 
 
-__all__ = ["SCHEMA_V1", "SCHEMA_V2", "SCHEMA_V3_MIGRATION", "SCHEMA_V4_MIGRATION", "SCHEMA_V5_MIGRATION", "get_schema_version"]
+__all__ = ["SCHEMA_V1", "SCHEMA_V2", "SCHEMA_V3_MIGRATION", "SCHEMA_V4_MIGRATION", "SCHEMA_V5_MIGRATION", "SCHEMA_V6_MIGRATION", "get_schema_version"]
