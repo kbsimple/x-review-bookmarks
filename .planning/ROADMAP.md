@@ -9,9 +9,11 @@
 
 | Metric | Value |
 |--------|-------|
-| v1 Requirements | 34 |
-| Phases | 5 |
-| Milestone | Milestone 1 (CLI + SQLite) |
+| v1.0 Requirements | 34 (Complete) |
+| v1.1 Requirements | 14 (Complete) |
+| v1.2 Requirements | 13 |
+| Phases | 11 |
+| Milestone | Milestone 3 (v1.2 — Enhanced Post Rendering) |
 
 ## Phases
 
@@ -20,6 +22,12 @@
 - [x] **Phase 3: Search, Notes, and Import/Export** - Full-text search, personal notes, and data portability
 - [x] **Phase 4: Topic Organization** - Tags, topic taxonomy, and hybrid clustering
 - [x] **Phase 5: Spaced Repetition Resurfacing** - FSRS-based scheduling and review delivery
+- [x] **Phase 6: Web Foundation** - FastAPI web app with shared authentication and post browsing
+- [x] **Phase 7: Cast Integration** - Google Cast integration for TV viewing
+- [ ] **Phase 8: Storage Foundation** - Fetch and store embedded post data with proper schema and X API expansions
+- [ ] **Phase 9: Web Display** - Render retweets and quote tweets in web interface with nested layouts
+- [ ] **Phase 10: CLI Display** - Render embedded posts in terminal with Rich Panel/Tree components
+- [ ] **Phase 11: Cast Display** - Display embedded posts on TV with TV-optimized visual styling
 
 ## Phase Details
 
@@ -112,6 +120,88 @@ Plans:
 - [x] 05-03-PLAN.md — CLI commands: due, review (interactive session, themed reviews)
 - [x] 05-04-PLAN.md — CLI commands: stats, reset, seed (progress tracking, state management)
 
+### Phase 6: Web Foundation
+**Goal:** Users can browse and search posts via a local web application with shared CLI authentication
+**Depends on:** Phase 5
+**Requirements:** WEB-01, WEB-02, WEB-03, WEB-04, WEB-05, WEB-06
+**Success Criteria** (what must be TRUE):
+  1. User can access the application via web browser at localhost
+  2. Web app serves content over HTTPS (required for Google Cast)
+  3. Web app authenticates using shared CLI tokens (data/tokens.json)
+  4. User can browse posts with cursor-based pagination
+  5. User can search posts by text content (FTS5)
+  6. User can filter posts by topic, author, and date range
+**Plans:** 4 plans across 4 waves
+Plans:
+- [x] 06-01-PLAN.md — FastAPI foundation (app structure, HTTPS server, Jinja2 templates)
+- [x] 06-02-PLAN.md — Web authentication (shared token loader, session middleware)
+- [x] 06-03-PLAN.md — Post browsing (pagination endpoints, post card components)
+- [x] 06-04-PLAN.md — Search and filter (FTS5 integration, filter UI, result rendering)
+
+### Phase 7: Cast Integration
+**Goal:** Users can cast posts to Chromecast/Smart TV devices for viewing on the big screen
+**Depends on:** Phase 6
+**Requirements:** CAST-01, CAST-02, CAST-03, CAST-04, CAST-05, RCVR-01, RCVR-02, RCVR-03
+**Success Criteria** (what must be TRUE):
+  1. User sees Cast button in web app header when devices are available
+  2. User can connect to Chromecast/Smart TV devices from web app
+  3. User can cast post content to TV screen
+  4. Mini controller displays during active cast session with navigation controls
+  5. Cast session state persists across navigation in the web app
+  6. Custom Web Receiver displays post text and images on TV
+  7. Receiver handles post content loading from web app
+  8. Receiver displays post author and publication date
+**Plans:** 4 plans across 4 waves
+Plans:
+- [x] 07-01-PLAN.md — Google Cast SDK integration (Cast button, device discovery, session management)
+- [x] 07-02-PLAN.md — Custom Web Receiver (Styled Media Receiver, post display layout)
+- [x] 07-03-PLAN.md — Cast messaging (post data transfer, receiver message handling)
+- [x] 07-04-PLAN.md — Mini controller (persistent controls, navigation, queue management)
+
+### Phase 8: Storage Foundation
+**Goal:** Users' synced bookmarks include embedded post data for retweets and quote tweets
+**Depends on:** Phase 7
+**Requirements:** STR-01, STR-02, STR-03
+**Success Criteria** (what must be TRUE):
+  1. User can sync bookmarks and embedded posts are stored in database
+  2. Each post has a type indicating whether it is original, retweet, or quote
+  3. Embedded posts have an available flag that indicates deleted/protected originals
+  4. Original post content (text, author, media) is queryable from embedded_posts table
+**Plans:** TBD
+
+### Phase 9: Web Display
+**Goal:** Users can view retweets and quote tweets with full original content in the web interface
+**Depends on:** Phase 8
+**Requirements:** WEB-07, WEB-08, WEB-09, WEB-10
+**Success Criteria** (what must be TRUE):
+  1. User sees quote tweets with their commentary above the nested original post
+  2. User sees retweets with original author attribution and content
+  3. User sees images and videos from embedded posts inline
+  4. User sees "Original post unavailable" placeholder when embedded post is deleted/protected
+**Plans:** TBD
+**UI hint:** yes
+
+### Phase 10: CLI Display
+**Goal:** Users can view embedded posts with clear visual hierarchy in terminal output
+**Depends on:** Phase 8
+**Requirements:** CLI-06, CLI-07, CLI-08
+**Success Criteria** (what must be TRUE):
+  1. User sees quote tweets rendered with Rich Panel showing nested structure
+  2. User sees retweets with "Reposted from @username" indicator and original content
+  3. User sees media URLs from embedded posts in CLI output
+**Plans:** TBD
+
+### Phase 11: Cast Display
+**Goal:** Users can view embedded posts on TV with readable layout and visual separation
+**Depends on:** Phase 8
+**Requirements:** CAST-06, CAST-07, CAST-08
+**Success Criteria** (what must be TRUE):
+  1. User sees embedded posts on TV with larger text sizes and nested cards
+  2. User sees embedded content with distinct background colors and clear borders
+  3. User sees "Original post unavailable" message when embedded post is deleted
+**Plans:** TBD
+**UI hint:** yes
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -121,8 +211,16 @@ Plans:
 | 3. Search, Notes, and Import/Export | 6/6 | Complete | 2026-04-23 |
 | 4. Topic Organization | 6/6 | Complete | 2026-04-25 |
 | 5. Spaced Repetition Resurfacing | 4/4 | Complete | 2026-04-25 |
+| 6. Web Foundation | 4/4 | Complete | 2026-05-17 |
+| 7. Cast Integration | 4/4 | Complete | 2026-05-17 |
+| 8. Storage Foundation | 0/3 | Not started | - |
+| 9. Web Display | 0/4 | Not started | - |
+| 10. CLI Display | 0/3 | Not started | - |
+| 11. Cast Display | 0/3 | Not started | - |
 
 ## Coverage
+
+### v1.0 Requirements (Complete)
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -161,6 +259,43 @@ Plans:
 | SPAC-04 | Phase 5 | Complete |
 | CLI-02 | Phase 5 | Complete |
 
+### v1.1 Requirements (Complete)
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| WEB-01 | Phase 6 | Complete |
+| WEB-02 | Phase 6 | Complete |
+| WEB-03 | Phase 6 | Complete |
+| WEB-04 | Phase 6 | Complete |
+| WEB-05 | Phase 6 | Complete |
+| WEB-06 | Phase 6 | Complete |
+| CAST-01 | Phase 7 | Complete |
+| CAST-02 | Phase 7 | Complete |
+| CAST-03 | Phase 7 | Complete |
+| CAST-04 | Phase 7 | Complete |
+| CAST-05 | Phase 7 | Complete |
+| RCVR-01 | Phase 7 | Complete |
+| RCVR-02 | Phase 7 | Complete |
+| RCVR-03 | Phase 7 | Complete |
+
+### v1.2 Requirements (Pending)
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| STR-01 | Phase 8 | Pending |
+| STR-02 | Phase 8 | Pending |
+| STR-03 | Phase 8 | Pending |
+| WEB-07 | Phase 9 | Pending |
+| WEB-08 | Phase 9 | Pending |
+| WEB-09 | Phase 9 | Pending |
+| WEB-10 | Phase 9 | Pending |
+| CLI-06 | Phase 10 | Pending |
+| CLI-07 | Phase 10 | Pending |
+| CLI-08 | Phase 10 | Pending |
+| CAST-06 | Phase 11 | Pending |
+| CAST-07 | Phase 11 | Pending |
+| CAST-08 | Phase 11 | Pending |
+
 ---
 *Roadmap created: 2026-04-18*
-*Roadmap updated: 2026-04-25 - Phase 5 complete, Milestone 1 finished*
+*Roadmap updated: 2026-06-04 - Milestone v1.2 (Enhanced Post Rendering) roadmap created*
