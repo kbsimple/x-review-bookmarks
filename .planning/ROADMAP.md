@@ -167,7 +167,11 @@ Plans:
   2. Each post has a type indicating whether it is original, retweet, or quote
   3. Embedded posts have an available flag that indicates deleted/protected originals
   4. Original post content (text, author, media) is queryable from embedded_posts table
-**Plans:** TBD
+Plans:
+- [ ] 08-00-PLAN.md — Test scaffolding (migration tests, repository tests, sync tests)
+- [ ] 08-01-PLAN.md — Schema migration V6 and XClient expansions
+- [ ] 08-02-PLAN.md — EmbeddedPostsRepository creation
+- [ ] 08-03-PLAN.md — SyncService integration
 
 ### Phase 9: Web Display
 **Goal:** Users can view retweets and quote tweets with full original content in the web interface
@@ -178,7 +182,11 @@ Plans:
   2. User sees retweets with original author attribution and content
   3. User sees images and videos from embedded posts inline
   4. User sees "Original post unavailable" placeholder when embedded post is deleted/protected
-**Plans:** TBD
+Plans:
+- [ ] 08-00-PLAN.md — Test scaffolding (migration tests, repository tests, sync tests)
+- [ ] 08-01-PLAN.md — Schema migration V6 and XClient expansions
+- [ ] 08-02-PLAN.md — EmbeddedPostsRepository creation
+- [ ] 08-03-PLAN.md — SyncService integration
 **UI hint:** yes
 
 ### Phase 10: CLI Display
@@ -189,7 +197,11 @@ Plans:
   1. User sees quote tweets rendered with Rich Panel showing nested structure
   2. User sees retweets with "Reposted from @username" indicator and original content
   3. User sees media URLs from embedded posts in CLI output
-**Plans:** TBD
+Plans:
+- [ ] 08-00-PLAN.md — Test scaffolding (migration tests, repository tests, sync tests)
+- [ ] 08-01-PLAN.md — Schema migration V6 and XClient expansions
+- [ ] 08-02-PLAN.md — EmbeddedPostsRepository creation
+- [ ] 08-03-PLAN.md — SyncService integration
 
 ### Phase 11: Cast Display
 **Goal:** Users can view embedded posts on TV with readable layout and visual separation
@@ -199,7 +211,11 @@ Plans:
   1. User sees embedded posts on TV with larger text sizes and nested cards
   2. User sees embedded content with distinct background colors and clear borders
   3. User sees "Original post unavailable" message when embedded post is deleted
-**Plans:** TBD
+Plans:
+- [ ] 08-00-PLAN.md — Test scaffolding (migration tests, repository tests, sync tests)
+- [ ] 08-01-PLAN.md — Schema migration V6 and XClient expansions
+- [ ] 08-02-PLAN.md — EmbeddedPostsRepository creation
+- [ ] 08-03-PLAN.md — SyncService integration
 **UI hint:** yes
 
 ## Progress
@@ -213,7 +229,7 @@ Plans:
 | 5. Spaced Repetition Resurfacing | 4/4 | Complete | 2026-04-25 |
 | 6. Web Foundation | 4/4 | Complete | 2026-05-17 |
 | 7. Cast Integration | 4/4 | Complete | 2026-05-17 |
-| 8. Storage Foundation | 0/3 | Not started | - |
+| 8. Storage Foundation | 0/4 | Not started | - |
 | 9. Web Display | 0/4 | Not started | - |
 | 10. CLI Display | 0/3 | Not started | - |
 | 11. Cast Display | 0/3 | Not started | - |
