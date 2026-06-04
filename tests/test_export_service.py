@@ -42,7 +42,7 @@ def temp_db_with_posts():
     conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute("PRAGMA busy_timeout = 5000")
 
-    # Create posts table with v3 schema
+    # Create posts table with v6 schema (includes post_type and embedded_post_id)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS posts (
             x_post_id TEXT PRIMARY KEY,
@@ -57,7 +57,9 @@ def temp_db_with_posts():
             fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             sync_version INTEGER DEFAULT 1,
             note TEXT,
-            link_status TEXT DEFAULT 'unchecked'
+            link_status TEXT DEFAULT 'unchecked',
+            post_type TEXT DEFAULT 'original',
+            embedded_post_id TEXT
         )
     """)
 
@@ -787,7 +789,9 @@ class TestRoundtrip:
                 fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 sync_version INTEGER DEFAULT 1,
                 note TEXT,
-                link_status TEXT DEFAULT 'unchecked'
+                link_status TEXT DEFAULT 'unchecked',
+                post_type TEXT DEFAULT 'original',
+                embedded_post_id TEXT
             )
         """)
         new_conn.commit()

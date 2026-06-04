@@ -21,10 +21,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 @pytest.fixture
 def temp_db_with_schema():
-    """Create a temporary SQLite database with posts table schema (v3).
+    """Create a temporary SQLite database with posts table schema (v6).
 
     Yields:
-        sqlite3.Connection: Connection with posts table created and v3 schema.
+        sqlite3.Connection: Connection with posts table created and v6 schema.
     """
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = Path(f.name)
@@ -38,7 +38,7 @@ def temp_db_with_schema():
     conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute("PRAGMA busy_timeout = 5000")
 
-    # Create posts table schema per D-01
+    # Create posts table schema (v6 with post_type and embedded_post_id)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS posts (
             x_post_id TEXT PRIMARY KEY,
@@ -53,7 +53,9 @@ def temp_db_with_schema():
             fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             sync_version INTEGER DEFAULT 1,
             note TEXT,
-            link_status TEXT DEFAULT 'unchecked'
+            link_status TEXT DEFAULT 'unchecked',
+            post_type TEXT DEFAULT 'original',
+            embedded_post_id TEXT
         )
     """)
     conn.commit()

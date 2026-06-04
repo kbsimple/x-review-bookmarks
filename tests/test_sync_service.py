@@ -692,6 +692,7 @@ class TestEmbeddedPostsSync:
         retweet.id = "200"
         retweet.text = "RT @original_author: This is being retweeted"
         retweet.author_id = "user2"
+        retweet.created_at = MagicMock(isoformat=lambda: "2024-01-01T00:00:00Z")
         retweet.referenced_tweets = [MagicMock(type="retweeted", id="100")]
 
         # Original tweet in includes
@@ -715,8 +716,8 @@ class TestEmbeddedPostsSync:
             rate_limit=RateLimitInfo(remaining=180, reset_at=time.time() + 900),
         )
 
-        # Add includes with referenced tweets
-        fetch_result.includes = {"tweets": [original_tweet]}
+        # Add referenced_tweets dict mapping ID to tweet (populated from includes.tweets by XClient)
+        fetch_result.referenced_tweets = {"100": original_tweet}
 
         def mock_fetch(max_results=100, pagination_token=None):
             return fetch_result
@@ -747,6 +748,7 @@ class TestEmbeddedPostsSync:
         quote_tweet.id = "300"
         quote_tweet.text = "My commentary on this quote"
         quote_tweet.author_id = "user2"
+        quote_tweet.created_at = MagicMock(isoformat=lambda: "2024-01-01T00:00:00Z")
         quote_tweet.referenced_tweets = [MagicMock(type="quoted", id="100")]
 
         # Original tweet in includes
@@ -770,8 +772,8 @@ class TestEmbeddedPostsSync:
             rate_limit=RateLimitInfo(remaining=180, reset_at=time.time() + 900),
         )
 
-        # Add includes with referenced tweets
-        fetch_result.includes = {"tweets": [original_tweet]}
+        # Add referenced_tweets dict mapping ID to tweet (populated from includes.tweets by XClient)
+        fetch_result.referenced_tweets = {"100": original_tweet}
 
         def mock_fetch(max_results=100, pagination_token=None):
             return fetch_result
@@ -805,6 +807,7 @@ class TestEmbeddedPostsSync:
         retweet.id = "400"
         retweet.text = "RT @deleted_user: [unavailable]"
         retweet.author_id = "user2"
+        retweet.created_at = MagicMock(isoformat=lambda: "2024-01-01T00:00:00Z")
         retweet.referenced_tweets = [MagicMock(type="retweeted", id="deleted_100")]
 
         users = {
@@ -860,6 +863,7 @@ class TestEmbeddedPostsSync:
         retweet.id = "500"
         retweet.text = "RT @original_author"
         retweet.author_id = "user2"
+        retweet.created_at = MagicMock(isoformat=lambda: "2024-01-01T00:00:00Z")
         retweet.referenced_tweets = [MagicMock(type="retweeted", id="original_500")]
 
         # Original tweet available in includes
@@ -886,8 +890,8 @@ class TestEmbeddedPostsSync:
             rate_limit=RateLimitInfo(remaining=180, reset_at=time.time() + 900),
         )
 
-        # Add includes with referenced tweets
-        fetch_result.includes = {"tweets": [original_tweet]}
+        # Add referenced_tweets dict mapping ID to tweet (populated from includes.tweets by XClient)
+        fetch_result.referenced_tweets = {"original_500": original_tweet}
 
         def mock_fetch(max_results=100, pagination_token=None):
             return fetch_result

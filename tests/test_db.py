@@ -331,6 +331,6 @@ class TestSchemaV2:
         """Verify get_schema_version returns current version."""
         from src.db.schema import get_schema_version
 
-        # Schema version should be at least v5 after Phase 5
+        # Schema version should be v6 after Phase 8
         version = get_schema_version()
-        assert version in ("v4", "v5"), f"Unexpected schema version: {version}"
+        assert version in ("v5", "v6"), f"Unexpected schema version: {version}"

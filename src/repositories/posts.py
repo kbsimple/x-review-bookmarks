@@ -74,6 +74,8 @@ class PostsRepository:
         If x_post_id exists, updates all fields except fetched_at.
         If not exists, inserts as new post.
 
+        STR-02: Includes post_type and embedded_post_id columns.
+
         Args:
             post: Dict with post data (same as insert_post).
         """
@@ -81,8 +83,9 @@ class PostsRepository:
             """
             INSERT INTO posts (
                 x_post_id, created_at, text, author_id, author_username,
-                author_display_name, media_urls, link_urls, bookmarked_at, note
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                author_display_name, media_urls, link_urls, bookmarked_at, note,
+                post_type, embedded_post_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(x_post_id) DO UPDATE SET
                 created_at = excluded.created_at,
                 text = excluded.text,
@@ -93,6 +96,8 @@ class PostsRepository:
                 link_urls = excluded.link_urls,
                 bookmarked_at = excluded.bookmarked_at,
                 note = excluded.note,
+                post_type = excluded.post_type,
+                embedded_post_id = excluded.embedded_post_id,
                 sync_version = sync_version + 1
             """,
             (
@@ -106,6 +111,8 @@ class PostsRepository:
                 json.dumps(post.get('link_urls', [])),
                 post.get('bookmarked_at'),
                 post.get('note'),
+                post.get('post_type', 'original'),
+                post.get('embedded_post_id'),
             )
         )
         self._conn.commit()
@@ -200,6 +207,8 @@ class PostsRepository:
             'sync_version': row['sync_version'],
             'note': row['note'] if 'note' in row.keys() else None,
             'link_status': row['link_status'] if 'link_status' in row.keys() else 'unchecked',
+            'post_type': row['post_type'] if 'post_type' in row.keys() else 'original',
+            'embedded_post_id': row['embedded_post_id'] if 'embedded_post_id' in row.keys() else None,
         }
 
     def update_note(self, x_post_id: str, note: Optional[str]) -> None:
@@ -320,3 +329,56 @@ class PostsRepository:
         result['by_month'] = {r['month']: r['count'] for r in rows}
 
         return result
+
+    def get_paginated(
+        self,
+        limit: int = 20,
+        after_created_at: Optional[str] = None,
+        after_post_id: Optional[str] = None,
+    ) -> tuple[list[dict[str, Any]], bool]:
+        """Get posts with cursor-based pagination.
+
+        WEB-04: User can browse posts with cursor-based pagination.
+
+        Returns posts ordered by created_at DESC, x_post_id DESC for stable
+        pagination. The cursor is (created_at, x_post_id) and pagination
+        returns posts after this cursor.
+
+        Args:
+            limit: Maximum posts to return.
+            after_created_at: Cursor created_at value (posts before this).
+            after_post_id: Cursor x_post_id value (for tie-breaking).
+
+        Returns:
+            Tuple of (posts list, has_more bool).
+        """
+        if after_created_at and after_post_id:
+            # Get posts after the cursor
+            rows = self._conn.execute(
+                """
+                SELECT * FROM posts
+                WHERE (created_at < ?)
+                   OR (created_at = ? AND x_post_id < ?)
+                ORDER BY created_at DESC, x_post_id DESC
+                LIMIT ?
+                """,
+                (after_created_at, after_created_at, after_post_id, limit + 1)
+            ).fetchall()
+        else:
+            # First page - get most recent posts
+            rows = self._conn.execute(
+                """
+                SELECT * FROM posts
+                ORDER BY created_at DESC, x_post_id DESC
+                LIMIT ?
+                """,
+                (limit + 1,)
+            ).fetchall()
+
+        posts = [self._row_to_dict(row) for row in rows]
+        has_more = len(posts) > limit
+
+        if has_more:
+            posts = posts[:limit]
+
+        return posts, has_more

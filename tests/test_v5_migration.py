@@ -73,11 +73,11 @@ class TestSchemaV5Definition:
         # Index on post_id for themed reviews join
         assert "idx_review_state_post" in SCHEMA_V5_MIGRATION
 
-    def test_get_schema_version_returns_v5(self):
-        """Verify get_schema_version returns 'v5' after Phase 5."""
+    def test_get_schema_version_returns_v6(self):
+        """Verify get_schema_version returns 'v6' after Phase 8."""
         from src.db.schema import get_schema_version
 
-        assert get_schema_version() == "v5"
+        assert get_schema_version() == "v6"
 
 
 class TestV5Migration:
@@ -160,15 +160,15 @@ class TestV5Migration:
         version = get_schema_version_int(temp_db_v4)
         assert version == 5
 
-    def test_get_schema_version_returns_v5_after_migration(self, temp_db_v4):
-        """Verify get_schema_version returns 'v5' after migration.
+    def test_get_schema_version_returns_v6_after_migration(self, temp_db_v4):
+        """Verify get_schema_version returns 'v6' after all migrations.
 
-        Test 3: get_schema_version returns "v5" after migration.
+        Test 3: get_schema_version returns "v6" after all migrations including v6.
         """
         from src.db.schema import get_schema_version
 
         # This checks the constant, not the database version
-        assert get_schema_version() == "v5"
+        assert get_schema_version() == "v6"
 
     def test_run_migrations_applies_v5(self, temp_db_v4):
         """Verify run_migrations applies v5 migration."""
