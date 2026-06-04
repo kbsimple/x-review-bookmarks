@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Enhanced Post Rendering
-status: Ready
+status: Planning
 last_updated: "2026-06-04T00:00:00.000Z"
-last_activity: 2026-06-04 — Roadmap created for v1.2
+last_activity: 2026-06-04 — Phase 8 context gathered
 progress:
   total_phases: 4
   completed_phases: 0
