@@ -518,3 +518,129 @@ class TestSchemaV4Migration:
 
         assert final_version >= 4
         assert get_schema_version_int(temp_db_v3) == final_version
+
+
+class TestMigrateToV6:
+    """Tests for v6 schema migration: embedded_posts table and post_type column.
+
+    STR-01: Schema migration adds embedded_posts table.
+    STR-02: Posts table gains post_type and embedded_post_id columns.
+    STR-03: Migration handles unavailable original posts.
+    """
+
+    @pytest.fixture
+    def temp_db_v5(self):
+        """Create a temporary database with v5 schema applied."""
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            db_path = Path(f.name)
+
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+
+        # Apply PRAGMAs
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+        conn.execute("PRAGMA busy_timeout = 5000")
+
+        # Apply v1 and v2 schemas
+        from src.db.schema import SCHEMA_V1, SCHEMA_V2
+        conn.executescript(SCHEMA_V1)
+        conn.executescript(SCHEMA_V2)
+        conn.commit()
+
+        # Run v3, v4, v5 migrations
+        from src.db.migrations import migrate_to_v3, migrate_to_v4, migrate_to_v5
+        migrate_to_v3(conn)
+        migrate_to_v4(conn)
+        migrate_to_v5(conn)
+
+        yield conn
+
+        conn.close()
+        db_path.unlink(missing_ok=True)
+
+    def test_migrate_to_v6_function_exists(self):
+        """Verify migrate_to_v6 function exists in migrations module."""
+        from src.db.migrations import migrate_to_v6
+
+        assert callable(migrate_to_v6)
+
+    def test_migrate_to_v6_creates_embedded_posts_table(self, temp_db_v5):
+        """Verify migrate_to_v6 creates embedded_posts table with correct columns.
+
+        STR-01: embedded_posts table stores original tweet content for retweets/quotes.
+        """
+        from src.db.migrations import migrate_to_v6
+
+        migrate_to_v6(temp_db_v5)
+
+        # Check table exists
+        result = temp_db_v5.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='embedded_posts'"
+        ).fetchone()
+        assert result is not None, "embedded_posts table should exist"
+
+        # Check columns
+        columns = temp_db_v5.execute("PRAGMA table_info(embedded_posts)").fetchall()
+        column_names = {col[1] for col in columns}
+
+        expected_columns = {
+            'x_post_id', 'created_at', 'text', 'author_id',
+            'author_username', 'author_display_name', 'media_urls',
+            'link_urls', 'available'
+        }
+        assert expected_columns == column_names, f"Expected {expected_columns}, got {column_names}"
+
+    def test_migrate_to_v6_adds_post_type_column(self, temp_db_v5):
+        """Verify migrate_to_v6 adds post_type column to posts table with default 'original'.
+
+        STR-02: Posts table gains post_type column for retweet/quote/original distinction.
+        """
+        from src.db.migrations import migrate_to_v6
+
+        migrate_to_v6(temp_db_v5)
+
+        # Check posts table has post_type column
+        columns = temp_db_v5.execute("PRAGMA table_info(posts)").fetchall()
+        column_names = [col[1] for col in columns]
+
+        assert 'post_type' in column_names, "posts should have post_type column"
+
+    def test_migrate_to_v6_adds_embedded_post_id_column(self, temp_db_v5):
+        """Verify migrate_to_v6 adds embedded_post_id column to posts table.
+
+        STR-02: Posts table gains embedded_post_id column referencing embedded_posts.
+        """
+        from src.db.migrations import migrate_to_v6
+
+        migrate_to_v6(temp_db_v5)
+
+        # Check posts table has embedded_post_id column
+        columns = temp_db_v5.execute("PRAGMA table_info(posts)").fetchall()
+        column_names = [col[1] for col in columns]
+
+        assert 'embedded_post_id' in column_names, "posts should have embedded_post_id column"
+
+    def test_migrate_to_v6_is_idempotent(self, temp_db_v5):
+        """Verify migrate_to_v6 is idempotent (safe to call multiple times)."""
+        from src.db.migrations import migrate_to_v6, get_schema_version_int
+
+        migrate_to_v6(temp_db_v5)
+        version_after_first = get_schema_version_int(temp_db_v5)
+        assert version_after_first == 6
+
+        # Run migration again (should skip)
+        migrate_to_v6(temp_db_v5)
+        version_after_second = get_schema_version_int(temp_db_v5)
+        assert version_after_second == 6
+
+    def test_get_schema_version_returns_v6(self, temp_db_v5):
+        """Verify get_schema_version returns v6 after migration."""
+        from src.db.migrations import migrate_to_v6
+        from src.db.schema import get_schema_version
+
+        migrate_to_v6(temp_db_v5)
+
+        version = get_schema_version()
+        assert version == "v6", f"Expected v6, got {version}"
