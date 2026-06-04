@@ -1,58 +1,49 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Web App with Casting
-status: Complete
-last_updated: "2026-05-17T22:00:00.000Z"
-last_activity: 2026-05-17 — Fixed 8 failing tests (quick task)
+milestone: v1.2
+milestone_name: Enhanced Post Rendering
+status: Planning
+last_updated: "2026-06-04T00:00:00.000Z"
+last_activity: 2026-06-04 — Milestone v1.2 started
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 33
-  completed_plans: 33
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # STATE: X Bookmarked Posts Organizer
 
-**Last updated:** 2026-05-17
+**Last updated:** 2026-06-04
 
 ## Project Reference
 
 **Core Value:** Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind
 
-**Current Focus:** Milestone complete — Ready for audit
+**Current Focus:** Milestone v1.2 — Enhanced Post Rendering
 
-**Milestone:** v1.1 Web App with Casting — COMPLETE
+**Milestone:** v1.2 Enhanced Post Rendering — PLANNING
 
 ## Current Position
 
-Phase: All phases complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Ready for `/gsd-audit-milestone` and `/gsd-complete-milestone`
-Last activity: 2026-05-17 — All phases implemented
+Status: Defining requirements
+Last activity: 2026-06-04 — Milestone v1.2 started
 
-## Milestone v1.1 Summary
+## Milestone v1.2 Goals
 
-**Phase 6: Web Foundation** ✅
-- FastAPI app with HTTPS (self-signed certificates)
-- Shared authentication with CLI (`data/tokens.json`)
-- Browse posts with cursor-based pagination
-- FTS5 search and filter by topic/author/date
+**Goal:** Render embedded posts (retweets and quote tweets) with full original content across all display surfaces.
 
-**Phase 7: Cast Integration** ✅
-- Google Cast SDK integration
-- Custom web receiver for TV display
-- Cast messaging protocol
-- Mini controller with navigation
+**Target features:**
+- Store embedded post data during sync
+- Web app renders embedded posts
+- Cast receiver displays embedded posts on TV
+- CLI renders embedded posts in terminal
 
 ## Next Steps
 
-1. Run `/gsd-audit-milestone` to verify completion
-2. Run `/gsd-complete-milestone` to archive and finalize
-
-## Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260517 | Fix 8 failing tests | 2026-05-17 | 33a3641 | [260517-fix-failing-tests](./quick/260517-fix-failing-tests/) |
+1. Define requirements
+2. Create roadmap
+3. `/gsd-plan-phase 8` to start execution

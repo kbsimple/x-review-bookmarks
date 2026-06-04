@@ -23,22 +23,29 @@ Milestone 1 delivered:
 - ✓ FSRS-based spaced repetition scheduling
 - ✓ Interactive review sessions via CLI
 
+#### Validated
+
+Milestone 2 delivered:
+- ✓ FastAPI web application running locally with HTTPS
+- ✓ Shared authentication with CLI (same OAuth 2.0 tokens)
+- ✓ Browse posts with cursor-based pagination
+- ✓ Search and filter posts (FTS5, topic, author, date range)
+- ✓ Google Cast integration for Chromecast/Smart TV viewing
+
 ### Active
 
-Milestone v1.1 — Web App with Casting:
-- [ ] FastAPI web application running locally
-- [ ] Shared authentication with CLI (same OAuth 2.0 tokens)
-- [ ] Browse posts with pagination and infinite scroll
-- [ ] Search and filter posts (text, topic, author, date range)
-- [ ] Google Cast integration for TV viewing
+Milestone v1.2 — Enhanced Post Rendering:
+- [ ] Store embedded post data during sync (retweets and quote tweets)
+- [ ] Web app renders embedded posts with nested original content
+- [ ] Cast receiver displays embedded posts on TV
+- [ ] CLI renders embedded posts in terminal output
 
 ### Out of Scope
 
 - Thread context — only individual bookmarked posts, not conversation threads
 - Real-time sync — scheduled fetches are sufficient
 - Mobile native app — web app with casting as fallback
-- Interactive review workflow (fresh/soon/later) — deferred to v1.2
-- Cloud hosting — local-only deployment for v1.1
+- Cloud hosting — local-only deployment
 
 ## Context
 
@@ -69,18 +76,17 @@ Milestone v1.1 — Web App with Casting:
 | Samsung TV as primary target | Matches user's viewing context | — Pending |
 
 ---
-*Last updated: 2026-05-17 after Milestone 2 initialization*
+*Last updated: 2026-06-04 after Milestone 2 completion*
 
-## Current Milestone: v1.1 Web App with Casting
+## Current Milestone: v1.2 Enhanced Post Rendering
 
-**Goal:** Deliver bookmarked posts to a browser with Google Cast support for TV viewing.
+**Goal:** Render embedded posts (retweets and quote tweets) with full original content across all display surfaces.
 
 **Target features:**
-- FastAPI + Jinja2 web app running locally
-- Shared authentication with CLI (same OAuth 2.0 tokens)
-- Browse posts with pagination
-- Search and filter posts (text, topic, author, date)
-- Google Cast integration for Chromecast/Smart TV viewing
+- Expand sync to store embedded post data from X API
+- Web app renders retweets/quote tweets with nested original post
+- Cast receiver displays embedded posts on TV
+- CLI renders embedded posts in terminal output
 
 ## Evolution
 
