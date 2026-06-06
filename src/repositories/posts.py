@@ -382,3 +382,109 @@ class PostsRepository:
             posts = posts[:limit]
 
         return posts, has_more
+
+    def get_paginated_with_embedded(
+        self,
+        limit: int = 20,
+        after_created_at: Optional[str] = None,
+        after_post_id: Optional[str] = None,
+    ) -> tuple[list[dict[str, Any]], bool]:
+        """Get posts with embedded post data for retweets/quotes.
+
+        WEB-07, WEB-08: Include embedded post data in paginated results.
+        Returns posts with 'embedded_post' key populated for retweets/quotes.
+
+        Args:
+            limit: Maximum posts to return.
+            after_created_at: Cursor created_at value (posts before this).
+            after_post_id: Cursor x_post_id value (for tie-breaking).
+
+        Returns:
+            Tuple of (posts list, has_more bool).
+            Each post includes 'embedded_post' key (None for original posts).
+        """
+        if after_created_at and after_post_id:
+            # Get posts after the cursor with embedded post data
+            query = """
+                SELECT p.*,
+                       e.x_post_id as embedded_id,
+                       e.created_at as embedded_created_at,
+                       e.text as embedded_text,
+                       e.author_id as embedded_author_id,
+                       e.author_username as embedded_author_username,
+                       e.author_display_name as embedded_author_display_name,
+                       e.media_urls as embedded_media_urls,
+                       e.link_urls as embedded_link_urls,
+                       e.available as embedded_available
+                FROM posts p
+                LEFT JOIN embedded_posts e ON p.embedded_post_id = e.x_post_id
+                WHERE (p.created_at < ?)
+                   OR (p.created_at = ? AND p.x_post_id < ?)
+                ORDER BY p.created_at DESC, p.x_post_id DESC
+                LIMIT ?
+            """
+            rows = self._conn.execute(
+                query,
+                (after_created_at, after_created_at, after_post_id, limit + 1)
+            ).fetchall()
+        else:
+            # First page - get most recent posts with embedded post data
+            query = """
+                SELECT p.*,
+                       e.x_post_id as embedded_id,
+                       e.created_at as embedded_created_at,
+                       e.text as embedded_text,
+                       e.author_id as embedded_author_id,
+                       e.author_username as embedded_author_username,
+                       e.author_display_name as embedded_author_display_name,
+                       e.media_urls as embedded_media_urls,
+                       e.link_urls as embedded_link_urls,
+                       e.available as embedded_available
+                FROM posts p
+                LEFT JOIN embedded_posts e ON p.embedded_post_id = e.x_post_id
+                ORDER BY p.created_at DESC, p.x_post_id DESC
+                LIMIT ?
+            """
+            rows = self._conn.execute(query, (limit + 1,)).fetchall()
+
+        posts = [self._row_to_dict_with_embedded(row) for row in rows]
+        has_more = len(posts) > limit
+
+        if has_more:
+            posts = posts[:limit]
+
+        return posts, has_more
+
+    def _row_to_dict_with_embedded(self, row: sqlite3.Row) -> dict[str, Any]:
+        """Convert row to dict with embedded post data.
+
+        Handles LEFT JOIN result where embedded columns may be NULL
+        for original posts (no embedded content).
+
+        Args:
+            row: SQLite Row object with post columns and embedded_ columns.
+
+        Returns:
+            Dict with post data and 'embedded_post' key.
+            embedded_post is None for original posts.
+        """
+        post = self._row_to_dict(row)
+
+        # Add embedded post if present (check for NULL, not truthy)
+        # CRITICAL: Use 'is not None' check because embedded_id could be empty string
+        if row['embedded_id'] is not None:
+            post['embedded_post'] = {
+                'x_post_id': row['embedded_id'],
+                'created_at': row['embedded_created_at'],
+                'text': row['embedded_text'],
+                'author_id': row['embedded_author_id'],
+                'author_username': row['embedded_author_username'],
+                'author_display_name': row['embedded_author_display_name'],
+                'media_urls': json.loads(row['embedded_media_urls']) if row['embedded_media_urls'] else [],
+                'link_urls': json.loads(row['embedded_link_urls']) if row['embedded_link_urls'] else [],
+                'available': bool(row['embedded_available']),
+            }
+        else:
+            post['embedded_post'] = None
+
+        return post
