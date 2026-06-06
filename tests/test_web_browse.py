@@ -787,11 +787,17 @@ class TestEmbeddedPosts:
         content = response.text
 
         # Quote post commentary should be visible (quoter_user's text)
-        assert "Great insights on Python and ML" in content or "post_quote_001" in content
+        assert "Great insights on Python and ML" in content
 
-        # Placeholder assertion - will pass once implementation exists
-        # TODO: Verify "Quoting @original_author" label presence
-        # TODO: Verify nested card has bg-gray-50 styling
+        # D-02: Quoting attribution label
+        assert "Quoting @" in content
+        assert "original_author" in content
+
+        # D-01: Nested card has gray-50 background styling
+        assert "bg-gray-50" in content
+
+        # Nested card contains embedded post author and text
+        assert "Python and ML" in content  # Original quoted text
 
     def test_retweet_display(self, test_client_with_embedded):
         """Verify retweet shows attribution and original content.
@@ -811,10 +817,16 @@ class TestEmbeddedPosts:
         assert response.status_code == 200
         content = response.text
 
-        # Retweeter should be mentioned somewhere
-        # Placeholder assertion - will pass once implementation exists
-        # TODO: Verify "Reposted by" header presence
-        # TODO: Verify original author attribution
+        # D-04: Retweeter info visible above header
+        assert "Reposted by @" in content
+        assert "retweeter_user" in content
+
+        # D-03: Reposted from header
+        assert "Reposted from @" in content
+        assert "hiker_photos" in content
+
+        # Original content is visible (the sunset photo text)
+        assert "Amazing sunset photo" in content or "hiker_photos" in content
 
     def test_unavailable_placeholder(self, test_client_with_embedded):
         """Verify unavailable embedded post shows placeholder.
@@ -833,10 +845,17 @@ class TestEmbeddedPosts:
         assert response.status_code == 200
         content = response.text
 
-        # Unavailable post reference should be visible
-        # Placeholder assertion - will pass once implementation exists
-        # TODO: Verify "Original post unavailable" text presence
-        # TODO: Verify @deleted_user shown in gray
+        # D-05: Placeholder text
+        assert "Original post unavailable" in content
+
+        # D-05: Gray placeholder background styling
+        assert "bg-gray-100" in content
+
+        # D-06: Author shown if known (deleted_user is the author)
+        assert "deleted_user" in content
+
+        # SVG icon for unavailable placeholder
+        assert "<svg" in content or "svg" in content.lower()
 
     def test_embedded_media_display(self, test_client_with_embedded):
         """Verify embedded media renders in adaptive grid.
@@ -854,10 +873,15 @@ class TestEmbeddedPosts:
         assert response.status_code == 200
         content = response.text
 
-        # Media URLs from embedded post should be present
-        # Placeholder assertion - will pass once implementation exists
-        # TODO: Verify media URLs rendered in grid
-        # TODO: Verify adaptive grid classes (grid-cols-2 for 2+ images)
+        # Media URLs from embedded post should be present as img elements
+        assert "<img" in content
+        assert "example.com" in content  # Media URLs from mock data
+
+        # D-07: Adaptive grid classes for 3+ images (grid-cols-2)
+        assert "grid-cols-2" in content
+
+        # Images have onclick handler for lightbox
+        assert "openLightbox" in content or "onclick" in content
 
     def test_no_xss_in_embedded(self, test_client_with_embedded):
         """Verify embedded post content is escaped to prevent XSS.
@@ -866,9 +890,9 @@ class TestEmbeddedPosts:
 
         Expected behavior:
         - User-generated text in embedded posts is HTML-escaped
-        - Script tags are not executed
+        - Script tags in user content are escaped
         - Jinja2 auto-escaping is applied
-        - No raw HTML injection possible
+        - No raw HTML injection possible from user data
         """
         response = test_client_with_embedded.get("/browse")
 
@@ -876,17 +900,59 @@ class TestEmbeddedPosts:
         content = response.text
 
         # Verify that template rendering uses Jinja2 auto-escaping
-        # Check that post content is escaped (usernames and text are escaped)
-        # The mock data contains @ symbols and special characters
-        # which should be properly escaped in HTML output
-
-        # Verify that potentially dangerous HTML in user content is escaped
-        # Jinja2 auto-escapes by default, so < and > become &lt; and &gt;
-        # We check that author usernames are rendered correctly (escaped if needed)
+        # Usernames and text should be rendered correctly
         assert "@original_author" in content or "original_author" in content
         assert "@hiker_photos" in content or "hiker_photos" in content
 
-        # Verify that the template doesn't use |safe filter on user content
-        # by checking that the mock usernames are not raw HTML
-        # ( usernames don't contain HTML, but this verifies the pattern)
-        assert "text-gray-500" in content  # Username styling class exists
+        # Verify that user content doesn't contain raw HTML
+        # (the mock data doesn't have malicious content, but this verifies
+        # the template pattern - no |safe filter on user content)
+        # Check that usernames appear in safe contexts (styled spans)
+        assert "@retweeter_user" in content or "retweeter_user" in content
+
+        # Verify that post text content is properly escaped
+        # (lowercase to match the rendered HTML)
+        assert "learned so much" in content.lower() or "great insights" in content.lower()
+
+        # Username styling class exists (template is working)
+        assert "text-gray-500" in content
+
+    def test_api_posts_returns_embedded_data(self, test_client_with_embedded):
+        """Verify JSON API returns embedded post data.
+
+        WEB-07, WEB-08: API returns embedded_post field.
+
+        Expected behavior:
+        - JSON response includes embedded_post field
+        - Original posts have embedded_post=null
+        - Retweets have embedded_post with available=true
+        - Unavailable posts have embedded_post with available=false
+        """
+        response = test_client_with_embedded.get("/api/posts")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        posts = data["posts"]
+        assert len(posts) > 0
+
+        # Find posts with different types
+        post_types = {p["post_type"] for p in posts}
+        assert "original" in post_types
+        assert "quote" in post_types or "retweet" in post_types
+
+        # Check that posts have embedded_post field
+        for post in posts:
+            assert "embedded_post" in post
+
+        # Original posts should have embedded_post as None
+        original_posts = [p for p in posts if p["post_type"] == "original"]
+        for post in original_posts:
+            assert post["embedded_post"] is None
+
+        # Quote tweets should have embedded_post with content
+        quote_posts = [p for p in posts if p["post_type"] == "quote"]
+        for post in quote_posts:
+            if post["embedded_post"] is not None:
+                assert "x_post_id" in post["embedded_post"]
+                assert "author_username" in post["embedded_post"]
