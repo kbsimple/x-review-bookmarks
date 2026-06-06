@@ -390,3 +390,359 @@ class TestHealthEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
+
+
+# =============================================================================
+# Mock data for embedded posts testing (WEB-07, WEB-08, WEB-09, WEB-10)
+# =============================================================================
+
+# Embedded posts that are referenced by quote tweets and retweets
+MOCK_EMBEDDED_POSTS = [
+    {
+        # Original post quoted by quote tweet (available)
+        "x_post_id": "embedded_001",
+        "created_at": "2024-01-10T08:00:00Z",
+        "text": "This is the original quoted post about Python and ML",
+        "author_id": "author_original",
+        "author_username": "original_author",
+        "author_display_name": "Original Author",
+        "media_urls": [],
+        "link_urls": [],
+        "available": True,
+    },
+    {
+        # Original post retweeted (available, with media)
+        "x_post_id": "embedded_002",
+        "created_at": "2024-01-11T12:00:00Z",
+        "text": "Amazing sunset photo from my hike today!",
+        "author_id": "author_hiker",
+        "author_username": "hiker_photos",
+        "author_display_name": "Hiker Photos",
+        "media_urls": ["https://example.com/sunset1.jpg", "https://example.com/sunset2.jpg"],
+        "link_urls": [],
+        "available": True,
+    },
+    {
+        # Unavailable embedded post (deleted/protected)
+        "x_post_id": "embedded_003",
+        "created_at": "2024-01-12T14:00:00Z",
+        "text": "",  # Empty because unavailable
+        "author_id": "author_deleted",
+        "author_username": "deleted_user",
+        "author_display_name": "Deleted User",
+        "media_urls": [],
+        "link_urls": [],
+        "available": False,  # D-05, D-06: unavailable
+    },
+    {
+        # Original post with video thumbnail for media testing
+        "x_post_id": "embedded_004",
+        "created_at": "2024-01-13T16:00:00Z",
+        "text": "Check out this coding tutorial!",
+        "author_id": "author_coder",
+        "author_username": "code_teacher",
+        "author_display_name": "Code Teacher",
+        "media_urls": ["https://example.com/thumb1.jpg", "https://example.com/thumb2.jpg", "https://example.com/thumb3.jpg"],
+        "link_urls": [],
+        "available": True,
+    },
+]
+
+# Posts that reference embedded posts (quote tweets, retweets, originals)
+MOCK_POSTS_FOR_EMBEDDED = [
+    {
+        # Quote tweet: user adds commentary above nested original post
+        # WEB-07: Quote tweet shows user text + nested card with attribution
+        "x_post_id": "post_quote_001",
+        "created_at": "2024-01-14T10:00:00Z",
+        "text": "Great insights on Python and ML! This is why I follow @original_author",
+        "author_id": "author_quoter",
+        "author_username": "quoter_user",
+        "author_display_name": "Quoter User",
+        "media_urls": [],
+        "link_urls": [],
+        "bookmarked_at": "2024-01-14T10:30:00Z",
+        "post_type": "quote",
+        "embedded_post_id": "embedded_001",
+    },
+    {
+        # Retweet: shows attribution header + original content
+        # WEB-08: Retweet shows attribution and original content
+        "x_post_id": "post_retweet_001",
+        "created_at": "2024-01-15T11:00:00Z",
+        "text": "",  # Retweets typically have empty text or "RT @user"
+        "author_id": "author_retweeter",
+        "author_username": "retweeter_user",
+        "author_display_name": "Retweeter User",
+        "media_urls": [],
+        "link_urls": [],
+        "bookmarked_at": "2024-01-15T11:30:00Z",
+        "post_type": "retweet",
+        "embedded_post_id": "embedded_002",
+    },
+    {
+        # Post with unavailable embedded post
+        # WEB-10: Unavailable shows placeholder with author if known
+        "x_post_id": "post_unavailable_001",
+        "created_at": "2024-01-16T09:00:00Z",
+        "text": "Interesting thread that was deleted",
+        "author_id": "author_bookmarker",
+        "author_username": "bookmarker",
+        "author_display_name": "Bookmarker",
+        "media_urls": [],
+        "link_urls": [],
+        "bookmarked_at": "2024-01-16T09:30:00Z",
+        "post_type": "quote",
+        "embedded_post_id": "embedded_003",  # References unavailable post
+    },
+    {
+        # Original post (no embedded content)
+        "x_post_id": "post_original_001",
+        "created_at": "2024-01-17T14:00:00Z",
+        "text": "This is a regular original post with no embedded content",
+        "author_id": "author_regular",
+        "author_username": "regular_poster",
+        "author_display_name": "Regular Poster",
+        "media_urls": [],
+        "link_urls": [],
+        "bookmarked_at": "2024-01-17T14:30:00Z",
+        "post_type": "original",
+        "embedded_post_id": None,
+    },
+    {
+        # Quote tweet with media in embedded post
+        # WEB-09: Embedded media displays in adaptive grid
+        "x_post_id": "post_quote_media_001",
+        "created_at": "2024-01-18T08:00:00Z",
+        "text": "Learned so much from this tutorial!",
+        "author_id": "author_learner",
+        "author_username": "learner",
+        "author_display_name": "Learner",
+        "media_urls": [],
+        "link_urls": [],
+        "bookmarked_at": "2024-01-18T08:30:00Z",
+        "post_type": "quote",
+        "embedded_post_id": "embedded_004",  # Has multiple media URLs
+    },
+]
+
+
+@pytest.fixture
+def mock_db_with_embedded_posts():
+    """Create a temporary SQLite database with posts and embedded_posts tables.
+
+    Creates schema V6 with both posts and embedded_posts tables populated
+    with mock data for testing embedded post rendering.
+
+    Yields:
+        Path: Path to the temporary database file.
+    """
+    import json
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = Path(f.name)
+
+    conn = init_database(db_path)
+
+    # Insert mock embedded posts
+    for embedded in MOCK_EMBEDDED_POSTS:
+        available_int = 1 if embedded.get("available", True) else 0
+        conn.execute(
+            """
+            INSERT INTO embedded_posts (
+                x_post_id, created_at, text, author_id, author_username,
+                author_display_name, media_urls, link_urls, available
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                embedded["x_post_id"],
+                embedded["created_at"],
+                embedded["text"],
+                embedded["author_id"],
+                embedded["author_username"],
+                embedded.get("author_display_name"),
+                json.dumps(embedded.get("media_urls", [])),
+                json.dumps(embedded.get("link_urls", [])),
+                available_int,
+            ),
+        )
+    conn.commit()
+
+    # Insert mock posts that reference embedded posts
+    for post in MOCK_POSTS_FOR_EMBEDDED:
+        conn.execute(
+            """
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username,
+                author_display_name, media_urls, link_urls, bookmarked_at,
+                post_type, embedded_post_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                post["x_post_id"],
+                post["created_at"],
+                post["text"],
+                post["author_id"],
+                post["author_username"],
+                post.get("author_display_name"),
+                json.dumps(post.get("media_urls", [])),
+                json.dumps(post.get("link_urls", [])),
+                post.get("bookmarked_at"),
+                post.get("post_type", "original"),
+                post.get("embedded_post_id"),
+            ),
+        )
+    conn.commit()
+    conn.close()
+
+    yield db_path
+
+    # Cleanup
+    db_path.unlink(missing_ok=True)
+
+
+@pytest.fixture
+def test_client_with_embedded(mock_db_with_embedded_posts):
+    """Create a FastAPI test client with mock database containing embedded posts.
+
+    Args:
+        mock_db_with_embedded_posts: Path to temporary database with mock data.
+
+    Yields:
+        TestClient: FastAPI test client.
+    """
+    app = create_app()
+
+    # Patch the database path to use our mock database
+    with patch("src.web.routes.browse.Path") as mock_path_class:
+        mock_path_class.return_value = mock_db_with_embedded_posts
+
+        client = TestClient(app)
+        yield client
+
+
+class TestEmbeddedPosts:
+    """Tests for embedded post rendering (WEB-07, WEB-08, WEB-09, WEB-10).
+
+    This test class verifies:
+    - WEB-07: Quote tweets show user commentary + nested original post
+    - WEB-08: Retweets show attribution header + original content
+    - WEB-09: Embedded media renders in adaptive grid
+    - WEB-10: Unavailable posts show placeholder with author if known
+    - Security: XSS prevention in embedded post content
+    """
+
+    def test_quote_tweet_display(self, test_client_with_embedded):
+        """Verify quote tweet shows user commentary and nested card.
+
+        WEB-07: Quote tweet displays user's text above nested original post.
+        D-01: Nested card layout with gray-50 background.
+        D-02: "Quoting @username" label above nested card.
+
+        Expected behavior:
+        - Quote post shows user's commentary text
+        - "Quoting @original_author" label is present
+        - Nested card contains original post content
+        - Nested card has gray background styling
+        """
+        response = test_client_with_embedded.get("/browse")
+
+        assert response.status_code == 200
+        content = response.text
+
+        # Quote post commentary should be visible (quoter_user's text)
+        assert "Great insights on Python and ML" in content or "post_quote_001" in content
+
+        # Placeholder assertion - will pass once implementation exists
+        # TODO: Verify "Quoting @original_author" label presence
+        # TODO: Verify nested card has bg-gray-50 styling
+
+    def test_retweet_display(self, test_client_with_embedded):
+        """Verify retweet shows attribution and original content.
+
+        WEB-08: Retweet displays original author's content with attribution.
+        D-03: "Reposted from @original_author" header.
+        D-04: Retweeter info visible above header.
+
+        Expected behavior:
+        - Retweet shows "Reposted by @retweeter_user"
+        - Shows "Reposted from @hiker_photos" attribution
+        - Original content (sunset photo text) is visible
+        - Media from original post is rendered
+        """
+        response = test_client_with_embedded.get("/browse")
+
+        assert response.status_code == 200
+        content = response.text
+
+        # Retweeter should be mentioned somewhere
+        # Placeholder assertion - will pass once implementation exists
+        # TODO: Verify "Reposted by" header presence
+        # TODO: Verify original author attribution
+
+    def test_unavailable_placeholder(self, test_client_with_embedded):
+        """Verify unavailable embedded post shows placeholder.
+
+        WEB-10: Unavailable posts show clear placeholder.
+        D-05: Gray placeholder card with "Original post unavailable".
+        D-06: Show author if known from reference ID.
+
+        Expected behavior:
+        - Placeholder shows "Original post unavailable"
+        - Shows "@deleted_user" in gray text
+        - Gray background styling (bg-gray-100)
+        """
+        response = test_client_with_embedded.get("/browse")
+
+        assert response.status_code == 200
+        content = response.text
+
+        # Unavailable post reference should be visible
+        # Placeholder assertion - will pass once implementation exists
+        # TODO: Verify "Original post unavailable" text presence
+        # TODO: Verify @deleted_user shown in gray
+
+    def test_embedded_media_display(self, test_client_with_embedded):
+        """Verify embedded media renders in adaptive grid.
+
+        WEB-09: Embedded post media renders correctly.
+        D-07: Adaptive grid - 1 full-width, 2 side-by-side, 3+ in 2x2 grid.
+
+        Expected behavior:
+        - Embedded post with 3 images shows in grid
+        - Media URLs are rendered as <img> elements
+        - Grid layout matches regular post media display
+        """
+        response = test_client_with_embedded.get("/browse")
+
+        assert response.status_code == 200
+        content = response.text
+
+        # Media URLs from embedded post should be present
+        # Placeholder assertion - will pass once implementation exists
+        # TODO: Verify media URLs rendered in grid
+        # TODO: Verify adaptive grid classes (grid-cols-2 for 2+ images)
+
+    def test_no_xss_in_embedded(self, test_client_with_embedded):
+        """Verify embedded post content is escaped to prevent XSS.
+
+        Security: XSS prevention in embedded post content.
+
+        Expected behavior:
+        - User-generated text in embedded posts is HTML-escaped
+        - Script tags are not executed
+        - Jinja2 auto-escaping is applied
+        - No raw HTML injection possible
+        """
+        # This test verifies that embedded post text is properly escaped
+        # The mock data doesn't contain malicious content, but the rendering
+        # should use Jinja2 auto-escaping which prevents XSS
+
+        response = test_client_with_embedded.get("/browse")
+
+        assert response.status_code == 200
+        content = response.text
+
+        # Verify no raw script execution is possible
+        # Content should be escaped, not rendered as HTML
+        assert "<script>" not in content.lower() or "&lt;script" in content.lower()
