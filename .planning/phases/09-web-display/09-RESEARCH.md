@@ -449,17 +449,17 @@ async def browse_page(
 
 **If this table is empty:** All claims in this research were verified or cited — no user confirmation needed.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does browse.html have existing media rendering for images?**
    - What we know: `post.media_urls` is available in template but not currently rendered in browse.html
    - What's unclear: Whether Phase 6 included media display
-   - Recommendation: Check if media rendering exists or needs to be added as part of this phase
+   - **RESOLVED:** Media rendering implemented in 09-02-PLAN Task 1 (`render_media_grid` macro). Images will render in adaptive grid layout (1 full-width, 2 side-by-side, 3+ in 2x2 grid).
 
 2. **Should the API endpoint (/api/posts) also return embedded_post data?**
    - What we know: browse.py uses `/api/posts` for HTMX "Load More"
    - What's unclear: Whether JSON API needs embedded_post in response
-   - Recommendation: Yes — HTMX swap appends new cards that also need embedded_post data. Modify both endpoints.
+   - **RESOLVED:** Yes — 09-03-PLAN creates `/api/posts/html` endpoint returning HTML snippets with embedded_post data. HTMX swap appends new cards that include embedded content.
 
 ## Environment Availability
 

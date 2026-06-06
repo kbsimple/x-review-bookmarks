@@ -11,15 +11,15 @@ Requirements for Milestone v1.2 — Enhanced Post Rendering (retweets and quote 
 
 ### Storage (STR)
 
-- [ ] **STR-01**: User's synced bookmarks include embedded post data for retweets and quote tweets
+- [x] **STR-01**: User's synced bookmarks include embedded post data for retweets and quote tweets
   - System fetches `referenced_tweets.id`, `referenced_tweets.id.author_id`, and `referenced_tweets.id.attachments.media_keys` expansions from X API
   - System stores original tweet content in `embedded_posts` table
 
-- [ ] **STR-02**: Each post has a type indicating whether it is an original, retweet, or quote tweet
+- [x] **STR-02**: Each post has a type indicating whether it is an original, retweet, or quote tweet
   - `post_type` column stores 'original', 'retweet', or 'quote'
   - `embedded_post_id` references the original tweet for retweets/quotes
 
-- [ ] **STR-03**: System handles deleted or protected original posts gracefully
+- [x] **STR-03**: System handles deleted or protected original posts gracefully
   - Embedded posts have an `available` flag (default true)
   - When X API doesn't return referenced post, mark as unavailable
   - Display shows "Original post unavailable" instead of crashing
@@ -176,9 +176,9 @@ Requirements for Milestone v1.2 — Enhanced Post Rendering (retweets and quote 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STR-01 | Phase 8 | Pending |
-| STR-02 | Phase 8 | Pending |
-| STR-03 | Phase 8 | Pending |
+| STR-01 | Phase 8 | Complete |
+| STR-02 | Phase 8 | Complete |
+| STR-03 | Phase 8 | Complete |
 | WEB-07 | Phase 9 | Pending |
 | WEB-08 | Phase 9 | Pending |
 | WEB-09 | Phase 9 | Pending |
