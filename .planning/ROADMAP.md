@@ -183,10 +183,10 @@ Plans:
   3. User sees images and videos from embedded posts inline
   4. User sees "Original post unavailable" placeholder when embedded post is deleted/protected
 Plans:
-- [ ] 08-00-PLAN.md — Test scaffolding (migration tests, repository tests, sync tests)
-- [ ] 08-01-PLAN.md — Schema migration V6 and XClient expansions
-- [ ] 08-02-PLAN.md — EmbeddedPostsRepository creation
-- [ ] 08-03-PLAN.md — SyncService integration
+- [x] 09-00-PLAN.md — Test scaffolding for embedded post rendering
+- [x] 09-01-PLAN.md — Repository LEFT JOIN for embedded posts
+- [x] 09-02-PLAN.md — Template macros for conditional post cards
+- [x] 09-03-PLAN.md — HTMX endpoint and end-to-end tests
 **UI hint:** yes
 
 ### Phase 10: CLI Display
@@ -198,10 +198,9 @@ Plans:
   2. User sees retweets with "Reposted from @username" indicator and original content
   3. User sees media URLs from embedded posts in CLI output
 Plans:
-- [ ] 08-00-PLAN.md — Test scaffolding (migration tests, repository tests, sync tests)
-- [ ] 08-01-PLAN.md — Schema migration V6 and XClient expansions
-- [ ] 08-02-PLAN.md — EmbeddedPostsRepository creation
-- [ ] 08-03-PLAN.md — SyncService integration
+- [ ] 10-00-PLAN.md — Test scaffolding for CLI embedded post rendering
+- [ ] 10-01-PLAN.md — CLI output formatting for retweets
+- [ ] 10-02-PLAN.md — CLI output formatting for quote tweets
 
 ### Phase 11: Cast Display
 **Goal:** Users can view embedded posts on TV with readable layout and visual separation
@@ -212,10 +211,9 @@ Plans:
   2. User sees embedded content with distinct background colors and clear borders
   3. User sees "Original post unavailable" message when embedded post is deleted
 Plans:
-- [ ] 08-00-PLAN.md — Test scaffolding (migration tests, repository tests, sync tests)
-- [ ] 08-01-PLAN.md — Schema migration V6 and XClient expansions
-- [ ] 08-02-PLAN.md — EmbeddedPostsRepository creation
-- [ ] 08-03-PLAN.md — SyncService integration
+- [ ] 11-00-PLAN.md — Test scaffolding for cast embedded post rendering
+- [ ] 11-01-PLAN.md — Cast receiver embedded post layout
+- [ ] 11-02-PLAN.md — Cast messaging for embedded posts
 **UI hint:** yes
 
 ## Progress
@@ -229,8 +227,8 @@ Plans:
 | 5. Spaced Repetition Resurfacing | 4/4 | Complete | 2026-04-25 |
 | 6. Web Foundation | 4/4 | Complete | 2026-05-17 |
 | 7. Cast Integration | 4/4 | Complete | 2026-05-17 |
-| 8. Storage Foundation | 2/4 | In Progress | 2026-06-04 |
-| 9. Web Display | 0/4 | Not started | - |
+| 8. Storage Foundation | 3/4 | In Progress | 2026-06-04 |
+| 9. Web Display | 4/4 | Complete | 2026-06-06 |
 | 10. CLI Display | 0/3 | Not started | - |
 | 11. Cast Display | 0/3 | Not started | - |
 
