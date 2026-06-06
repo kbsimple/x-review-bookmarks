@@ -21,8 +21,8 @@
     </div>
 
     {% if has_more %}
-    <div class="text-center">
-        <button hx-get="/api/posts?cursor={{ next_cursor }}&limit={{ limit }}"
+    <div class="text-center" id="load-more-container">
+        <button hx-get="/api/posts/html?cursor={{ next_cursor }}&limit=20"
                 hx-target="#posts-container"
                 hx-swap="beforeend"
                 class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">

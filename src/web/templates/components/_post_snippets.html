@@ -1,0 +1,33 @@
+{# _post_snippets.html - HTML snippets for HTMX infinite scroll.
+
+WEB-07, WEB-08, WEB-09, WEB-10: Post card snippets appended to browse page.
+
+This template renders a batch of post cards using the same render_post_card
+macro as the main browse page. HTMX appends these directly to the posts container.
+
+The Load More button uses hx-swap-oob to replace the button container from the
+browse page, ensuring only one button exists at a time.
+#}
+
+{% from "components/_post_card.html" import render_post_card %}
+
+{% for post in posts %}
+{{ render_post_card(post, post.get('embedded_post')) }}
+{% endfor %}
+
+{% if has_more and next_cursor %}
+{# Replace the Load More button with updated cursor (out-of-band swap) #}
+<div id="load-more-container" hx-swap-oob="true" class="text-center">
+    <button hx-get="/api/posts/html?cursor={{ next_cursor }}&limit=20"
+            hx-target="#posts-container"
+            hx-swap="beforeend"
+            class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+        Load More
+    </button>
+</div>
+{% else %}
+{# No more posts - remove the Load More button (out-of-band swap) #}
+<div id="load-more-container" hx-swap-oob="true" class="text-center">
+    <!-- No more posts to load -->
+</div>
+{% endif %}

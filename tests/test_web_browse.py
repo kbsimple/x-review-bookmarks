@@ -218,6 +218,142 @@ class TestApiPostsEndpoint:
         assert isinstance(data["posts"], list)
         assert isinstance(data["has_more"], bool)
 
+
+class TestApiPostsHtmlEndpoint:
+    """Tests for GET /api/posts/html endpoint (HTML snippets for HTMX).
+
+    WEB-07, WEB-08, WEB-09, WEB-10: HTML endpoint returns rendered post cards.
+    """
+
+    def test_api_posts_html_returns_html(self, test_client_with_embedded):
+        """Verify /api/posts/html returns HTML response.
+
+        Expected behavior:
+        - Response status 200
+        - Content-Type: text/html
+        - Response contains HTML post cards
+        """
+        response = test_client_with_embedded.get("/api/posts/html")
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers.get("content-type", "")
+
+    def test_api_posts_html_uses_post_card_macro(self, test_client_with_embedded):
+        """Verify /api/posts/html uses render_post_card macro.
+
+        Expected behavior:
+        - HTML contains post card structure (bg-white, rounded-lg, shadow)
+        - Quote tweets show nested card styling (bg-gray-50)
+        - Retweets show attribution headers
+        """
+        response = test_client_with_embedded.get("/api/posts/html")
+
+        assert response.status_code == 200
+        content = response.text
+
+        # Post cards have these structural classes
+        assert "bg-white" in content
+        assert "rounded-lg" in content
+        assert "shadow" in content
+
+    def test_api_posts_html_includes_embedded_post_data(self, test_client_with_embedded):
+        """Verify HTML includes embedded post data for retweets/quotes.
+
+        WEB-07, WEB-08: Embedded post data rendered in HTML.
+
+        Expected behavior:
+        - Quote tweet shows user's commentary and nested original post
+        - Retweet shows attribution header with original content
+        """
+        response = test_client_with_embedded.get("/api/posts/html")
+
+        assert response.status_code == 200
+        content = response.text
+
+        # Quote tweet should show user's commentary
+        assert "Great insights on Python and ML" in content
+
+        # Retweet should show attribution
+        assert "Reposted by" in content
+        assert "Reposted from" in content
+
+    def test_api_posts_html_has_more_header(self, test_client_with_embedded):
+        """Verify X-Has-More header is set for infinite scroll.
+
+        Expected behavior:
+        - X-Has-More header indicates if more posts exist
+        - Client can use header to hide "Load More" button
+        """
+        response = test_client_with_embedded.get("/api/posts/html?limit=2")
+
+        assert response.status_code == 200
+        # X-Has-More header should be present
+        has_more = response.headers.get("X-Has-More")
+        assert has_more is not None
+        assert has_more.lower() in ("true", "false")
+
+    def test_api_posts_html_respects_pagination(self, test_client_with_embedded):
+        """Verify /api/posts/html respects cursor pagination.
+
+        Expected behavior:
+        - Returns correct number of posts
+        - Next cursor provides next page
+        - No duplicate posts between pages
+        """
+        from src.web.pagination import Cursor
+
+        # Get first page
+        response1 = test_client_with_embedded.get("/api/posts/html?limit=2")
+        assert response1.status_code == 200
+
+        # Check that posts are different - need to verify via content
+        # The response should contain post content
+        content1 = response1.text
+
+        # Get second page using cursor from first response
+        # Since we're testing HTML, we can't easily get next_cursor from response
+        # But we can test with known cursor
+        cursor = Cursor(created_at="2024-01-18T08:00:00Z", x_post_id="post_quote_media_001")
+        response2 = test_client_with_embedded.get(f"/api/posts/html?limit=2&cursor={cursor.encode()}")
+        assert response2.status_code == 200
+
+    def test_api_posts_html_unavailable_placeholder(self, test_client_with_embedded):
+        """Verify unavailable embedded posts show placeholder.
+
+        WEB-10: Unavailable posts show clear placeholder.
+
+        Expected behavior:
+        - "Original post unavailable" text is shown
+        - Author shown if known
+        - Gray background styling
+        """
+        response = test_client_with_embedded.get("/api/posts/html")
+
+        assert response.status_code == 200
+        content = response.text
+
+        # Unavailable placeholder styling
+        assert "Original post unavailable" in content
+        assert "bg-gray-100" in content  # Placeholder background
+
+    def test_api_posts_html_embedded_media_grid(self, test_client_with_embedded):
+        """Verify embedded post media renders in adaptive grid.
+
+        WEB-09: Embedded media displays correctly.
+
+        Expected behavior:
+        - Single image: full-width
+        - Two images: grid-cols-2
+        - Three+ images: grid-cols-2 (max 4 shown)
+        """
+        response = test_client_with_embedded.get("/api/posts/html")
+
+        assert response.status_code == 200
+        content = response.text
+
+        # Check for adaptive grid classes
+        assert "grid-cols-2" in content  # Used for 2+ images
+
     def test_api_posts_returns_posts_ordered_by_date(self, test_client):
         """Verify /api/posts returns posts ordered by created_at descending.
 

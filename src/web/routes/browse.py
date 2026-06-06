@@ -143,5 +143,83 @@ async def api_posts(
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@router.get("/api/posts/html", response_class=HTMLResponse)
+async def api_posts_html(
+    request: Request,
+    cursor: str = Query(None, description="Pagination cursor"),
+    limit: int = Query(20, ge=1, le=100, description="Posts per page"),
+):
+    """Return HTML snippets for HTMX infinite scroll.
+
+    WEB-07, WEB-08, WEB-09, WEB-10: Render post cards with embedded content.
+
+    This endpoint returns HTML snippets that HTMX can directly append to
+    the posts container. Uses the same _post_card.html macro as the browse
+    page for consistent rendering.
+
+    Args:
+        request: FastAPI request object.
+        cursor: Pagination cursor (optional, for next page).
+        limit: Number of posts per page.
+
+    Returns:
+        HTML response with post cards to append to container.
+        X-Has-More header indicates if more posts exist.
+    """
+    templates = request.app.state.templates
+    db_path = Path("data/bookmarks.db")
+
+    try:
+        conn = init_database(db_path)
+        repo = PostsRepository(conn)
+
+        # Decode cursor if provided
+        after_created_at = None
+        after_post_id = None
+        if cursor:
+            decoded = Cursor.decode(cursor)
+            if decoded:
+                after_created_at = decoded.created_at
+                after_post_id = decoded.x_post_id
+
+        # Get paginated posts with embedded post data
+        posts, has_more = repo.get_paginated_with_embedded(
+            limit=limit,
+            after_created_at=after_created_at,
+            after_post_id=after_post_id,
+        )
+
+        conn.close()
+
+        # Generate next cursor for Load More button
+        next_cursor = None
+        if has_more and posts:
+            last_post = posts[-1]
+            next_cursor = Cursor(
+                created_at=last_post["created_at"],
+                x_post_id=last_post["x_post_id"],
+            ).encode()
+
+        # Render HTML snippet using post card template
+        return templates.TemplateResponse(
+            request,
+            "components/_post_snippets.html",
+            {
+                "posts": posts,
+                "has_more": has_more,
+                "next_cursor": next_cursor,
+            },
+            headers={"X-Has-More": str(has_more).lower()}
+        )
+
+    except Exception as e:
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {"error": str(e)},
+            status_code=500
+        )
+
+
 # Import Depends at end to avoid circular imports
 from fastapi import Depends  # noqa: E402
