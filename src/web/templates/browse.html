@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "components/_post_card.html" import render_post_card %}
+
+{% block title %}Browse - X Bookmarked Posts{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-gray-800">Browse Posts</h1>
+        <a href="/" class="text-blue-600 hover:text-blue-800">Home</a>
+    </div>
+
+    <div id="posts-container" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {% for post in posts %}
+        {{ render_post_card(post, post.get('embedded_post')) }}
+        {% else %}
+        <div class="col-span-full text-center py-12 text-gray-500">
+            No posts found. Run <code class="bg-gray-100 px-2 py-1 rounded">xbm sync</code> to fetch your bookmarks.
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if has_more %}
+    <div class="text-center">
+        <button hx-get="/api/posts?cursor={{ next_cursor }}&limit={{ limit }}"
+                hx-target="#posts-container"
+                hx-swap="beforeend"
+                class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+            Load More
+        </button>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // HTMX handles "Load More" button automatically
+    // When clicked, it appends new posts to the container
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        // Remove the button if no more posts
+        if (evt.detail.xhr.getResponseHeader('X-Has-More') === 'false') {
+            const btn = document.querySelector('button[hx-get*="api/posts"]');
+            if (btn) btn.remove();
+        }
+    });
+</script>
+{% endblock %}

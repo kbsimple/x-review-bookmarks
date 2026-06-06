@@ -1,0 +1,54 @@
+{# _lightbox.html - Image lightbox component for click-to-expand.
+
+D-08: Click-to-expand lightbox for images.
+
+Usage:
+    Include at end of base.html body:
+    {% include "components/_lightbox.html" %}
+    {{ render_lightbox_modal() }}
+    {{ render_lightbox_script() }}
+#}
+
+
+{% macro render_lightbox_script() %}
+<script>
+// Simple lightbox: click image to expand, click outside or Escape to close.
+function openLightbox(imgSrc, imgAlt) {
+    const lightbox = document.getElementById('image-lightbox');
+    const img = document.getElementById('lightbox-img');
+    img.src = imgSrc;
+    img.alt = imgAlt;
+    lightbox.classList.remove('hidden');
+}
+
+function closeLightbox() {
+    const lightbox = document.getElementById('image-lightbox');
+    lightbox.classList.add('hidden');
+}
+
+// Close on Escape key.
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeLightbox();
+    }
+});
+</script>
+{% endmacro %}
+
+
+{% macro render_lightbox_modal() %}
+{# Modal overlay for full-size image display. #}
+<div id="image-lightbox"
+     class="fixed inset-0 bg-black bg-opacity-75 hidden z-50 flex items-center justify-center"
+     onclick="closeLightbox()">
+    <button class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300"
+            onclick="closeLightbox()"
+            aria-label="Close lightbox">
+        &times;
+    </button>
+    <img id="lightbox-img"
+         class="max-w-full max-h-full object-contain"
+         onclick="event.stopPropagation()"
+         alt="Full-size image" />
+</div>
+{% endmacro %}

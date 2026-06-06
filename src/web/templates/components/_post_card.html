@@ -1,0 +1,231 @@
+{# _post_card.html - Jinja2 macros for conditional post card rendering.
+
+WEB-07: Quote tweets display user's commentary above nested original post.
+WEB-08: Retweets show original author's content with attribution.
+WEB-09: Embedded posts render images and video from original post.
+WEB-10: Unavailable embedded posts show placeholder.
+
+Security: All user content uses Jinja2 auto-escape ({{ }} not |safe).
+#}
+
+
+{% macro render_post_card(post, embedded_post=None) %}
+{# Main routing macro - dispatches to specialized macros based on post_type. #}
+<div class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
+    {% if post.post_type == 'retweet' %}
+        {{ render_retweet_card(post, embedded_post) }}
+    {% elif post.post_type == 'quote' %}
+        {{ render_quote_card(post, embedded_post) }}
+    {% else %}
+        {{ render_original_card(post) }}
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{% macro render_original_card(post) %}
+{# Standard post card for original posts. #}
+<div class="flex items-start justify-between mb-2">
+    <span class="text-sm text-gray-500">@{{ post.author_username }}</span>
+    <span class="text-xs text-gray-400">{{ post.created_at[:10] }}</span>
+</div>
+<p class="text-gray-800 mb-3">
+    {{ post.text[:200] }}{% if post.text|length > 200 %}...{% endif %}
+</p>
+{% if post.note %}
+<div class="bg-yellow-50 border-l-2 border-yellow-400 px-2 py-1 mb-2">
+    <span class="text-xs text-yellow-700">{{ post.note[:50] }}{% if post.note|length > 50 %}...{% endif %}</span>
+</div>
+{% endif %}
+{# Render media if present #}
+{% if post.media_urls and post.media_urls|length > 0 %}
+    {{ render_media_grid(post.media_urls, post.x_post_id) }}
+{% endif %}
+<div class="flex items-center justify-between text-sm">
+    <a href="https://x.com/{{ post.author_username }}/status/{{ post.x_post_id }}"
+       target="_blank"
+       class="text-blue-500 hover:text-blue-700">
+        View on X
+    </a>
+</div>
+{% endmacro %}
+
+
+{% macro render_retweet_card(post, embedded_post) %}
+{# Retweet card with attribution headers per D-03, D-04. #}
+{# D-04: Retweeter info visible above header. #}
+<div class="text-xs text-gray-400 mb-1">Reposted by @{{ post.author_username }}</div>
+
+{% if embedded_post and embedded_post.available %}
+    {# D-03: Reposted from header. #}
+    <div class="text-sm text-gray-500 mb-2">Reposted from @{{ embedded_post.author_username }}</div>
+
+    {# Original content below border-t. #}
+    <div class="border-t border-gray-100 pt-3">
+        <div class="flex items-start justify-between mb-2">
+            <span class="text-sm text-gray-500">@{{ embedded_post.author_username }}</span>
+            <span class="text-xs text-gray-400">{{ embedded_post.created_at[:10] }}</span>
+        </div>
+        <p class="text-gray-800 mb-3">
+            {{ embedded_post.text[:200] }}{% if embedded_post.text|length > 200 %}...{% endif %}
+        </p>
+        {# Render embedded media if present. #}
+        {% if embedded_post.media_urls and embedded_post.media_urls|length > 0 %}
+            {{ render_media_grid(embedded_post.media_urls, embedded_post.x_post_id) }}
+        {% endif %}
+    </div>
+{% else %}
+    {# D-05, D-06: Unavailable placeholder. #}
+    {{ render_unavailable_placeholder(embedded_post) }}
+{% endif %}
+
+<div class="flex items-center justify-between text-sm mt-3">
+    {# Link to original post (embedded), not the retweet. #}
+    {% if embedded_post %}
+    <a href="https://x.com/{{ embedded_post.author_username }}/status/{{ embedded_post.x_post_id }}"
+       target="_blank"
+       class="text-blue-500 hover:text-blue-700">
+        View on X
+    </a>
+    {% else %}
+    <a href="https://x.com/{{ post.author_username }}/status/{{ post.x_post_id }}"
+       target="_blank"
+       class="text-blue-500 hover:text-blue-700">
+        View on X
+    </a>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{% macro render_quote_card(post, embedded_post) %}
+{# Quote tweet card with nested layout per D-01, D-02. #}
+{# User's commentary text. #}
+<p class="text-gray-800 mb-3">
+    {{ post.text[:500] }}{% if post.text|length > 500 %}...{% endif %}
+</p>
+
+{% if embedded_post and embedded_post.available %}
+    {# D-02: Quoting attribution label. #}
+    <div class="text-xs text-gray-500 mb-1">Quoting @{{ embedded_post.author_username }}</div>
+
+    {# D-01: Nested card with gray background. #}
+    <div class="bg-gray-50 border border-gray-200 rounded p-3 mb-3">
+        <div class="flex items-start justify-between mb-2">
+            <span class="text-sm text-gray-500">@{{ embedded_post.author_username }}</span>
+            <span class="text-xs text-gray-400">{{ embedded_post.created_at[:10] }}</span>
+        </div>
+        <p class="text-gray-800 mb-2">
+            {{ embedded_post.text[:300] }}{% if embedded_post.text|length > 300 %}...{% endif %}
+        </p>
+        {# Render embedded media if present. #}
+        {% if embedded_post.media_urls and embedded_post.media_urls|length > 0 %}
+            {{ render_media_grid(embedded_post.media_urls, embedded_post.x_post_id) }}
+        {% endif %}
+    </div>
+{% else %}
+    {# D-05, D-06: Unavailable placeholder. #}
+    {{ render_unavailable_placeholder(embedded_post) }}
+{% endif %}
+
+<div class="flex items-center justify-between text-sm">
+    {# Link to the quote tweet itself. #}
+    <a href="https://x.com/{{ post.author_username }}/status/{{ post.x_post_id }}"
+       target="_blank"
+       class="text-blue-500 hover:text-blue-700">
+        View on X
+    </a>
+</div>
+{% endmacro %}
+
+
+{% macro render_unavailable_placeholder(embedded_post) %}
+{# Placeholder for unavailable embedded posts per D-05, D-06. #}
+<div class="bg-gray-100 rounded p-4 text-center">
+    <div class="text-gray-400 mb-2">
+        {# Generic post icon. #}
+        <svg class="w-8 h-8 mx-auto" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm6 12H6v-1.5c0-1.99 4-3 6-3s6 1.01 6 3V18z"/>
+        </svg>
+    </div>
+    <p class="text-gray-500 text-sm">Original post unavailable</p>
+    {# D-06: Show author if known. #}
+    {% if embedded_post and embedded_post.author_username %}
+    <p class="text-gray-400 text-xs mt-1">@{{ embedded_post.author_username }}</p>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{% macro render_media_grid(media_urls, post_id) %}
+{# Adaptive media grid per D-07. #}
+{% if media_urls and media_urls|length > 0 %}
+    {% if media_urls|length == 1 %}
+        {# 1 image: full-width. #}
+        <div class="mt-3">
+            <img src="{{ media_urls[0] }}"
+                 class="w-full rounded cursor-pointer"
+                 alt="Post image"
+                 onclick="openLightbox('{{ media_urls[0] }}', 'Image from post')" />
+        </div>
+    {% elif media_urls|length == 2 %}
+        {# 2 images: side-by-side. #}
+        <div class="mt-3 grid grid-cols-2 gap-2">
+            {% for url in media_urls %}
+            <img src="{{ url }}"
+                 class="w-full rounded cursor-pointer"
+                 alt="Post image"
+                 onclick="openLightbox('{{ url }}', 'Image from post')" />
+            {% endfor %}
+        </div>
+    {% else %}
+        {# 3+ images: 2x2 grid (max 4 visible). #}
+        <div class="mt-3 grid grid-cols-2 gap-2">
+            {% for url in media_urls[:4] %}
+            <img src="{{ url }}"
+                 class="w-full rounded cursor-pointer"
+                 alt="Post image"
+                 onclick="openLightbox('{{ url }}', 'Image from post')" />
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endif %}
+{% endmacro %}
+
+
+{% macro render_video_thumbnail(video_url, preview_image_url, post_id, author_username) %}
+{# Video thumbnail with play icon overlay per D-09. #}
+{% if preview_image_url %}
+    {# Has thumbnail: show image with play overlay. #}
+    <div class="mt-3 relative">
+        <a href="https://x.com/{{ author_username }}/status/{{ post_id }}"
+           target="_blank"
+           rel="noopener noreferrer">
+            <img src="{{ preview_image_url }}" class="w-full rounded" alt="Video thumbnail" />
+            <div class="absolute inset-0 flex items-center justify-center">
+                <div class="bg-black bg-opacity-50 rounded-full p-3">
+                    <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                </div>
+            </div>
+        </a>
+    </div>
+{% else %}
+    {# No thumbnail: show generic video icon. #}
+    <div class="mt-3">
+        <a href="https://x.com/{{ author_username }}/status/{{ post_id }}"
+           target="_blank"
+           rel="noopener noreferrer">
+            <div class="bg-gray-800 rounded p-8 flex items-center justify-center">
+                <div class="text-center">
+                    <svg class="w-12 h-12 text-white mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/>
+                    </svg>
+                    <span class="text-gray-300 text-sm">View video on X</span>
+                </div>
+            </div>
+        </a>
+    </div>
+{% endif %}
+{% endmacro %}

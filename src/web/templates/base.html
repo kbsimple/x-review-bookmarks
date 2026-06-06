@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}X Bookmarked Posts{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-white shadow-md">
+        <div class="max-w-6xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <a href="/" class="text-xl font-bold text-gray-800">
+                    X Bookmarks
+                </a>
+                <div class="flex items-center space-x-4">
+                    <a href="/search" class="text-gray-600 hover:text-gray-900">Search</a>
+                    <a href="/browse" class="text-gray-600 hover:text-gray-900">Browse</a>
+                    <!-- Cast Button -->
+                    <button id="cast-button" class="hidden p-2 rounded-lg hover:bg-gray-100" title="Cast to device">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11z"/></svg>
+                    </button>
+                    {% if has_tokens %}
+                    <span class="text-green-600 text-sm">Authenticated</span>
+                    {% else %}
+                    <span class="text-yellow-600 text-sm">Run xbm auth</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-white border-t mt-8 py-4">
+        <div class="max-w-6xl mx-auto px-4 text-center text-gray-500 text-sm">
+            X Bookmarked Posts v1.1
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+
+    {# Lightbox for image expansion (D-08) #}
+    {% from "components/_lightbox.html" import render_lightbox_modal, render_lightbox_script %}
+    {{ render_lightbox_modal() }}
+    {{ render_lightbox_script() }}
+</body>
+</html>
