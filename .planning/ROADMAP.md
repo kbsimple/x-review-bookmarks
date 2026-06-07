@@ -198,7 +198,7 @@ Plans:
   2. User sees retweets with "Reposted from @username" indicator and original content
   3. User sees media URLs from embedded posts in CLI output
 Plans:
-- [ ] 10-00-PLAN.md — Test scaffolding for CLI embedded post rendering
+- [x] 10-00-PLAN.md — Test scaffolding for CLI embedded post rendering
 - [ ] 10-01-PLAN.md — CLI output formatting for retweets
 - [ ] 10-02-PLAN.md — CLI output formatting for quote tweets
 
@@ -229,7 +229,7 @@ Plans:
 | 7. Cast Integration | 4/4 | Complete | 2026-05-17 |
 | 8. Storage Foundation | 3/4 | In Progress | 2026-06-04 |
 | 9. Web Display | 4/4 | Complete | 2026-06-06 |
-| 10. CLI Display | 0/3 | Not started | - |
+| 10. CLI Display | 1/3 | In Progress | - |
 | 11. Cast Display | 0/3 | Not started | - |
 
 ## Coverage
