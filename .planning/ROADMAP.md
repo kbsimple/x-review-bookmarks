@@ -26,7 +26,7 @@
 - [x] **Phase 7: Cast Integration** - Google Cast integration for TV viewing
 - [ ] **Phase 8: Storage Foundation** - Fetch and store embedded post data with proper schema and X API expansions
 - [ ] **Phase 9: Web Display** - Render retweets and quote tweets in web interface with nested layouts
-- [ ] **Phase 10: CLI Display** - Render embedded posts in terminal with Rich Panel/Tree components
+- [x] **Phase 10: CLI Display** - Render embedded posts in terminal with Rich Panel/Tree components (completed 2026-06-07)
 - [ ] **Phase 11: Cast Display** - Display embedded posts on TV with TV-optimized visual styling
 
 ## Phase Details
@@ -199,8 +199,8 @@ Plans:
   3. User sees media URLs from embedded posts in CLI output
 Plans:
 - [x] 10-00-PLAN.md — Test scaffolding for CLI embedded post rendering
-- [ ] 10-01-PLAN.md — CLI output formatting for retweets
-- [ ] 10-02-PLAN.md — CLI output formatting for quote tweets
+- [x] 10-01-PLAN.md — CLI output formatting for retweets
+- [x] 10-02-PLAN.md — CLI output formatting for quote tweets
 
 ### Phase 11: Cast Display
 **Goal:** Users can view embedded posts on TV with readable layout and visual separation
@@ -229,7 +229,7 @@ Plans:
 | 7. Cast Integration | 4/4 | Complete | 2026-05-17 |
 | 8. Storage Foundation | 3/4 | Complete | 2026-06-04 |
 | 9. Web Display | 4/4 | Complete | 2026-06-06 |
-| 10. CLI Display | 2/3 | In Progress | - |
+| 10. CLI Display | 3/3 | Complete   | 2026-06-07 |
 | 11. Cast Display | 0/3 | Not started | - |
 
 ## Coverage
