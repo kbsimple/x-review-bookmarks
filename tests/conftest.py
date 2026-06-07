@@ -289,3 +289,139 @@ def temp_db_v5(temp_db_v4):
     temp_db_v4.commit()
 
     yield temp_db_v4
+
+
+# ============================================================================
+# Phase 10 Fixtures: CLI Display for Embedded Posts
+# ============================================================================
+
+
+@pytest.fixture
+def quote_tweet_post():
+    """Return a sample quote tweet post with embedded_post.
+
+    Per D-01, D-02: Quote tweet has user's commentary and nested quoted content.
+
+    Returns:
+        dict: Sample quote tweet dictionary with embedded_post.
+    """
+    return {
+        "x_post_id": "quote_001",
+        "created_at": "2024-01-20T10:30:00Z",
+        "post_type": "quote",
+        "author_id": "quoter_001",
+        "author_username": "quoter_user",
+        "author_display_name": "Quote User",
+        "text": "This is my commentary on the quoted post",
+        "media_urls": ["https://example.com/quoter_image.jpg"],
+        "link_urls": [],
+        "bookmarked_at": "2024-01-20T11:00:00Z",
+        "embedded_post": {
+            "x_post_id": "quoted_001",
+            "created_at": "2024-01-19T15:00:00Z",
+            "author_id": "quoted_001",
+            "author_username": "quoted_user",
+            "author_display_name": "Quoted User",
+            "text": "This is the original quoted content",
+            "media_urls": ["https://example.com/quoted_image1.jpg", "https://example.com/quoted_image2.jpg"],
+            "link_urls": [],
+            "available": True,
+        },
+    }
+
+
+@pytest.fixture
+def retweet_post():
+    """Return a sample retweet post with embedded_post.
+
+    Per D-03, D-04: Retweet has reposter info and original content.
+
+    Returns:
+        dict: Sample retweet dictionary with embedded_post.
+    """
+    return {
+        "x_post_id": "retweet_001",
+        "created_at": "2024-01-21T08:00:00Z",
+        "post_type": "retweet",
+        "author_id": "retweeter_001",
+        "author_username": "retweeter_user",
+        "author_display_name": "Retweeter User",
+        "text": "",  # Retweets typically have no commentary text
+        "media_urls": [],
+        "link_urls": [],
+        "bookmarked_at": "2024-01-21T09:00:00Z",
+        "embedded_post": {
+            "x_post_id": "original_001",
+            "created_at": "2024-01-20T12:00:00Z",
+            "author_id": "original_author_001",
+            "author_username": "original_author",
+            "author_display_name": "Original Author",
+            "text": "This is the original post content that was retweeted",
+            "media_urls": ["https://example.com/original_image.jpg"],
+            "link_urls": ["https://example.com/article"],
+            "available": True,
+        },
+    }
+
+
+@pytest.fixture
+def unavailable_post():
+    """Return a sample post with unavailable embedded_post.
+
+    Per D-05, D-06: Post references an embedded post that has been deleted
+    or is protected. Partial author info may still be known.
+
+    Returns:
+        dict: Sample post with unavailable embedded_post.
+    """
+    return {
+        "x_post_id": "unavail_001",
+        "created_at": "2024-01-22T14:00:00Z",
+        "post_type": "retweet",
+        "author_id": "retweeter_002",
+        "author_username": "bookmarker_user",
+        "author_display_name": "Bookmarker User",
+        "text": "",
+        "media_urls": [],
+        "link_urls": [],
+        "bookmarked_at": "2024-01-22T15:00:00Z",
+        "embedded_post": {
+            "x_post_id": "deleted_001",
+            "created_at": "2024-01-21T10:00:00Z",
+            "author_id": "deleted_author_001",
+            "author_username": "deleted_author",  # Partial info still available (D-06)
+            "author_display_name": None,
+            "text": "",
+            "media_urls": [],
+            "link_urls": [],
+            "available": False,
+        },
+    }
+
+
+@pytest.fixture
+def original_post_with_media():
+    """Return a sample original post with media URLs.
+
+    Per D-07: Original posts can have multiple media URLs displayed inline.
+
+    Returns:
+        dict: Sample original post dictionary with media_urls.
+    """
+    return {
+        "x_post_id": "original_002",
+        "created_at": "2024-01-23T09:00:00Z",
+        "post_type": "original",
+        "author_id": "author_002",
+        "author_username": "media_poster",
+        "author_display_name": "Media Poster",
+        "text": "Check out these amazing photos!",
+        "media_urls": [
+            "https://example.com/photo1.jpg",
+            "https://example.com/photo2.jpg",
+            "https://example.com/photo3.jpg",
+        ],
+        "link_urls": [],
+        "bookmarked_at": "2024-01-23T10:00:00Z",
+        # No embedded_post for original posts
+    }
