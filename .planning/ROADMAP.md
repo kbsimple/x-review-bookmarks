@@ -227,9 +227,9 @@ Plans:
 | 5. Spaced Repetition Resurfacing | 4/4 | Complete | 2026-04-25 |
 | 6. Web Foundation | 4/4 | Complete | 2026-05-17 |
 | 7. Cast Integration | 4/4 | Complete | 2026-05-17 |
-| 8. Storage Foundation | 3/4 | In Progress | 2026-06-04 |
+| 8. Storage Foundation | 3/4 | Complete | 2026-06-04 |
 | 9. Web Display | 4/4 | Complete | 2026-06-06 |
-| 10. CLI Display | 1/3 | In Progress | - |
+| 10. CLI Display | 2/3 | In Progress | - |
 | 11. Cast Display | 0/3 | Not started | - |
 
 ## Coverage
