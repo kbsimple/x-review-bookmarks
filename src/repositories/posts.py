@@ -136,6 +136,41 @@ class PostsRepository:
 
         return self._row_to_dict(row)
 
+    def get_by_id_with_embedded(self, x_post_id: str) -> Optional[dict[str, Any]]:
+        """Get a post by x_post_id with embedded post data for retweets/quotes.
+
+        WEB-07, WEB-08, CAST-06, CAST-07, CAST-08: Include embedded post data.
+        Returns post with 'embedded_post' key populated for retweets/quotes.
+
+        Args:
+            x_post_id: The X post ID.
+
+        Returns:
+            Dict with post data and 'embedded_post' key (None for original posts),
+            or None if not found.
+        """
+        query = """
+            SELECT p.*,
+                   e.x_post_id as embedded_id,
+                   e.created_at as embedded_created_at,
+                   e.text as embedded_text,
+                   e.author_id as embedded_author_id,
+                   e.author_username as embedded_author_username,
+                   e.author_display_name as embedded_author_display_name,
+                   e.media_urls as embedded_media_urls,
+                   e.link_urls as embedded_link_urls,
+                   e.available as embedded_available
+            FROM posts p
+            LEFT JOIN embedded_posts e ON p.embedded_post_id = e.x_post_id
+            WHERE p.x_post_id = ?
+        """
+        row = self._conn.execute(query, (x_post_id,)).fetchone()
+
+        if row is None:
+            return None
+
+        return self._row_to_dict_with_embedded(row)
+
     def get_all(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         """Get all posts ordered by created_at descending.
 
