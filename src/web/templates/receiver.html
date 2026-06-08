@@ -234,6 +234,12 @@
 
         <!-- Post Content -->
         <div class="post-container" id="post-container">
+            <!-- Retweet header (D-07: shown for retweets) -->
+            <div class="retweet-header" id="retweet-header" style="display: none;">
+                <div class="reposted-by" id="reposted-by"></div>
+                <div class="reposted-from" id="reposted-from"></div>
+            </div>
+
             <div class="author">
                 <div class="author-avatar" id="author-avatar">@</div>
                 <div class="author-info">
@@ -243,6 +249,10 @@
             </div>
             <div class="post-content" id="post-content">Loading post content...</div>
             <div class="post-images" id="post-images"></div>
+
+            <!-- Embedded post container (D-03: nested card for quotes, D-09: placeholder for unavailable) -->
+            <div id="embedded-post-container"></div>
+
             <div class="post-topics" id="post-topics"></div>
         </div>
     </div>
@@ -279,24 +289,67 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('post-container').classList.add('active');
 
-            // Update author
+            // Get post type (default to 'original')
+            const postType = post.post_type || 'original';
+            const embedded = post.embedded_post;
+
+            // Handle retweet header (D-07)
+            const retweetHeader = document.getElementById('retweet-header');
+            if (postType === 'retweet' && embedded) {
+                // D-07: "Reposted by @retweeter" and "Reposted from @author"
+                document.getElementById('reposted-by').textContent =
+                    'Reposted by @' + (post.author_username || 'Unknown');
+                document.getElementById('reposted-from').textContent =
+                    'Reposted from @' + (embedded.author_username || 'Unknown');
+                retweetHeader.style.display = 'block';
+            } else {
+                retweetHeader.style.display = 'none';
+            }
+
+            // Determine which author to show
+            // D-08: For retweets, show the original author prominently
+            const displayAuthor = (postType === 'retweet' && embedded) ? embedded : post;
+            const displayContent = (postType === 'retweet' && embedded) ? embedded : post;
+
+            // Update author (D-04: 2.5rem author names)
             document.getElementById('author-avatar').textContent = '@';
-            document.getElementById('author-name').textContent = post.author_username || 'Unknown';
-            document.getElementById('post-date').textContent = formatDate(post.created_at);
+            document.getElementById('author-name').textContent =
+                displayAuthor.author_display_name || displayAuthor.author_username || 'Unknown';
+            document.getElementById('post-date').textContent = formatDate(displayContent.created_at);
 
-            // Update content
-            document.getElementById('post-content').textContent = post.text || 'No content';
+            // Update content (D-01: 3rem text for TV)
+            // D-03: For quote tweets, show user's commentary (post.text)
+            // D-08: For retweets, show original content (embedded.text)
+            const contentText = (postType === 'retweet' && embedded)
+                ? (embedded.text || 'No content')
+                : (post.text || 'No content');
+            document.getElementById('post-content').textContent = contentText;
 
-            // Update images
+            // Update images (D-05, D-06: Full-width media on TV)
+            // D-08: For retweets, show original post's media
             const imagesContainer = document.getElementById('post-images');
             imagesContainer.innerHTML = '';
-            if (post.media_urls && post.media_urls.length > 0) {
-                post.media_urls.forEach(url => {
+            const mediaUrls = (postType === 'retweet' && embedded)
+                ? (embedded.media_urls || [])
+                : (post.media_urls || []);
+            if (mediaUrls.length > 0) {
+                mediaUrls.forEach(url => {
                     const img = document.createElement('img');
                     img.src = url;
                     img.alt = 'Post image';
                     imagesContainer.appendChild(img);
                 });
+            }
+
+            // Handle embedded post container (D-03, D-09)
+            // D-03: Quote tweets show nested card
+            // D-09: Unavailable posts show placeholder
+            const embeddedContainer = document.getElementById('embedded-post-container');
+            embeddedContainer.innerHTML = '';
+
+            if (postType === 'quote' && embedded) {
+                // D-03: Quote tweet - show "Quoting @username" label + nested card
+                embeddedContainer.innerHTML = renderQuoteCard(embedded);
             }
 
             // Update topics
@@ -310,6 +363,60 @@
                     topicsContainer.appendChild(tag);
                 });
             }
+        }
+
+        // D-03, D-04: Render quote tweet nested card
+        function renderQuoteCard(embedded) {
+            if (!embedded) return '';
+
+            // D-09: Handle unavailable embedded post
+            if (embedded.available === false) {
+                return renderUnavailableCard(embedded);
+            }
+
+            // D-03: "Quoting @username" label above nested card
+            let html = '<div class="quote-label">Quoting @' + (embedded.author_username || 'Unknown') + '</div>';
+            html += '<div class="quote-card">';
+
+            // D-04: Author info in nested card
+            html += '<div class="embedded-author">';
+            html += '<div class="embedded-author-avatar">@</div>';
+            html += '<div class="embedded-author-name">' +
+                (embedded.author_display_name || embedded.author_username || 'Unknown') + '</div>';
+            html += '</div>';
+
+            // D-01: Content with TV sizing
+            html += '<div class="embedded-post-content">' + (embedded.text || 'No content') + '</div>';
+
+            // D-05, D-06: Media within nested card
+            if (embedded.media_urls && embedded.media_urls.length > 0) {
+                html += '<div class="embedded-images">';
+                embedded.media_urls.forEach(url => {
+                    html += '<img src="' + url + '" alt="Embedded post image">';
+                });
+                html += '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        // D-09: Render unavailable post placeholder
+        function renderUnavailableCard(embedded) {
+            let html = '<div class="quote-label">Quoting @' + (embedded.author_username || 'Unknown') + '</div>';
+            html += '<div class="unavailable-card">';
+
+            // Show author if known
+            if (embedded.author_username) {
+                html += '<div class="unavailable-author">@' + embedded.author_username + '</div>';
+            }
+
+            // D-09: Placeholder message
+            html += '<div class="unavailable-icon">📄</div>';
+            html += '<div class="unavailable-message">Original post unavailable</div>';
+
+            html += '</div>';
+            return html;
         }
 
         function formatDate(dateStr) {
