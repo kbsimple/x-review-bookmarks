@@ -238,14 +238,14 @@ Plans:
 ### Phase 13: LAN Network Access
 **Goal:** Users can access the web app from mobile devices on the same LAN without certificate warnings
 **Depends on:** Phase 12
-**Requirements:** NET-01, NET-02, NET-03, PLAT-01, PLAT-02, PLAT-03, PLAT-04, PLAT-05
+**Requirements:** NET-01, NET-02, NET-03
 **Success Criteria** (what must be TRUE):
   1. User runs `xbm web --lan` and server binds to all network interfaces (0.0.0.0)
   2. User sees both localhost URL and LAN URL displayed in console after server startup
-  3. Mobile browser can access web app via HTTPS without certificate warnings
-  4. Cast SDK loads successfully on mobile devices (requires HTTPS with trusted certificates)
-  5. User sees platform-specific CA installation instructions when running with --lan flag
-Plans: TBD
+  3. Mobile browser can access web app via HTTPS without certificate warnings (after CA installation from Phase 12)
+Plans: 1 plan in 1 wave
+Plans:
+- [ ] 13-01-PLAN.md — LAN network access (--lan flag, certificate check, dual URL display)
 
 ## Progress
 
