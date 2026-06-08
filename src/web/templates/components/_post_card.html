@@ -159,6 +159,7 @@ Security: All user content uses Jinja2 auto-escape ({{ }} not |safe).
 
 {% macro render_media_grid(media_urls, post_id) %}
 {# Adaptive media grid per D-07. #}
+{# Security: Using |tojson for proper JavaScript context escaping. #}
 {% if media_urls and media_urls|length > 0 %}
     {% if media_urls|length == 1 %}
         {# 1 image: full-width. #}
@@ -166,7 +167,7 @@ Security: All user content uses Jinja2 auto-escape ({{ }} not |safe).
             <img src="{{ media_urls[0] }}"
                  class="w-full rounded cursor-pointer"
                  alt="Post image"
-                 onclick="openLightbox('{{ media_urls[0] }}', 'Image from post')" />
+                 onclick="openLightbox({{ media_urls[0]|tojson }}, {{ 'Image from post'|tojson }})" />
         </div>
     {% elif media_urls|length == 2 %}
         {# 2 images: side-by-side. #}
@@ -175,7 +176,7 @@ Security: All user content uses Jinja2 auto-escape ({{ }} not |safe).
             <img src="{{ url }}"
                  class="w-full rounded cursor-pointer"
                  alt="Post image"
-                 onclick="openLightbox('{{ url }}', 'Image from post')" />
+                 onclick="openLightbox({{ url|tojson }}, {{ 'Image from post'|tojson }})" />
             {% endfor %}
         </div>
     {% else %}
@@ -185,7 +186,7 @@ Security: All user content uses Jinja2 auto-escape ({{ }} not |safe).
             <img src="{{ url }}"
                  class="w-full rounded cursor-pointer"
                  alt="Post image"
-                 onclick="openLightbox('{{ url }}', 'Image from post')" />
+                 onclick="openLightbox({{ url|tojson }}, {{ 'Image from post'|tojson }})" />
             {% endfor %}
         </div>
     {% endif %}

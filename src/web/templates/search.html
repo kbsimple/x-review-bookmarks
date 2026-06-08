@@ -104,10 +104,10 @@
                 <span class="text-xs text-gray-400">{{ result.created_at[:10] }}</span>
             </div>
             <p class="text-gray-800">
-                {{ result.snippet|safe }}
+                {{ result.snippet }}
             </p>
         </div>
-        {% empty %}
+        {% else %}
         {% if query %}
         <div class="text-center py-12 text-gray-500">
             No results found for "{{ query }}"
