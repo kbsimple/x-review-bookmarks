@@ -19,9 +19,15 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+# Validation constants for topic names
+MAX_TOPIC_NAME_LENGTH = 200
+
 
 class TopicsRepository:
     """Repository for topics table and topic assignment operations."""
+
+    # Allowed columns for update operations (SQL injection defense)
+    UPDATEABLE_COLUMNS = frozenset({'name', 'description', 'parent_id'})
 
     def __init__(self, conn: sqlite3.Connection):
         """Initialize repository with database connection.
@@ -50,8 +56,16 @@ class TopicsRepository:
             Topic ID.
 
         Raises:
+            ValueError: If name is empty or exceeds MAX_TOPIC_NAME_LENGTH.
             sqlite3.IntegrityError: If name already exists.
         """
+        # Validate topic name
+        name = name.strip()
+        if not name:
+            raise ValueError("Topic name cannot be empty")
+        if len(name) > MAX_TOPIC_NAME_LENGTH:
+            raise ValueError(f"Topic name too long (max {MAX_TOPIC_NAME_LENGTH} characters)")
+
         cursor = self._conn.execute(
             "INSERT INTO topics (name, description, parent_id) VALUES (?, ?, ?)",
             (name, description, parent_id)
@@ -125,19 +139,27 @@ class TopicsRepository:
             name: New name (optional).
             description: New description (optional).
             parent_id: New parent ID (optional, use None to clear).
+
+        Raises:
+            ValueError: If any field name is not in the allowlist.
         """
+        # Build field mapping from parameters (only non-None values)
+        fields = {
+            'name': name,
+            'description': description,
+            'parent_id': parent_id,
+        }
+
+        # Filter to only fields with non-None values and validate against allowlist
         updates = []
         params = []
-
-        if name is not None:
-            updates.append("name = ?")
-            params.append(name)
-        if description is not None:
-            updates.append("description = ?")
-            params.append(description)
-        if parent_id is not None:
-            updates.append("parent_id = ?")
-            params.append(parent_id)
+        for field, value in fields.items():
+            if value is not None:
+                # Validate column name against allowlist (SQL injection defense)
+                if field not in self.UPDATEABLE_COLUMNS:
+                    raise ValueError(f"Invalid column for update: {field}")
+                updates.append(f"{field} = ?")
+                params.append(value)
 
         if updates:
             params.append(topic_id)

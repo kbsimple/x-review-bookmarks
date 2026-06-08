@@ -17,6 +17,9 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+# Validation constants for tag names
+MAX_TAG_NAME_LENGTH = 100
+
 
 class TagsRepository:
     """Repository for tags table CRUD operations."""
@@ -39,8 +42,18 @@ class TagsRepository:
 
         Returns:
             Tag ID (int).
+
+        Raises:
+            ValueError: If name is empty or exceeds MAX_TAG_NAME_LENGTH.
         """
         name = name.lower().strip()
+
+        # Validate tag name
+        if not name:
+            raise ValueError("Tag name cannot be empty")
+        if len(name) > MAX_TAG_NAME_LENGTH:
+            raise ValueError(f"Tag name too long (max {MAX_TAG_NAME_LENGTH} characters)")
+
         row = self._conn.execute(
             "SELECT id FROM tags WHERE name = ?", (name,)
         ).fetchone()
