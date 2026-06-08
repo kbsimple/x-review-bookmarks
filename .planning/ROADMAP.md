@@ -29,8 +29,8 @@
 - [x] **Phase 9: Web Display** - Render retweets and quote tweets in web interface with nested layouts
 - [x] **Phase 10: CLI Display** - Render embedded posts in terminal with Rich Panel/Tree components
 - [x] **Phase 11: Cast Display** - Display embedded posts on TV with TV-optimized visual styling
-- [ ] **Phase 12: Certificate Management** - LAN SSL certificate generation and CLI commands
-- [ ] **Phase 13: LAN Network Access** - Web server LAN binding and mobile device access
+- [x] **Phase 12: Certificate Management** - LAN SSL certificate generation and CLI commands
+- [x] **Phase 13: LAN Network Access** - Web server LAN binding and mobile device access
 
 ## Phase Details
 
@@ -262,8 +262,8 @@ Plans:
 | 9. Web Display | 4/4 | Complete | 2026-06-06 |
 | 10. CLI Display | 3/3 | Complete | 2026-06-07 |
 | 11. Cast Display | 3/3 | Complete | 2026-06-07 |
-| 12. Certificate Management | 0/0 | Not started | - |
-| 13. LAN Network Access | 0/0 | Not started | - |
+| 12. Certificate Management | 3/3 | Complete | 2026-06-08 |
+| 13. LAN Network Access | 1/1 | Complete | 2026-06-08 |
 
 ## Coverage
 
@@ -343,33 +343,33 @@ Plans:
 | CAST-07 | Phase 11 | Complete |
 | CAST-08 | Phase 11 | Complete |
 
-### v1.3 Requirements (Planned)
+### v1.3 Requirements (Complete)
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CERT-01 | Phase 12 | Planned |
-| CERT-02 | Phase 12 | Planned |
-| CERT-03 | Phase 12 | Planned |
-| CERT-04 | Phase 12 | Planned |
-| MAINT-01 | Phase 12 | Planned |
-| MAINT-02 | Phase 12 | Planned |
-| NET-01 | Phase 13 | Planned |
-| NET-02 | Phase 13 | Planned |
-| NET-03 | Phase 13 | Planned |
-| PLAT-01 | Phase 13 | Planned |
-| PLAT-02 | Phase 13 | Planned |
-| PLAT-03 | Phase 13 | Planned |
-| PLAT-04 | Phase 13 | Planned |
-| PLAT-05 | Phase 13 | Planned |
+| CERT-01 | Phase 12 | Complete |
+| CERT-02 | Phase 12 | Complete |
+| CERT-03 | Phase 12 | Complete |
+| CERT-04 | Phase 12 | Complete |
+| MAINT-01 | Phase 12 | Complete |
+| MAINT-02 | Phase 12 | Complete |
+| NET-01 | Phase 13 | Complete |
+| NET-02 | Phase 13 | Complete |
+| NET-03 | Phase 13 | Complete |
+| PLAT-01 | Phase 13 | Complete |
+| PLAT-02 | Phase 13 | Complete |
+| PLAT-03 | Phase 13 | Complete |
+| PLAT-04 | Phase 13 | Complete |
+| PLAT-05 | Phase 13 | Complete |
 
 **Coverage:**
 - v1 requirements: 34 total (Complete)
 - v1.1 requirements: 14 total (Complete)
 - v1.2 requirements: 13 total (Complete)
-- v1.3 requirements: 14 total (Planned)
+- v1.3 requirements: 14 total (Complete)
 - Mapped to phases: 14
 - Unmapped: 0
 
 ---
 *Roadmap created: 2026-04-18*
-*Roadmap updated: 2026-06-08 - Milestone v1.3 (LAN Casting Support) roadmap created*
+*Roadmap updated: 2026-06-08 - Milestone v1.3 (LAN Casting Support) complete*

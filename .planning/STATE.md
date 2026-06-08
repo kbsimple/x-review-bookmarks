@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: LAN Casting Support
-status: executing
-last_updated: "2026-06-08T06:35:00.000Z"
-last_activity: 2026-06-08 — Completed plan 12-03 (lan-cert guide command)
+status: complete
+last_updated: "2026-06-08T07:45:00Z"
+last_activity: 2026-06-08 — Milestone v1.3 complete
 progress:
   total_phases: 13
-  completed_phases: 11
-  total_plans: 50
-  completed_plans: 45
-  percent: 90
+  completed_phases: 13
+  total_plans: 52
+  completed_plans: 52
+  percent: 100
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -21,54 +21,47 @@ progress:
 
 **Core Value:** Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind
 
-**Current Focus:** Milestone v1.3 — LAN Casting Support
+**Current Focus:** Milestone v1.3 — LAN Casting Support — COMPLETE
 
-**Milestone:** v1.3 LAN Casting Support — PLANNING
+**Milestone:** v1.3 LAN Casting Support — COMPLETE
 
 ## Current Position
 
-Phase: 12 (Certificate Management)
-Status: In progress
-Last activity: 2026-06-08 — Completed plan 12-03 (lan-cert guide command)
+Phase: All phases complete
+Status: Milestone v1.3 complete
+Last activity: 2026-06-08 — Phase 13 (LAN Network Access) complete
 
 ## Progress
 
 ```
 Milestone v1.3 Progress
-██████████████████░░░░ 92% (12/13 phases complete)
+████████████████████████ 100% (13/13 phases complete)
 ```
 
 ## Milestone v1.3 Goals
 
 **Goal:** Enable browsing and casting from mobile devices on the same LAN without certificate warnings.
 
-**Target features:**
+**Achieved:**
+- ✅ Generate locally-trusted SSL certificates using mkcert
+- ✅ CLI command to set up LAN-accessible certificates
+- ✅ Web server binds to LAN IP with proper certificate
+- ✅ Mobile browser can access and cast to TV
 
-- Generate locally-trusted SSL certificates using mkcert
-- CLI command to set up LAN-accessible certificates
-- Web server binds to LAN IP with proper certificate
-- Mobile browser can access and cast to TV
+## Completed Phases
 
-## Phase Overview
-
-| Phase | Goal | Requirements | Status |
-|-------|------|--------------|--------|
-| 12. Certificate Management | Generate and manage LAN SSL certificates | CERT-01, CERT-02, CERT-03, CERT-04, MAINT-01, MAINT-02 | In progress (3/3 plans complete) |
-| 13. LAN Network Access | Bind server to LAN and enable mobile access | NET-01, NET-02, NET-03, PLAT-01, PLAT-02, PLAT-03, PLAT-04, PLAT-05 | Not started |
+| Phase | Goal | Status |
+|-------|------|--------|
+| 12. Certificate Management | Generate and manage LAN SSL certificates | ✅ Complete |
+| 13. LAN Network Access | Bind server to LAN and enable mobile access | ✅ Complete |
 
 ## Key Decisions
 
 - **mkcert for local SSL:** Generate locally-trusted certificates that mobile devices can trust
-- **LAN IP binding:** Server must bind to LAN IP (not just localhost) for network access
+- **LAN IP binding:** Server binds to 0.0.0.0 for network access (dual binding)
 - **One-time setup:** CA installation on devices is a one-time manual step per device
 - **CLI-first approach:** Certificate management through `xbm lan-cert` commands before server startup
-
-## Active Constraints
-
-- Self-signed certificates don't work on mobile Chrome — no "proceed anyway" option
-- mkcert requires installing root CA on each device that needs to access the server
-- HTTPS is required for Cast SDK — no workaround
-- Certificate files stored in `data/` directory (gitignored)
+- **Block on missing certs:** Server startup blocked if certificates don't exist, with clear error message
 
 ## Technical Context
 
@@ -76,14 +69,15 @@ Milestone v1.3 Progress
 
 1. **Phase 12: Certificate Management**
    - `src/web/lan_certs.py` — mkcert integration, LAN IP detection
-   - Modify `src/config/settings.py` — Add LAN settings
-   - Add `lan-cert` CLI commands — status, generate, guide
+   - Modified `src/config/settings.py` — Add LAN settings
+   - Added `lan-cert` CLI commands — status, generate, guide
    - Certificate status and regeneration commands
 
 2. **Phase 13: LAN Network Access**
-   - Modify `src/cli/main.py` — Add `--lan` flag to web command
-   - Modify `src/web/app.py` — Bind to 0.0.0.0 when --lan flag used
-   - Platform-specific guidance output — macOS, Windows, Linux, iOS, Android
+   - Modified `src/cli/main.py` — Added `--lan` flag to web command
+   - Certificate check blocks startup if missing
+   - Dual URL display (localhost + LAN IP)
+   - Platform-specific guidance output
 
 ### Dependencies
 
@@ -91,21 +85,12 @@ Milestone v1.3 Progress
 - **cryptography:** Existing library (fallback for self-signed certs)
 - **socket:** Standard library (LAN IP detection)
 
-### File Changes
-
-| File | Change Type |
-|------|-------------|
-| `src/web/lan_certs.py` | NEW |
-| `src/cli/main.py` | MODIFY (add lan-cert commands) |
-| `src/config/settings.py` | MODIFY (add LAN settings) |
-| `data/lan.crt` | NEW (gitignored) |
-| `data/lan.key` | NEW (gitignored) |
-
 ## Completed Milestones
 
 - **v1.0 (Milestone 1):** CLI + SQLite — 5 phases, 34 requirements — Complete
 - **v1.1 (Milestone 2):** Web App with Casting — 2 phases, 14 requirements — Complete
 - **v1.2 (Milestone 3):** Enhanced Post Rendering — 4 phases, 13 requirements — Complete
+- **v1.3 (Milestone 4):** LAN Casting Support — 2 phases, 14 requirements — Complete
 
 ## Session Continuity
 
@@ -127,11 +112,14 @@ Milestone v1.3 Progress
 
 ### Next Actions
 
-1. Start Phase 13 planning: `/gsd-plan-phase 13`
-2. Implement LAN network access with --lan flag to web command
-3. Test mobile browser access to LAN URL
+Milestone v1.3 is complete. All planned features implemented.
+
+To start a new milestone:
+1. Create milestone definition in `.planning/MILESTONES.md`
+2. Run `/gsd-new-milestone` to create roadmap and requirements
+3. Run `/gsd-autonomous` to execute phases
 
 ---
-*State initialized: 2026-06-04*
+*State initialized: 2026-04-18*
 *Milestone v1.3 roadmap created: 2026-06-08*
-*Plan 12-03 completed: 2026-06-08*
+*Milestone v1.3 complete: 2026-06-08*
