@@ -27,7 +27,7 @@
 - [ ] **Phase 8: Storage Foundation** - Fetch and store embedded post data with proper schema and X API expansions
 - [ ] **Phase 9: Web Display** - Render retweets and quote tweets in web interface with nested layouts
 - [x] **Phase 10: CLI Display** - Render embedded posts in terminal with Rich Panel/Tree components (completed 2026-06-07)
-- [ ] **Phase 11: Cast Display** - Display embedded posts on TV with TV-optimized visual styling
+- [x] **Phase 11: Cast Display** - Display embedded posts on TV with TV-optimized visual styling (completed 2026-06-07)
 
 ## Phase Details
 
@@ -211,9 +211,9 @@ Plans:
   2. User sees embedded content with distinct background colors and clear borders
   3. User sees "Original post unavailable" message when embedded post is deleted
 Plans:
-- [ ] 11-00-PLAN.md — Test scaffolding for cast embedded post rendering
-- [ ] 11-01-PLAN.md — Cast receiver embedded post layout
-- [ ] 11-02-PLAN.md — Cast messaging for embedded posts
+- [x] 11-00-PLAN.md — Test scaffolding for cast embedded post rendering
+- [x] 11-01-PLAN.md — Cast receiver embedded post layout
+- [x] 11-02-PLAN.md — Cast messaging for embedded posts
 **UI hint:** yes
 
 ## Progress
@@ -230,7 +230,7 @@ Plans:
 | 8. Storage Foundation | 3/4 | Complete | 2026-06-04 |
 | 9. Web Display | 4/4 | Complete | 2026-06-06 |
 | 10. CLI Display | 3/3 | Complete   | 2026-06-07 |
-| 11. Cast Display | 0/3 | Not started | - |
+| 11. Cast Display | 3/3 | Complete | 2026-06-07 |
 
 ## Coverage
 
@@ -292,23 +292,23 @@ Plans:
 | RCVR-02 | Phase 7 | Complete |
 | RCVR-03 | Phase 7 | Complete |
 
-### v1.2 Requirements (Pending)
+### v1.2 Requirements (Complete)
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STR-01 | Phase 8 | Pending |
-| STR-02 | Phase 8 | Pending |
-| STR-03 | Phase 8 | Pending |
-| WEB-07 | Phase 9 | Pending |
-| WEB-08 | Phase 9 | Pending |
-| WEB-09 | Phase 9 | Pending |
-| WEB-10 | Phase 9 | Pending |
-| CLI-06 | Phase 10 | Pending |
-| CLI-07 | Phase 10 | Pending |
-| CLI-08 | Phase 10 | Pending |
-| CAST-06 | Phase 11 | Pending |
-| CAST-07 | Phase 11 | Pending |
-| CAST-08 | Phase 11 | Pending |
+| STR-01 | Phase 8 | Complete |
+| STR-02 | Phase 8 | Complete |
+| STR-03 | Phase 8 | Complete |
+| WEB-07 | Phase 9 | Complete |
+| WEB-08 | Phase 9 | Complete |
+| WEB-09 | Phase 9 | Complete |
+| WEB-10 | Phase 9 | Complete |
+| CLI-06 | Phase 10 | Complete |
+| CLI-07 | Phase 10 | Complete |
+| CLI-08 | Phase 10 | Complete |
+| CAST-06 | Phase 11 | Complete |
+| CAST-07 | Phase 11 | Complete |
+| CAST-08 | Phase 11 | Complete |
 
 ---
 *Roadmap created: 2026-04-18*
