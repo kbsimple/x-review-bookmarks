@@ -65,6 +65,17 @@ class Settings(BaseSettings):
     token_path: Path = Path("data/tokens.json")
     database_path: Path = Path("data/bookmarks.db")
 
+    # Web server settings (WEB-01, WEB-02)
+    web_host: str = "127.0.0.1"
+    web_port: int = 8000
+    cert_path: Path = Path("data/localhost.crt")
+    key_path: Path = Path("data/localhost.key")
+
+    # LAN configuration (CERT-01, CERT-02, NET-01)
+    lan_enabled: bool = False  # Set via --lan flag in web command
+    lan_cert_path: Path = Path("data/lan.crt")  # D-02: Certificate storage
+    lan_key_path: Path = Path("data/lan.key")   # D-02: Certificate storage
+
     @property
     def client_secret_value(self) -> str:
         """Access the actual secret value.
