@@ -17,6 +17,8 @@ Usage:
 """
 
 from pathlib import Path
+from typing import Optional
+
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -90,4 +92,32 @@ class Settings(BaseSettings):
         return self.client_secret.get_secret_value()
 
 
-__all__ = ["Settings"]
+def get_database_path(db_path: Optional[Path] = None) -> Path:
+    """Resolve database path with fallback to Settings or default.
+
+    AP-01: Centralized database path resolution to avoid duplicated pattern.
+
+    Priority:
+    1. If db_path is provided, use it directly
+    2. Try to load from Settings().database_path
+    3. Fall back to Path("data/bookmarks.db")
+
+    Args:
+        db_path: Optional database path override.
+
+    Returns:
+        Resolved Path to the database file.
+
+    Example:
+        >>> path = get_database_path()
+        >>> path = get_database_path(Path("/custom/path.db"))
+    """
+    if db_path is not None:
+        return db_path
+    try:
+        return Settings().database_path
+    except Exception:
+        return Path("data/bookmarks.db")
+
+
+__all__ = ["Settings", "get_database_path"]

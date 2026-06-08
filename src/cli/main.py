@@ -32,7 +32,7 @@ from rich.table import Table
 from rich.text import Text
 
 from ..auth import AuthError, ensure_authenticated
-from ..config import Settings
+from ..config import Settings, get_database_path
 from ..db import init_database
 from ..web.lan_certs import (
     check_mkcert_installed,
@@ -155,14 +155,8 @@ def init(
         SystemExit: On initialization failure (exit code 1).
     """
     try:
-        # Determine database path
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                # Settings not configured, use default
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         # Initialize database
         conn = init_database(db_path)
@@ -285,9 +279,8 @@ def sync(
             token_path=settings.token_path,
         )
 
-        # Determine database path
-        if db_path is None:
-            db_path = settings.database_path
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         # Initialize database if needed
         conn = init_database(db_path)
@@ -432,12 +425,8 @@ def browse(
         raise typer.Exit(1)
 
     try:
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
         from ..repositories import PostsRepository
@@ -504,13 +493,8 @@ def search(
         xbm search python* --limit 50
     """
     try:
-        # Get database connection
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
 
@@ -584,13 +568,8 @@ def note(
         xbm note 1234567890 --clear            # Remove note
     """
     try:
-        # Get database connection
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
         from ..repositories import PostsRepository
@@ -665,13 +644,8 @@ def export(
             console.print(f"[red]Invalid format: {format}. Use 'json' or 'csv'.[/red]")
             raise typer.Exit(1)
 
-        # Get database connection
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
 
@@ -750,13 +724,8 @@ def import_cmd(
             console.print(f"[red]File not found: {file}[/red]")
             raise typer.Exit(1)
 
-        # Get database connection
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
 
@@ -837,13 +806,8 @@ def check_links(
         xbm check-links --force
     """
     try:
-        # Get database connection
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
 
@@ -929,12 +893,8 @@ def tag(
         xbm tag --list                    # List all tags
     """
     try:
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
         from ..repositories.tags import TagsRepository
@@ -1041,12 +1001,8 @@ def topic(
         xbm topic delete 1                 # Delete topic 1
     """
     try:
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
         from ..repositories.topics import TopicsRepository
@@ -1212,12 +1168,8 @@ def suggest_topics(
         xbm suggest-topics --no-clear  # Keep existing suggestions
     """
     try:
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
 
@@ -1303,12 +1255,8 @@ def review_topics(
         xbm review-topics --approve-all --min-confidence 0.8
     """
     try:
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
 
@@ -1404,12 +1352,8 @@ def due(
         xbm due --limit 20
     """
     try:
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
         from ..services.review_service import ReviewService
@@ -1508,12 +1452,8 @@ def review(
         xbm review --days 7  # Postpone all by 7 days
     """
     try:
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
         from ..services.review_service import ReviewService
@@ -1638,12 +1578,8 @@ def stats(
         xbm stats
     """
     try:
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
         from ..services.review_service import ReviewService
@@ -1766,12 +1702,8 @@ def reset(
         xbm reset 1234567890 --yes  # Skip confirmation
     """
     try:
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
         from ..services.review_service import ReviewService
@@ -1838,12 +1770,8 @@ def seed(
         xbm seed --force  # Re-seed all posts
     """
     try:
-        if db_path is None:
-            try:
-                settings = Settings()
-                db_path = settings.database_path
-            except Exception:
-                db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
 
         conn = init_database(db_path)
         from ..services.review_service import ReviewService
@@ -1905,13 +1833,11 @@ def web(
     import webbrowser
 
     try:
-        # Load settings
-        try:
-            settings = Settings()
-            if db_path is None:
-                db_path = settings.database_path
-        except Exception:
-            db_path = Path("data/bookmarks.db")
+        # AP-01: Use centralized database path resolver
+        db_path = get_database_path(db_path)
+
+        # Load settings for LAN certificate handling
+        settings = Settings()
 
         # Handle LAN mode
         if lan:

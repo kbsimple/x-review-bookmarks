@@ -44,15 +44,9 @@ def init_database(db_path: Optional[Union[Path, str]] = None) -> sqlite3.Connect
     D-02: Database defaults to data/bookmarks.db.
     D-03: Phase 1 creates users and tokens tables only.
     """
-    if db_path is None:
-        # Try to get path from Settings, fall back to default
-        try:
-            from ..config.settings import Settings
-            settings = Settings()
-            db_path = settings.database_path
-        except Exception:
-            # Settings not configured or missing required fields
-            db_path = Path("data/bookmarks.db")
+    # AP-01: Use centralized database path resolver
+    from ..config.settings import get_database_path
+    db_path = get_database_path(db_path)
 
     db_path = Path(db_path)
 
