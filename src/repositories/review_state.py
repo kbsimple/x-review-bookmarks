@@ -28,6 +28,12 @@ class ReviewStateRepository:
     - Get review statistics
     """
 
+    # Allowed columns for update operations (SQL injection defense)
+    UPDATEABLE_COLUMNS = frozenset({
+        'scheduled_for', 'last_reviewed', 'review_count',
+        'user_preference', 'stability', 'difficulty', 'state', 'step', 'fsrs_data'
+    })
+
     def __init__(self, conn: sqlite3.Connection):
         """Initialize repository with database connection.
 
@@ -100,37 +106,23 @@ class ReviewStateRepository:
                   Required: post_id
                   Optional: scheduled_for, last_reviewed, review_count,
                            user_preference, stability, difficulty, state, step, fsrs_data
+
+        Raises:
+            ValueError: If any field name is not in the allowlist.
+            KeyError: If post_id is missing from state dict.
         """
+        if 'post_id' not in state:
+            raise KeyError("post_id is required for update_state")
+
+        # Build updates from state dict, validating against allowlist
         updates = []
         params = []
 
-        if 'scheduled_for' in state:
-            updates.append("scheduled_for = ?")
-            params.append(state['scheduled_for'])
-        if 'last_reviewed' in state:
-            updates.append("last_reviewed = ?")
-            params.append(state['last_reviewed'])
-        if 'review_count' in state:
-            updates.append("review_count = ?")
-            params.append(state['review_count'])
-        if 'user_preference' in state:
-            updates.append("user_preference = ?")
-            params.append(state['user_preference'])
-        if 'stability' in state:
-            updates.append("stability = ?")
-            params.append(state['stability'])
-        if 'difficulty' in state:
-            updates.append("difficulty = ?")
-            params.append(state['difficulty'])
-        if 'state' in state:
-            updates.append("state = ?")
-            params.append(state['state'])
-        if 'step' in state:
-            updates.append("step = ?")
-            params.append(state['step'])
-        if 'fsrs_data' in state:
-            updates.append("fsrs_data = ?")
-            params.append(state['fsrs_data'])
+        for field in self.UPDATEABLE_COLUMNS:
+            if field in state:
+                # Column name is validated against allowlist (SQL injection defense)
+                updates.append(f"{field} = ?")
+                params.append(state[field])
 
         if updates:
             # Always update updated_at

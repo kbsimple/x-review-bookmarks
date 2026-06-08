@@ -138,11 +138,19 @@ def test_client(mock_db_with_posts):
     """
     app = create_app()
 
-    # Patch the database path to use our mock database
-    with patch("src.web.routes.browse.Path") as mock_path_class:
-        # Make Path("data/bookmarks.db") return our mock db path
-        mock_path_class.return_value = mock_db_with_posts
+    # Store the mock database path for use in the mock function
+    mock_db_path = str(mock_db_with_posts)
 
+    def mock_init_database(path):
+        """Return connection to mock database instead of creating new one."""
+        conn = sqlite3.connect(mock_db_path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")
+        return conn
+
+    # Patch init_database at the source module level
+    with patch("src.db.init_database", side_effect=mock_init_database):
         client = TestClient(app)
         yield client
 
@@ -462,8 +470,18 @@ class TestApiPostsHtmlEndpoint:
 
         app = create_app()
 
-        with patch("src.web.routes.browse.Path") as mock_path_class:
-            mock_path_class.return_value = db_path
+        # Store the mock database path for use in the mock function
+        mock_db_path = str(db_path)
+
+        def mock_init_database(path):
+            """Return connection to mock database instead of creating new one."""
+            conn = sqlite3.connect(mock_db_path)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA journal_mode = WAL")
+            return conn
+
+        with patch("src.db.init_database", side_effect=mock_init_database):
             client = TestClient(app)
 
             response = client.get("/api/posts")
@@ -749,10 +767,19 @@ def test_client_with_embedded(mock_db_with_embedded_posts):
     """
     app = create_app()
 
-    # Patch the database path to use our mock database
-    with patch("src.web.routes.browse.Path") as mock_path_class:
-        mock_path_class.return_value = mock_db_with_embedded_posts
+    # Store the mock database path for use in the mock function
+    mock_db_path = str(mock_db_with_embedded_posts)
 
+    def mock_init_database(path):
+        """Return connection to mock database instead of creating new one."""
+        conn = sqlite3.connect(mock_db_path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")
+        return conn
+
+    # Patch init_database at the source module level
+    with patch("src.db.init_database", side_effect=mock_init_database):
         client = TestClient(app)
         yield client
 

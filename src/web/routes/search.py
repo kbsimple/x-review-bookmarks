@@ -2,18 +2,15 @@
 
 WEB-05: User can search posts by text content (FTS5).
 WEB-06: User can filter posts by topic, author, and date range.
+WEB-DB-01: Database connections managed via FastAPI dependency.
 """
 
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Request, Query, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
-from pathlib import Path
-from typing import Optional
-from datetime import datetime
+import sqlite3
 
-from ..auth import UserContext, get_current_user
-from ...db import init_database
+from ..database import get_db
 from ...services.search import SearchService
-from ...repositories.posts import PostsRepository
 from ...repositories.topics import TopicsRepository
 
 router = APIRouter(tags=["search"])
@@ -28,6 +25,7 @@ async def search_page(
     from_date: str = Query(None, description="Filter from date (YYYY-MM-DD)"),
     to_date: str = Query(None, description="Filter to date (YYYY-MM-DD)"),
     limit: int = Query(20, ge=1, le=100, description="Results per page"),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
     """Render search page with results.
 
@@ -39,15 +37,14 @@ async def search_page(
         from_date: Filter from date.
         to_date: Filter to date.
         limit: Maximum results.
+        conn: Database connection (injected via dependency).
 
     Returns:
         HTML response with search results.
     """
     templates = request.app.state.templates
-    db_path = Path("data/bookmarks.db")
 
     try:
-        conn = init_database(db_path)
         search_service = SearchService(conn)
         topics_repo = TopicsRepository(conn)
 
@@ -58,8 +55,6 @@ async def search_page(
 
         # Get all topics for filter dropdown
         topics = topics_repo.list_topics()
-
-        conn.close()
 
         return templates.TemplateResponse(
             request,
@@ -91,6 +86,7 @@ async def api_search(
     from_date: str = Query(None, description="Filter from date"),
     to_date: str = Query(None, description="Filter to date"),
     limit: int = Query(20, ge=1, le=100, description="Results per page"),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
     """JSON endpoint for search (HTMX).
 
@@ -101,21 +97,17 @@ async def api_search(
         from_date: Filter from date.
         to_date: Filter to date.
         limit: Maximum results.
+        conn: Database connection (injected via dependency).
 
     Returns:
         JSON with search results.
     """
-    db_path = Path("data/bookmarks.db")
-
     try:
-        conn = init_database(db_path)
         search_service = SearchService(conn)
 
         results = []
         if q:
             results = search_service.search(q, author=author, limit=limit)
-
-        conn.close()
 
         return JSONResponse({
             "query": q,
@@ -136,19 +128,18 @@ async def api_search(
 
 
 @router.get("/api/topics")
-async def api_topics():
+async def api_topics(conn: sqlite3.Connection = Depends(get_db)):
     """JSON endpoint for all topics (filter dropdown).
+
+    Args:
+        conn: Database connection (injected via dependency).
 
     Returns:
         JSON list of topics.
     """
-    db_path = Path("data/bookmarks.db")
-
     try:
-        conn = init_database(db_path)
         topics_repo = TopicsRepository(conn)
         topics = topics_repo.list_topics()
-        conn.close()
 
         return JSONResponse({
             "topics": [
@@ -165,22 +156,19 @@ async def api_topics():
 async def api_authors(
     q: str = Query(None, description="Author name prefix"),
     limit: int = Query(10, ge=1, le=50, description="Maximum results"),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
     """JSON endpoint for author autocomplete.
 
     Args:
         q: Author name prefix to search.
         limit: Maximum results.
+        conn: Database connection (injected via dependency).
 
     Returns:
         JSON list of matching author usernames.
     """
-    db_path = Path("data/bookmarks.db")
-
     try:
-        conn = init_database(db_path)
-        posts_repo = PostsRepository(conn)
-
         # Query distinct authors matching prefix
         if q:
             rows = conn.execute(
@@ -204,15 +192,9 @@ async def api_authors(
                 (limit,)
             ).fetchall()
 
-        conn.close()
-
         return JSONResponse({
             "authors": [row["author_username"] for row in rows]
         })
 
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
-
-
-# Import Depends at end to avoid circular imports
-from fastapi import Depends  # noqa: E402

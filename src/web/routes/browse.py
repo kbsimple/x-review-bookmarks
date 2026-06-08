@@ -1,16 +1,15 @@
 """Browse routes for post pagination.
 
 WEB-04: User can browse posts with cursor-based pagination.
+WEB-DB-01: Database connections managed via FastAPI dependency.
 """
 
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Request, Query, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
-from pathlib import Path
 import sqlite3
 
-from ..pagination import Cursor, Page
-from ..auth import UserContext, get_current_user
-from ...db import init_database
+from ..pagination import Cursor
+from ..database import get_db
 from ...repositories.posts import PostsRepository
 
 router = APIRouter(tags=["browse"])
@@ -21,6 +20,7 @@ async def browse_page(
     request: Request,
     cursor: str = Query(None, description="Pagination cursor"),
     limit: int = Query(20, ge=1, le=100, description="Posts per page"),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
     """Render browse page with paginated posts.
 
@@ -28,15 +28,14 @@ async def browse_page(
         request: FastAPI request object.
         cursor: Pagination cursor (optional, for next page).
         limit: Number of posts per page.
+        conn: Database connection (injected via dependency).
 
     Returns:
         HTML response with browse page.
     """
     templates = request.app.state.templates
-    db_path = Path("data/bookmarks.db")
 
     try:
-        conn = init_database(db_path)
         repo = PostsRepository(conn)
 
         # Decode cursor if provided
@@ -65,8 +64,6 @@ async def browse_page(
                 x_post_id=last_post["x_post_id"],
             ).encode()
 
-        conn.close()
-
         return templates.TemplateResponse(
             request,
             "browse.html",
@@ -89,20 +86,19 @@ async def browse_page(
 async def api_posts(
     cursor: str = Query(None, description="Pagination cursor"),
     limit: int = Query(20, ge=1, le=100, description="Posts per page"),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
     """JSON endpoint for paginated posts (HTMX infinite scroll).
 
     Args:
         cursor: Pagination cursor (optional).
         limit: Number of posts per page.
+        conn: Database connection (injected via dependency).
 
     Returns:
         JSON with posts and pagination metadata.
     """
-    db_path = Path("data/bookmarks.db")
-
     try:
-        conn = init_database(db_path)
         repo = PostsRepository(conn)
 
         # Decode cursor if provided
@@ -131,8 +127,6 @@ async def api_posts(
                 x_post_id=last_post["x_post_id"],
             ).encode()
 
-        conn.close()
-
         return JSONResponse({
             "posts": posts,
             "next_cursor": next_cursor,
@@ -148,6 +142,7 @@ async def api_posts_html(
     request: Request,
     cursor: str = Query(None, description="Pagination cursor"),
     limit: int = Query(20, ge=1, le=100, description="Posts per page"),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
     """Return HTML snippets for HTMX infinite scroll.
 
@@ -161,16 +156,15 @@ async def api_posts_html(
         request: FastAPI request object.
         cursor: Pagination cursor (optional, for next page).
         limit: Number of posts per page.
+        conn: Database connection (injected via dependency).
 
     Returns:
         HTML response with post cards to append to container.
         X-Has-More header indicates if more posts exist.
     """
     templates = request.app.state.templates
-    db_path = Path("data/bookmarks.db")
 
     try:
-        conn = init_database(db_path)
         repo = PostsRepository(conn)
 
         # Decode cursor if provided
@@ -188,8 +182,6 @@ async def api_posts_html(
             after_created_at=after_created_at,
             after_post_id=after_post_id,
         )
-
-        conn.close()
 
         # Generate next cursor for Load More button
         next_cursor = None
@@ -219,7 +211,3 @@ async def api_posts_html(
             {"error": str(e)},
             status_code=500
         )
-
-
-# Import Depends at end to avoid circular imports
-from fastapi import Depends  # noqa: E402

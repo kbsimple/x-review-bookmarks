@@ -4184,3 +4184,290 @@ class TestWebLanCommand:
                     assert "127.0.0.1" in result.stdout
                     # Should NOT show LAN URL without --lan flag
                     assert "LAN:" not in result.stdout
+
+
+class TestBrowseCommand:
+    """Tests for `xbm browse` command.
+
+    Tests for:
+    - CLI-02: User can browse stored posts via CLI command
+    """
+
+    def test_browse_command_exists(self) -> None:
+        """Verify browse command is registered in CLI app.
+
+        CLI-02: User can browse stored posts via CLI command.
+        """
+        # Check that browse command exists in registered commands
+        command_names = []
+        for cmd in app.registered_commands:
+            name = cmd.name or (cmd.callback.__name__ if cmd.callback else None)
+            if name:
+                command_names.append(name)
+
+        assert "browse" in command_names, f"browse command should exist, got: {command_names}"
+
+    def test_browse_command_help(self) -> None:
+        """Verify browse command shows help.
+
+        Expected behavior:
+        - --help shows usage information
+        """
+        result = runner.invoke(app, ["browse", "--help"])
+
+        assert result.exit_code == 0
+        assert "Browse all bookmarked posts" in result.stdout
+
+    def test_browse_shows_posts(self, tmp_path: Path) -> None:
+        """Verify browse command displays posts.
+
+        CLI-02: User can browse stored posts via CLI command.
+
+        Expected behavior:
+        - Command retrieves posts from database
+        - Posts displayed with content
+        """
+        from src.db import init_database
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Create test database with posts
+        db_path = tmp_path / "test.db"
+        conn = init_database(db_path)
+
+        # Insert test posts
+        conn.execute("""
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username, author_display_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, ("post_1", "2024-01-15T10:00:00Z", "First post content", "user_1", "alice", "Alice"))
+        conn.execute("""
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username, author_display_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, ("post_2", "2024-01-16T10:00:00Z", "Second post content", "user_2", "bob", "Bob"))
+        conn.commit()
+        conn.close()
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["browse", "--db", str(db_path)])
+
+            # Should succeed
+            assert result.exit_code == 0, (
+                f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show browsing header
+            assert "Browsing" in result.stdout, f"Expected 'Browsing' in output: {result.stdout}"
+
+    def test_browse_empty_database(self, tmp_path: Path) -> None:
+        """Verify browse command handles empty database gracefully.
+
+        Expected behavior:
+        - Displays 'No posts found' message
+        - Exit code 0 (not error)
+        """
+        from src.db import init_database
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Create empty database
+        db_path = tmp_path / "test.db"
+        conn = init_database(db_path)
+        conn.close()
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["browse", "--db", str(db_path)])
+
+            # Should succeed
+            assert result.exit_code == 0, (
+                f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show no posts message
+            assert "No posts found" in result.stdout, (
+                f"Expected 'No posts found' in output: {result.stdout}"
+            )
+
+    def test_browse_with_order_newest(self, tmp_path: Path) -> None:
+        """Verify browse command with --order newest shows newest first.
+
+        Expected behavior:
+        - Posts sorted by created_at DESC
+        """
+        from src.db import init_database
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Create test database with posts
+        db_path = tmp_path / "test.db"
+        conn = init_database(db_path)
+
+        conn.execute("""
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username, author_display_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, ("post_old", "2024-01-01T10:00:00Z", "Old post", "user_1", "alice", "Alice"))
+        conn.execute("""
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username, author_display_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, ("post_new", "2024-01-15T10:00:00Z", "New post", "user_2", "bob", "Bob"))
+        conn.commit()
+        conn.close()
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["browse", "--order", "newest", "--db", str(db_path)])
+
+            # Should succeed
+            assert result.exit_code == 0, (
+                f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show (newest) in header
+            assert "newest" in result.stdout.lower(), (
+                f"Expected 'newest' in output: {result.stdout}"
+            )
+
+    def test_browse_with_order_oldest(self, tmp_path: Path) -> None:
+        """Verify browse command with --order oldest shows oldest first.
+
+        Expected behavior:
+        - Posts sorted by created_at ASC
+        """
+        from src.db import init_database
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Create test database with posts
+        db_path = tmp_path / "test.db"
+        conn = init_database(db_path)
+
+        conn.execute("""
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username, author_display_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, ("post_old", "2024-01-01T10:00:00Z", "Old post", "user_1", "alice", "Alice"))
+        conn.execute("""
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username, author_display_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, ("post_new", "2024-01-15T10:00:00Z", "New post", "user_2", "bob", "Bob"))
+        conn.commit()
+        conn.close()
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["browse", "--order", "oldest", "--db", str(db_path)])
+
+            # Should succeed
+            assert result.exit_code == 0, (
+                f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show (oldest) in header
+            assert "oldest" in result.stdout.lower(), (
+                f"Expected 'oldest' in output: {result.stdout}"
+            )
+
+    def test_browse_with_order_random(self, tmp_path: Path) -> None:
+        """Verify browse command with --order random.
+
+        Expected behavior:
+        - Posts sorted randomly
+        """
+        from src.db import init_database
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Create test database with posts
+        db_path = tmp_path / "test.db"
+        conn = init_database(db_path)
+
+        conn.execute("""
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username, author_display_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, ("post_1", "2024-01-01T10:00:00Z", "Post 1", "user_1", "alice", "Alice"))
+        conn.execute("""
+            INSERT INTO posts (
+                x_post_id, created_at, text, author_id, author_username, author_display_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, ("post_2", "2024-01-15T10:00:00Z", "Post 2", "user_2", "bob", "Bob"))
+        conn.commit()
+        conn.close()
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["browse", "--order", "random", "--db", str(db_path)])
+
+            # Should succeed
+            assert result.exit_code == 0, (
+                f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show (random) in header
+            assert "random" in result.stdout.lower(), (
+                f"Expected 'random' in output: {result.stdout}"
+            )
+
+    def test_browse_invalid_order(self, tmp_path: Path) -> None:
+        """Verify browse command rejects invalid order.
+
+        Expected behavior:
+        - Exit code 1 for invalid order
+        - Error message displayed
+        """
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["browse", "--order", "invalid", "--db", str(tmp_path / "test.db")])
+
+            # Should fail
+            assert result.exit_code == 1, (
+                f"Exit code should be 1, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show error message
+            assert "Invalid order" in result.stdout, (
+                f"Expected 'Invalid order' in output: {result.stdout}"
+            )
+
+    def test_browse_with_limit(self, tmp_path: Path) -> None:
+        """Verify browse command respects --limit option.
+
+        Expected behavior:
+        - Limits number of posts displayed
+        """
+        from src.db import init_database
+
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test.db"
+
+        # Create test database with multiple posts
+        db_path = tmp_path / "test.db"
+        conn = init_database(db_path)
+
+        for i in range(10):
+            conn.execute("""
+                INSERT INTO posts (
+                    x_post_id, created_at, text, author_id, author_username, author_display_name
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (f"post_{i}", f"2024-01-{i+1:02d}T10:00:00Z", f"Post {i}", "user_1", "alice", "Alice"))
+        conn.commit()
+        conn.close()
+
+        with patch("src.cli.main.Settings", return_value=mock_settings):
+            result = runner.invoke(app, ["browse", "--limit", "5", "--db", str(db_path)])
+
+            # Should succeed
+            assert result.exit_code == 0, (
+                f"Exit code should be 0, got {result.exit_code}. Output: {result.stdout}"
+            )
+
+            # Should show limit in header (browsing 5 of 10)
+            assert "5" in result.stdout, f"Expected limit indicator in output: {result.stdout}"
