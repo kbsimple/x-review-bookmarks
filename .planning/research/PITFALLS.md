@@ -1,7 +1,7 @@
 # Pitfalls Research
 
-**Domain:** X API integration, content clustering, spaced repetition, FastAPI web app, Google Cast
-**Researched:** 2026-04-18 (Milestone 1), 2026-05-17 (Milestone v1.1), 2026-06-04 (Milestone v1.2)
+**Domain:** X API integration, content clustering, spaced repetition, FastAPI web app, Google Cast, LAN HTTPS with mkcert
+**Researched:** 2026-04-18 (Milestone 1), 2026-05-17 (Milestone v1.1), 2026-06-04 (Milestone v1.2), 2026-06-07 (Milestone v1.3)
 **Confidence:** HIGH
 
 ---
@@ -629,6 +629,371 @@ def get_display_text(tweet):
 
 ---
 
+## Critical Pitfalls (Milestone v1.3: LAN Casting Support)
+
+### Pitfall 18: Sudo Inconsistency Creates Separate CAs
+
+**What goes wrong:**
+Running `mkcert -install` without sudo, then generating certificates with `sudo mkcert ...` creates two separate CAs: one in `~/.local/mkcert` (user) and one in `/root/.local/mkcert` (root). Certificates generated with sudo are signed by a different CA than the one installed in your system trust store.
+
+**Why it happens:**
+mkcert stores CA files relative to `$HOME`. When run with sudo, `$HOME` becomes `/root`, creating a separate CA hierarchy that's never installed in the user's trust store.
+
+**How to avoid:**
+Always run mkcert commands consistently — either always with sudo or never with sudo. For user development, run without sudo. If you've already mixed them:
+
+```bash
+# Remove mixed CA state
+rm -rf /root/.local/mkcert
+mkcert -uninstall
+mkcert -install
+# Regenerate all certificates
+mkcert localhost 192.168.1.x myapp.local
+```
+
+**Warning signs:**
+- `ERR_CERT_AUTHORITY_INVALID` despite running `mkcert -install`
+- Certificate issuer differs from installed root CA
+- Different behavior when running as root vs user
+
+**Phase to address:** Phase 1 (Certificate Setup) — Prevent during initial setup with clear documentation.
+
+---
+
+### Pitfall 19: macOS 26.1+ Breaks Previously Working Certificates
+
+**What goes wrong:**
+After updating macOS to 26.1 (Tahoe), previously trusted certificates fail with `ERR_CERT_AUTHORITY_INVALID`. The root CA appears in Keychain but leaf certificates are no longer trusted.
+
+**Why it happens:**
+macOS 26.1 changed certificate validation behavior. The issue may actually be server-side (dev server not loading certificates properly) rather than certificate trust, but manifests as trust failures.
+
+**How to avoid:**
+1. After macOS updates, reinstall the CA:
+   ```bash
+   mkcert -uninstall
+   mkcert -install
+   ```
+2. Verify Keychain shows root CA as "Always Trusted"
+3. For dev servers, ensure HTTPS configuration loads both cert and key:
+   ```python
+   # FastAPI/Uvicorn
+   uvicorn.run(app, host="0.0.0.0", port=443,
+               ssl_certfile="cert.pem", ssl_keyfile="key.pem")
+   ```
+
+**Warning signs:**
+- Certificate warnings appear after macOS update
+- Root CA in Keychain shows as "Not trusted" or missing trust settings
+- Dev server logs show certificate load but browser rejects
+
+**Phase to address:**
+Phase 1 (Certificate Setup) — Document in setup instructions; include verification step.
+
+---
+
+### Pitfall 20: Android Apps Ignore User-Installed Certificates
+
+**What goes wrong:**
+After installing `rootCA.pem` on Android device via Settings > Security > Install certificate, the certificate appears installed but browsers/apps still reject HTTPS connections.
+
+**Why it happens:**
+Since Android 7.0 (API 24), apps do NOT trust user-installed certificates by default. This is a security feature. Only apps explicitly configured to trust user certificates will work.
+
+**How to avoid:**
+For web browsing on Android, certificates work in Chrome/Firefox. For app development, create `res/xml/network_security_config.xml`:
+
+```xml
+<network-security-config>
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
+```
+
+Reference in `AndroidManifest.xml`:
+
+```xml
+<application android:networkSecurityConfig="@xml/network_security_config" ...>
+```
+
+**Warning signs:**
+- Certificate installed successfully on Android
+- Browser shows "Connection not secure"
+- App fails with `CERT_AUTHORITY_INVALID`
+
+**Phase to address:**
+Phase 2 (CLI Installation Command) — Include Android-specific instructions; detect device type.
+
+---
+
+### Pitfall 21: Windows Services Use Different Certificate Store
+
+**What goes wrong:**
+`mkcert -install` on Windows adds the CA to the Current User store (`certmgr.msc`), but Windows services running as SYSTEM account use the Local Machine store (`certlm.msc`). Services can't trust the certificates.
+
+**Why it happens:**
+Windows has two certificate stores: user-level and machine-level. mkcert defaults to user-level for non-admin installation.
+
+**How to avoid:**
+For Windows service scenarios, manually import to Local Machine store:
+
+```powershell
+Import-Certificate -FilePath "$env:APPDATA\mkcert\rootCA.pem" -CertStoreLocation Cert:\LocalMachine\Root
+```
+
+For non-service development, Current User store is sufficient.
+
+**Warning signs:**
+- Browser trusts certificates but background services don't
+- Certificate visible in `certmgr.msc` but not `certlm.msc`
+- Service logs show SSL handshake failures
+
+**Phase to address:**
+Phase 2 (CLI Installation Command) — Detect Windows and check for service scenarios.
+
+---
+
+### Pitfall 22: Certificate Scope Missing LAN IP Address
+
+**What goes wrong:**
+Generating `mkcert localhost` works locally but fails when accessing from another device on LAN. Browser shows `ERR_CERT_COMMON_NAME_INVALID`.
+
+**Why it happens:**
+Certificates are only valid for the hostnames/IPs specified at generation time. `localhost` doesn't match `192.168.1.17` or `mydev.local`.
+
+**How to avoid:**
+Always include your LAN IP when generating certificates:
+
+```bash
+# Get your LAN IP first
+LAN_IP=$(ipconfig getifaddr en0)  # macOS
+# or
+LAN_IP=$(hostname -I | awk '{print $1}')  # Linux
+
+# Generate with all needed names
+mkcert localhost 127.0.0.1 "$LAN_IP" myapp.local "*.myapp.local"
+```
+
+Use static LAN IP or DNS hostname — router-assigned DHCP addresses can change.
+
+**Warning signs:**
+- Works on development machine, fails from phone
+- `ERR_CERT_COMMON_NAME_INVALID` from LAN device
+- Certificate details show only `localhost` as Subject Alternative Name
+
+**Phase to address:**
+Phase 1 (Certificate Setup) — Auto-detect LAN IP and include in certificate generation.
+
+---
+
+### Pitfall 23: Certificate Expiration Catches Users Unaware
+
+**What goes wrong:**
+After months of working, suddenly all HTTPS connections fail with certificate expired errors. Users don't know how to renew.
+
+**Why it happens:**
+mkcert certificates have a validity period (typically 2 years). There's no automatic renewal or expiration warning. Users forget about certificate lifecycle.
+
+**How to avoid:**
+1. Document certificate expiration check:
+   ```bash
+   openssl x509 -in cert.pem -text -noout | grep -A 2 "Validity"
+   ```
+2. Create a renewal script or CLI command:
+   ```bash
+   # Renewal command
+   mkcert -install && mkcert localhost 192.168.1.x myapp.local
+   ```
+3. Log certificate creation date; warn when approaching expiration
+
+**Warning signs:**
+- Certificate warnings appear suddenly
+- No recent changes to system
+- Certificate shows "Not After" date in the past
+
+**Phase to address:**
+Phase 1 (Certificate Setup) — Store creation timestamp; Phase 3 (Web Server Binding) — Add expiration check on startup.
+
+---
+
+### Pitfall 24: Node.js Doesn't Trust System CA Store
+
+**What goes wrong:**
+mkcert certificates work in browsers but Node.js applications reject them with `UNABLE_TO_VERIFY_LEAF_SIGNATURE` errors.
+
+**Why it happens:**
+Node.js uses its own bundled CA list, not the system trust store. Even after `mkcert -install`, Node.js doesn't see the CA.
+
+**How to avoid:**
+Set the `NODE_EXTRA_CA_CERTS` environment variable:
+
+```bash
+export NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem"
+```
+
+Add this to your shell profile (`.bashrc`, `.zshrc`) for persistence, or to `.env` for project-specific setup.
+
+**Warning signs:**
+- Browser shows green lock, Node.js tests fail
+- `fetch()` or `axios` calls fail with certificate errors
+- Integration tests pass in browser but fail in Node.js
+
+**Phase to address:**
+Phase 2 (CLI Installation Command) — Include Node.js-specific setup instructions.
+
+---
+
+### Pitfall 25: Firefox Requires NSS Tools
+
+**What goes wrong:**
+After running `mkcert -install`, Chrome/Safari trust the certificates but Firefox still shows certificate warnings.
+
+**Why it happens:**
+On Linux and macOS, Firefox uses its own certificate database (NSS) rather than the system trust store. Without NSS tools installed, mkcert can't add the CA to Firefox.
+
+**How to avoid:**
+Install NSS tools before running `mkcert -install`:
+
+```bash
+# macOS
+brew install nss
+
+# Linux (Debian/Ubuntu)
+sudo apt install libnss3-tools
+
+# Then reinstall
+mkcert -install
+```
+
+If you already ran `mkcert -install` before installing NSS, reinstall after installing NSS.
+
+**Warning signs:**
+- Certificates work in Chrome/Safari
+- Firefox shows "SEC_ERROR_UNKNOWN_ISSUER"
+- `certutil` command not found
+
+**Phase to address:**
+Phase 2 (CLI Installation Command) — Detect Firefox and prompt for NSS installation.
+
+---
+
+### Pitfall 26: IPv4 vs IPv6 Binding Issues
+
+**What goes wrong:**
+Server binds to `127.0.0.1:8000` and works locally, but `0.0.0.0:8000` still isn't accessible from LAN devices. Or binding to `::` (IPv6) doesn't work for IPv4 clients.
+
+**Why it happens:**
+Binding to `127.0.0.1` only accepts localhost connections. Binding to `::` (IPv6 any-address) may not work for IPv4 connections on all systems (depends on dual-stack configuration). Uvicorn doesn't have native dual-stack binding documented.
+
+**How to avoid:**
+Use explicit binding for both IPv4 and IPv6:
+
+```python
+# Option 1: Bind to all IPv4 addresses (most common for LAN)
+uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# Option 2: Bind to specific LAN IP (matches certificate SAN)
+uvicorn.run(app, host="192.168.1.17", port=8000)
+
+# Option 3: Dual-stack (Uvicorn 0.30+)
+uvicorn.run(app, host=["::", "0.0.0.0"], port=8000)
+```
+
+**Warning signs:**
+- Works on development machine, times out from phone
+- `curl http://localhost:8000` works but `curl http://192.168.1.17:8000` fails
+- Server logs show no incoming requests from LAN
+
+**Phase to address:**
+Phase 3 (Web Server Binding) — Configure binding correctly for LAN access.
+
+---
+
+### Pitfall 27: LAN IP Detection Returns Wrong Address
+
+**What goes wrong:**
+Auto-detected LAN IP is incorrect — it returns VPN tunnel IP, Docker bridge IP, or loopback address instead of the actual LAN IP.
+
+**Why it happens:**
+Computers have multiple network interfaces (WiFi, Ethernet, VPN, Docker bridges, loopback). Simple IP detection methods often return the wrong one. `socket.gethostbyname(socket.gethostname())` frequently returns `127.0.0.1`.
+
+**How to avoid:**
+Use the UDP routing trick for correct outbound IP detection:
+
+```python
+import socket
+
+def get_outbound_ipv4():
+    """Get the IP used for outbound connections (respects routing table)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            # Doesn't actually send data; uses routing table
+            s.connect(('8.8.8.8', 80))
+            return s.getsockname()[0]
+    except OSError:
+        return None
+```
+
+For comprehensive interface detection, use `netifaces` or `psutil` libraries and filter out:
+- Loopback addresses (`127.0.0.0/8`)
+- Link-local addresses (`169.254.0.0/16`)
+- VPN interfaces (`tun*`, `utun*`, `wg*`)
+- Docker bridges (`docker*`, `br-*`)
+
+**Warning signs:**
+- Detected IP starts with `172.17.` (Docker)
+- Detected IP is `10.8.x.x` (VPN)
+- Certificate SAN doesn't match actual LAN IP
+- Different IP detected after connecting/disconnecting VPN
+
+**Phase to address:**
+Phase 1 (Certificate Setup) — Implement robust IP detection with filtering.
+
+---
+
+### Pitfall 28: CORS Configuration Missing LAN Origins
+
+**What goes wrong:**
+Web server works locally (`localhost:3000`) but browser blocks requests when accessed from LAN device (`192.168.1.17:3000`). Console shows CORS errors.
+
+**Why it happens:**
+CORS configuration only allows `localhost` origins. When accessed via LAN IP, it's a different origin that isn't in the allowed list.
+
+**How to avoid:**
+Include detected LAN IP in CORS origins:
+
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+# Get LAN IP at startup
+lan_ip = get_outbound_ipv4()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        f"http://{lan_ip}:3000",  # Add LAN IP
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+**Warning signs:**
+- Works on `localhost`, fails from phone browser
+- Browser console shows "CORS policy: No 'Access-Control-Allow-Origin'"
+- Network tab shows preflight OPTIONS request failing
+
+**Phase to address:**
+Phase 3 (Web Server Binding) — Auto-include LAN IP in CORS origins.
+
+---
+
 ## Technical Debt Patterns
 
 Shortcuts that seem reasonable but create long-term problems.
@@ -652,6 +1017,11 @@ Shortcuts that seem reasonable but create long-term problems.
 | Assume all referenced posts are available | Skip error handling | Crashes on deleted/protected content, poor UX | Never — defensive handling required |
 | Don't fetch media for embedded posts | Fewer API calls | Embedded posts missing images/videos | Never — media expansion required |
 | Use embedded post data directly from API without snapshot | Real-time content | Edits change historical bookmarks, broken references | Never — must snapshot at bookmark time |
+| Skip LAN IP in certificate | Faster setup | Regenerate when LAN access needed | Never — include from start |
+| Skip Android setup instructions | Simpler initial docs | Users can't use mobile devices | Never — document or automate |
+| Hardcode IP in code | Quick prototype | Fails when IP changes; requires rebuild | Never |
+| Use HTTP for LAN | No certificate complexity | Insecure; some APIs require HTTPS | Never — Chrome requires HTTPS for some features |
+| Share rootCA-key.pem | Team can skip install step | Security compromise; anyone can issue certs | Never — generate separate CA per machine |
 
 ---
 
@@ -683,6 +1053,13 @@ Common mistakes when connecting to external services.
 | SQLite + FastAPI | Forgetting `check_same_thread=False` | Required when using sync SQLite with FastAPI |
 | SQLite + FastAPI | Using default pool settings | Configure `pool_pre_ping=True`, set pool timeout |
 | Local HTTPS | Using self-signed certificates | Use mkcert for local development, Let's Encrypt for production |
+| mkcert | Running with and without sudo inconsistently | Always use consistent sudo approach (usually without) |
+| mkcert | Installing CA without nss package (Firefox) | Install nss before `mkcert -install` |
+| Uvicorn | Binding to `127.0.0.1` only | Use `--host 0.0.0.0` for LAN access |
+| Uvicorn IPv6 | Using `::` and assuming IPv4 works | Use `host=["::", "0.0.0.0"]` for dual-stack or explicit IPs |
+| Node.js | Assuming system CA trust | Set `NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem"` |
+| CORS | Only allowing localhost origin | Include LAN IP in `allow_origins` |
+| mkcert | Only including localhost in certificate SAN | Include all IPs/hostnames: `localhost 127.0.0.1 192.168.1.x myapp.local` |
 
 ---
 
@@ -733,6 +1110,11 @@ Domain-specific security issues beyond general web security.
 | Storing user-provided `text` without encoding | Database injection, display issues | Use parameterized queries; encode text before storage |
 | Exposing embedded post IDs that shouldn't be public | Privacy leak (deleted posts still referenced) | Don't expose embedded_post_id in API responses; handle unavailable gracefully |
 | Trusting `includes` data as immutable | Stale embedded content edits | Snapshot at bookmark time; don't auto-refresh without user action |
+| Sharing `rootCA-key.pem` | Anyone can issue trusted certificates | Add to `.gitignore` immediately; never share |
+| Using production CA for development | Attackers can intercept production traffic | Generate separate development CA with `mkcert -install` |
+| Skipping certificate verification in development | Security issues masked in production | Always verify; use proper certificates |
+| Leaving CORS open (`allow_origins=["*"]`) | Any origin can access API | Specify exact origins including LAN IP |
+| Binding to `0.0.0.0` without firewall | Service exposed to all networks | Firewall rules; only bind to LAN interface |
 
 ---
 
@@ -760,6 +1142,9 @@ Common user experience mistakes in this domain.
 | Quote tweet commentary buried | User can't distinguish quote from original | Visual separation: quote text above, embedded original in bordered box below |
 | No author attribution on embedded posts | Can't identify original author | Always show author name/username/avatar on embedded content |
 | Deeply nested quotes (quote of quote of quote) | Disorienting navigation, performance issues | Flatten display to 2 levels max; show "Quoted from @user" link for deeper nesting |
+| Certificate warnings on mobile | Users think app is broken, abandon setup | Clear setup instructions: "Run this command on your computer first" |
+| Different IP after router reboot | Certificate no longer matches, HTTPS fails | Detect IP change, prompt to regenerate or use DNS hostname |
+| "Works on my machine" for LAN | Developer tests on localhost only | Test from actual mobile device before declaring done |
 
 ---
 
@@ -789,6 +1174,15 @@ Things that appear complete but are missing critical pieces.
 - [ ] **Retweet display:** Often shows "RT @user: ..." text — verify original post content displays cleanly
 - [ ] **Rate limit handling during sync:** Often crashes on rate limit — verify graceful handling and resume capability
 - [ ] **Multiple expansions chaining:** Often misses author/media on embedded posts — verify complete expansion chain
+- [ ] **Certificate Trust:** Often missing verification step — run `mkcert -install` and restart browser
+- [ ] **LAN IP:** Often hardcoded instead of detected — verify certificate includes actual LAN IP
+- [ ] **Android:** Often missing network security config — create `network_security_config.xml`
+- [ ] **iOS:** Often missing trust enablement — Settings > General > About > Certificate Trust Settings
+- [ ] **Windows:** Often only Current User store — check Local Machine store for services
+- [ ] **Firefox:** Often missing NSS tools — install `nss` package then reinstall CA
+- [ ] **Expiration:** Often no renewal process — document expiration date and renewal steps
+- [ ] **Node.js:** Often assumes system CA — set `NODE_EXTRA_CA_CERTS` environment variable
+- [ ] **CORS:** Often only localhost — add LAN IP to CORS origins
 
 ---
 
@@ -817,6 +1211,15 @@ When pitfalls occur despite prevention, how to recover.
 | Truncated text stored | LOW | Re-fetch posts with extended mode; update text field |
 | Missing author on embedded posts | LOW | Re-sync with `referenced_tweets.id.author_id` expansion; update author fields |
 | N+1 query pattern in sync | HIGH | Refactor sync to use expansions; may require API re-fetch if data not cached |
+| Sudo inconsistency | LOW | Remove `/root/.local/mkcert`, reinstall CA, regenerate certs |
+| macOS update break | LOW | `mkcert -uninstall && mkcert -install`, verify Keychain trust |
+| Android certificate not trusted | MEDIUM | Install CA + create network security config |
+| Windows Local Machine store | MEDIUM | Manual import via PowerShell |
+| Certificate expired | LOW | Regenerate certificate |
+| Wrong CA installed | LOW | Reinstall CA with `mkcert -install` |
+| Shared rootCA-key.pem | HIGH | Assume compromised; revoke all certificates; generate new CA |
+| Wrong LAN IP in cert | LOW | Regenerate certificate with correct IP |
+| Missing LAN IP in cert | LOW | Regenerate certificate including LAN IP |
 
 ---
 
@@ -866,6 +1269,22 @@ How roadmap phases should address these pitfalls.
 | Cast receiver display | Phase 3 (Cast Integration) | Test: Cast bookmark with embedded post, verify renders on TV |
 | CLI embedded post display | Phase 4 (CLI Enhancement) | Test: View embedded post in CLI, verify formatted correctly |
 
+### Milestone v1.3 (LAN Casting Support)
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Sudo inconsistency | Phase 1 (Certificate Setup) | Document in CLI help; check for root CA consistency |
+| macOS 26.1 issues | Phase 1 (Certificate Setup) | Include verification step; document post-update recovery |
+| Android certificate trust | Phase 2 (CLI Command) | Auto-generate `network_security_config.xml`; device detection |
+| Windows service trust | Phase 2 (CLI Command) | Detect Windows; offer Local Machine install option |
+| Missing LAN IP | Phase 1 (Certificate Setup) | Auto-detect LAN IP; include in SAN list |
+| Certificate expiration | Phase 1 (Certificate Setup) | Log creation date; Phase 3 startup check |
+| CORS configuration | Phase 3 (Web Server) | Auto-include LAN IP in CORS origins |
+| Uvicorn binding | Phase 3 (Web Server) | Bind to `0.0.0.0` for LAN; document IPv6 dual-stack |
+| Node.js CA trust | Phase 2 (CLI Command) | Include Node.js-specific setup instructions |
+| Firefox NSS | Phase 2 (CLI Command) | Detect Firefox and prompt for NSS installation |
+| IP detection edge cases | Phase 1 (Certificate Setup) | Filter VPN/Docker/loopback; implement robust detection |
+
 ---
 
 ## Sources
@@ -904,7 +1323,7 @@ How roadmap phases should address these pitfalls.
 - [SQLite thread safety (FastAPI GitHub Issue)](https://github.com/mfreeborn/fastapi-sqlalchemy/issues/45) — HIGH confidence (issue documentation)
 - [SQLite database locked (Stack Overflow)](https://stackoverflow.com/questions/79707043/how-to-make-concurrent-writes-in-sqlite-with-fastapi-sqlalchemy-without-datab) — MEDIUM confidence (community Q&A)
 - [FastAPI deadlock with SQLite (GitHub Issue)](https://github.com/fastapi/fastapi/issues/3205) — HIGH confidence (issue documentation)
-- [Best Practices for Storing Access Tokens](https://curity.medium.com/best-practices-for-storing-access-tokens-in-the-browser-6b3d515d9814) — MEDIUM confidence (security blog)
+- [Best Practices for Storing Access Tokens](https://curity.medium.com/best-practices-for-storing-access-tokens-in-the-browser-6b3d5d9814) — MEDIUM confidence (security blog)
 - [PKCE vs Device Flow for CLI Auth (WorkOS)](https://workos.com/blog/pkce-vs-device-flow-cli-auth) — HIGH confidence (auth provider blog)
 - [OIDC CLI Authentication](https://kharkevich.org/2024/11/30/oidc-cli-auth/) — MEDIUM confidence (personal blog)
 - [mkcert GitHub Repository](https://github.com/Filosottile/mkcert) — HIGH confidence (official project)
@@ -927,7 +1346,37 @@ How roadmap phases should address these pitfalls.
 - [FxTwitter Quote Tweet Handling](https://github.com/caraar12345/FxTwitter) — MEDIUM confidence (open source reference)
 - [Tweepy Extended Tweets Documentation](https://docs.tweepy.org/en/v4.14.0/extended_tweets.html) — HIGH confidence (official)
 
+### Milestone v1.3 Sources (LAN SSL / mkcert)
+
+- [mkcert GitHub Repository](https://github.com/Filosottile/mkcert) — HIGH confidence (official)
+- [mkcert README](https://github.com/Filosottile/mkcert/blob/master/README.md) — HIGH confidence (official)
+- [Issue #651: macOS 26.1 Root Certificate Issues](https://github.com/Filosottile/mkcert/issues/651) — HIGH confidence (official issue)
+- [Issue #550: Windows Current User vs Local Machine Store](https://github.com/Filosottile/mkcert/issues/550) — HIGH confidence (official issue)
+- [Issue #415: macOS Big Sur Certificate Trust](https://github.com/Filosottile/mkcert/issues/415) — HIGH confidence (official issue)
+- [Issue #646: Sudo Inconsistency](https://github.com/Filosottile/mkcert/issues/646) — HIGH confidence (official issue)
+- [Issue #47: iOS Certificate Trust Settings](https://github.com/Filosottile/mkcert/issues/47) — HIGH confidence (official issue)
+- [Issue #307: Windows ERR_CERT_AUTHORITY_INVALID](https://github.com/Filosottile/mkcert/issues/307) — HIGH confidence (official issue)
+- [Issue #104: Windows ACL Structure Invalid](https://github.com/Filosottile/mkcert/issues/104) — HIGH confidence (official issue)
+- [Issue #604: mkcert -install hangs](https://github.com/Filosottile/mkcert/issues/604) — HIGH confidence (official issue)
+- [StackOverflow: Installing CA Certificate on Android](https://stackoverflow.com/questions/4461360/how-to-install-trusted-ca-certificate-on-android-device) — MEDIUM confidence (community)
+- [Android Network Security Configuration](https://developer.android.com/training/articles/security-config) — HIGH confidence (official Android docs)
+- [mitmproxy: System CA on Android Emulator](https://docs.mitmproxy.org/stable/howto/install-system-trusted-ca-android/) — MEDIUM confidence (documentation)
+- [Cert-Fixer for Android 14+](https://pwnlogs.dev/articles/cert-fixer/index.html) — MEDIUM confidence (community)
+- [mkcert PR #623: Android instructions improvement](https://github.com/Filosottile/mkcert/pull/623) — HIGH confidence (official PR)
+- [Uvicorn Settings Documentation](https://uvicorn.dev/settings/) — HIGH confidence (official)
+- [Uvicorn Discussion #1529: Dual Stack IPv4/IPv6](https://github.com/encode/uvicorn/discussions/1529) — MEDIUM confidence (community discussion)
+- [Uvicorn Discussion #1968: localhost binding without IPv6](https://github.com/Kludex/uvicorn/discussions/1968) — MEDIUM confidence (community discussion)
+- [StackOverflow: Access FastAPI from LAN](https://stackoverflow.com/questions/75040507/how-to-access-fastapi-backend-from-a-different-machine-ip-on-the-same-local-netw) — MEDIUM confidence (community)
+- [ifaddr Library Documentation](https://ifaddr.readthedocs.io/) — HIGH confidence (official)
+- [Python ipaddress Module](https://docs.python.org/3/library/ipaddress.html) — HIGH confidence (official)
+- [StackOverflow: Multiple NIC IP Addresses](https://stackoverflow.com/questions/270745/how-do-i-determine-all-of-my-ip-addresses-when-i-have-multiple-nics) — MEDIUM confidence (community)
+- [Finding IP Address Using Python](https://thelinuxcode.com/finding-ip-address-using-python-practical-patterns-for-local-public-and-interface-specific-ips/) — MEDIUM confidence (community)
+- [Trust Store Integration (mkcert DeepWiki)](https://deepwiki.com/Filosottile/mkcert/3-trust-store-integration) — MEDIUM confidence (documentation)
+- [macOS Integration (mkcert DeepWiki)](https://deepwiki.com/Filosottile/mkcert/3.1-macos-integration) — MEDIUM confidence (documentation)
+- [Windows Integration (mkcert DeepWiki)](https://deepwiki.com/Filosottile/mkcert/3.3-windows-integration) — MEDIUM confidence (documentation)
+- [Issue #123: Custom CA Location](https://github.com/Filosottile/mkcert/issues/123) — HIGH confidence (official issue)
+
 ---
 
 *Pitfalls research for: X Bookmarked Posts Organizer*
-*Researched: 2026-04-18 (Milestone 1), 2026-05-17 (Milestone v1.1), 2026-06-04 (Milestone v1.2)*
+*Researched: 2026-04-18 (Milestone 1), 2026-05-17 (Milestone v1.1), 2026-06-04 (Milestone v1.2), 2026-06-07 (Milestone v1.3)*

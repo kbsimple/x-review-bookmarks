@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Login - X Bookmarked Posts{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-12">
+    <div class="bg-white rounded-lg shadow p-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-4">
+            Authentication Required
+        </h1>
+        <p class="text-gray-600 mb-6">
+            The web app uses the same authentication as the CLI.
+            You need to authenticate with X first.
+        </p>
+
+        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+            <h2 class="text-sm font-semibold text-gray-700 mb-2">
+                Run this command in your terminal:
+            </h2>
+            <code class="block bg-gray-800 text-green-400 p-3 rounded font-mono text-sm">
+                xbm auth
+            </code>
+        </div>
+
+        <p class="text-gray-500 text-sm">
+            This will open a browser window to authorize the app with X.
+            After authorization, return here and refresh the page.
+        </p>
+
+        <div class="mt-6">
+            <a href="/" class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                Refresh Page
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

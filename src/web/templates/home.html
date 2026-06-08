@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Home - X Bookmarked Posts{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-4">
+            Welcome to X Bookmarked Posts
+        </h1>
+        <p class="text-gray-600">
+            Browse and search your X bookmarks with spaced-repetition resurfacing.
+        </p>
+    </div>
+
+    {% if not has_tokens %}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-yellow-800 mb-2">
+            Authentication Required
+        </h2>
+        <p class="text-yellow-700">
+            Run <code class="bg-yellow-100 px-2 py-1 rounded">xbm auth</code> in your terminal
+            to authenticate with X and sync your bookmarks.
+        </p>
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold text-gray-800">Recent Posts</h2>
+        </div>
+        <div id="posts-container" class="divide-y">
+            {% if posts %}
+                {% for post in posts %}
+                <div class="p-4 hover:bg-gray-50">
+                    <p class="text-gray-800">{{ post.text[:200] }}{% if post.text|length > 200 %}...{% endif %}</p>
+                    <p class="text-sm text-gray-500 mt-2">
+                        @{{ post.author_username }} &middot; {{ post.created_at[:10] }}
+                    </p>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-8 text-center text-gray-500">
+                    {% if has_tokens %}
+                    No posts yet. Run <code class="bg-gray-100 px-2 py-1 rounded">xbm sync</code> to fetch your bookmarks.
+                    {% else %}
+                    Authenticate first to view your bookmarks.
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

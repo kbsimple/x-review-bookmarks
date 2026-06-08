@@ -11,9 +11,10 @@
 |--------|-------|
 | v1.0 Requirements | 34 (Complete) |
 | v1.1 Requirements | 14 (Complete) |
-| v1.2 Requirements | 13 |
-| Phases | 11 |
-| Milestone | Milestone 3 (v1.2 — Enhanced Post Rendering) |
+| v1.2 Requirements | 13 (Complete) |
+| v1.3 Requirements | 14 (Planned) |
+| Phases | 13 |
+| Milestone | Milestone 4 (v1.3 — LAN Casting Support) |
 
 ## Phases
 
@@ -24,10 +25,12 @@
 - [x] **Phase 5: Spaced Repetition Resurfacing** - FSRS-based scheduling and review delivery
 - [x] **Phase 6: Web Foundation** - FastAPI web app with shared authentication and post browsing
 - [x] **Phase 7: Cast Integration** - Google Cast integration for TV viewing
-- [ ] **Phase 8: Storage Foundation** - Fetch and store embedded post data with proper schema and X API expansions
-- [ ] **Phase 9: Web Display** - Render retweets and quote tweets in web interface with nested layouts
-- [x] **Phase 10: CLI Display** - Render embedded posts in terminal with Rich Panel/Tree components (completed 2026-06-07)
-- [x] **Phase 11: Cast Display** - Display embedded posts on TV with TV-optimized visual styling (completed 2026-06-07)
+- [x] **Phase 8: Storage Foundation** - Fetch and store embedded post data with proper schema and X API expansions
+- [x] **Phase 9: Web Display** - Render retweets and quote tweets in web interface with nested layouts
+- [x] **Phase 10: CLI Display** - Render embedded posts in terminal with Rich Panel/Tree components
+- [x] **Phase 11: Cast Display** - Display embedded posts on TV with TV-optimized visual styling
+- [ ] **Phase 12: Certificate Management** - LAN SSL certificate generation and CLI commands
+- [ ] **Phase 13: LAN Network Access** - Web server LAN binding and mobile device access
 
 ## Phase Details
 
@@ -216,6 +219,34 @@ Plans:
 - [x] 11-02-PLAN.md — Cast messaging for embedded posts
 **UI hint:** yes
 
+### Phase 12: Certificate Management
+**Goal:** Users can check, generate, and manage LAN SSL certificates via CLI
+**Depends on:** Phase 11
+**Requirements:** CERT-01, CERT-02, CERT-03, CERT-04, MAINT-01, MAINT-02
+**Success Criteria** (what must be TRUE):
+  1. User runs `xbm lan-cert status` and sees mkcert installation status, CA location, and certificate status
+  2. User runs `xbm lan-cert generate` and certificates are created for localhost and LAN IP
+  3. User sees clear guidance on how to install CA certificate on mobile devices
+  4. System detects primary LAN IP automatically during certificate generation
+  5. User can regenerate certificates when expired or LAN IP changes
+**Plans:** 3 plans across 2 waves
+Plans:
+- [ ] 12-01-PLAN.md — Certificate utilities (lan_certs.py, LAN IP detection, settings)
+- [ ] 12-02-PLAN.md — CLI status and generate commands (lan-cert --status, --generate)
+- [ ] 12-03-PLAN.md — CLI guide command (lan-cert --guide, platform instructions)
+
+### Phase 13: LAN Network Access
+**Goal:** Users can access the web app from mobile devices on the same LAN without certificate warnings
+**Depends on:** Phase 12
+**Requirements:** NET-01, NET-02, NET-03, PLAT-01, PLAT-02, PLAT-03, PLAT-04, PLAT-05
+**Success Criteria** (what must be TRUE):
+  1. User runs `xbm web --lan` and server binds to all network interfaces (0.0.0.0)
+  2. User sees both localhost URL and LAN URL displayed in console after server startup
+  3. Mobile browser can access web app via HTTPS without certificate warnings
+  4. Cast SDK loads successfully on mobile devices (requires HTTPS with trusted certificates)
+  5. User sees platform-specific CA installation instructions when running with --lan flag
+Plans: TBD
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -229,8 +260,10 @@ Plans:
 | 7. Cast Integration | 4/4 | Complete | 2026-05-17 |
 | 8. Storage Foundation | 3/4 | Complete | 2026-06-04 |
 | 9. Web Display | 4/4 | Complete | 2026-06-06 |
-| 10. CLI Display | 3/3 | Complete   | 2026-06-07 |
+| 10. CLI Display | 3/3 | Complete | 2026-06-07 |
 | 11. Cast Display | 3/3 | Complete | 2026-06-07 |
+| 12. Certificate Management | 0/0 | Not started | - |
+| 13. LAN Network Access | 0/0 | Not started | - |
 
 ## Coverage
 
@@ -310,6 +343,33 @@ Plans:
 | CAST-07 | Phase 11 | Complete |
 | CAST-08 | Phase 11 | Complete |
 
+### v1.3 Requirements (Planned)
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| CERT-01 | Phase 12 | Planned |
+| CERT-02 | Phase 12 | Planned |
+| CERT-03 | Phase 12 | Planned |
+| CERT-04 | Phase 12 | Planned |
+| MAINT-01 | Phase 12 | Planned |
+| MAINT-02 | Phase 12 | Planned |
+| NET-01 | Phase 13 | Planned |
+| NET-02 | Phase 13 | Planned |
+| NET-03 | Phase 13 | Planned |
+| PLAT-01 | Phase 13 | Planned |
+| PLAT-02 | Phase 13 | Planned |
+| PLAT-03 | Phase 13 | Planned |
+| PLAT-04 | Phase 13 | Planned |
+| PLAT-05 | Phase 13 | Planned |
+
+**Coverage:**
+- v1 requirements: 34 total (Complete)
+- v1.1 requirements: 14 total (Complete)
+- v1.2 requirements: 13 total (Complete)
+- v1.3 requirements: 14 total (Planned)
+- Mapped to phases: 14
+- Unmapped: 0
+
 ---
 *Roadmap created: 2026-04-18*
-*Roadmap updated: 2026-06-04 - Milestone v1.2 (Enhanced Post Rendering) roadmap created*
+*Roadmap updated: 2026-06-08 - Milestone v1.3 (LAN Casting Support) roadmap created*

@@ -6,6 +6,412 @@
 
 ---
 
+## Milestone v1.3: LAN Casting Support Additions
+
+The following additions extend the existing stack for LAN-accessible SSL certificates and mobile device support.
+
+### New External Tools
+
+| Tool | Version | Purpose | Why Recommended |
+|------|---------|---------|-----------------|
+| **mkcert** | v1.4.4+ | Locally-trusted SSL certificate generation | Zero-config CA creation, trusted by system stores, industry standard for local dev HTTPS. 58K+ GitHub stars. Maintained by FiloSottile. |
+
+### New Python Dependencies
+
+| Package | Version | Purpose | Why Recommended |
+|---------|---------|---------|-----------------|
+| **psutil** | 7.2.0+ | Network interface enumeration | Enumerate all LAN IPs for certificate generation. Cross-platform, actively maintained, widely adopted. Alternative: stdlib socket trick for primary IP only. |
+
+### No Changes Required (Already Integrated)
+
+| Technology | Purpose | Why It Works |
+|------------|---------|--------------|
+| **cryptography** (existing) | Self-signed cert fallback | Keep as fallback when mkcert unavailable. |
+| **FastAPI** (existing) | Web framework | No changes needed. |
+| **uvicorn** (existing) | ASGI server | Already supports `ssl_keyfile` and `ssl_certfile`. |
+| **Typer** (existing) | CLI framework | Use for `xbm lan-cert` command. |
+
+---
+
+## mkcert Integration
+
+### Installation (External Binary)
+
+```bash
+# macOS (Homebrew)
+brew install mkcert
+brew install nss  # for Firefox support
+
+# Linux (Ubuntu/Debian)
+sudo apt install libnss3-tools
+brew install mkcert  # or download binary
+
+# Windows
+choco install mkcert
+# or
+scoop install mkcert
+```
+
+### Python Integration Points
+
+#### 1. Certificate Generation
+
+```python
+import subprocess
+from pathlib import Path
+
+def generate_lan_certs(
+    lan_ip: str,
+    cert_path: Path,
+    key_path: Path,
+    mkcert_bin: str = "mkcert"
+) -> tuple[Path, Path]:
+    """Generate certificates for LAN IP using mkcert.
+
+    Args:
+        lan_ip: LAN IP address (e.g., "192.168.1.100")
+        cert_path: Path to save certificate file
+        key_path: Path to save private key file
+        mkcert_bin: Path to mkcert binary (default: "mkcert" from PATH)
+
+    Returns:
+        Tuple of (cert_path, key_path)
+
+    Raises:
+        subprocess.CalledProcessError: If mkcert fails
+        FileNotFoundError: If mkcert not installed
+    """
+    # Generate cert with localhost, 127.0.0.1, and LAN IP
+    result = subprocess.run(
+        [
+            mkcert_bin,
+            "-cert-file", str(cert_path),
+            "-key-file", str(key_path),
+            "localhost",
+            "127.0.0.1",
+            lan_ip,
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return cert_path, key_path
+```
+
+#### 2. CA Installation and CA Root Location
+
+```python
+def install_mkcert_ca(mkcert_bin: str = "mkcert") -> Path:
+    """Install mkcert CA and return CA root directory.
+
+    Args:
+        mkcert_bin: Path to mkcert binary
+
+    Returns:
+        Path to CA root directory (contains rootCA.pem)
+
+    Raises:
+        subprocess.CalledProcessError: If installation fails
+    """
+    # Install CA (user sees prompts, so don't capture stdout)
+    subprocess.run([mkcert_bin, "-install"], check=True)
+
+    # Get CA root directory
+    result = subprocess.run(
+        [mkcert_bin, "-CAROOT"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return Path(result.stdout.strip())
+
+
+def get_ca_cert_path(mkcert_bin: str = "mkcert") -> Path:
+    """Get path to root CA certificate for mobile installation.
+
+    Returns:
+        Path to rootCA.pem file
+    """
+    result = subprocess.run(
+        [mkcert_bin, "-CAROOT"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    ca_root = Path(result.stdout.strip())
+    return ca_root / "rootCA.pem"
+```
+
+#### 3. LAN IP Detection
+
+```python
+import socket
+from contextlib import closing
+
+def get_primary_lan_ip() -> str:
+    """Get primary outbound IP address.
+
+    Uses UDP socket connect trick - most reliable method.
+    Doesn't actually send data, just determines routing.
+
+    Returns:
+        Primary LAN IP address, or "127.0.0.1" if detection fails.
+    """
+    try:
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_DGRAM)) as s:
+            # Connect to public DNS (doesn't send data)
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+
+
+# Alternative: All interface IPs with psutil
+def get_all_lan_ips() -> list[str]:
+    """Get all non-loopback IPv4 addresses.
+
+    Requires: pip install psutil>=7.2.0
+
+    Returns:
+        List of LAN IP addresses.
+    """
+    import psutil
+
+    ips = []
+    for interface, addrs in psutil.net_if_addrs().items():
+        for addr in addrs:
+            if addr.family == socket.AF_INET:
+                ip = addr.address
+                if not ip.startswith("127."):  # Skip loopback
+                    ips.append(ip)
+    return ips
+```
+
+#### 4. Uvicorn SSL Configuration (Already Implemented)
+
+```python
+# Current implementation in src/cli/main.py:1932-1937
+uvicorn.run(
+    app,
+    host=host,  # Change from "127.0.0.1" to "0.0.0.0" for LAN
+    port=port,
+    ssl_keyfile=str(key_path),
+    ssl_certfile=str(cert_path),
+)
+```
+
+---
+
+## Mobile CA Installation Workflow
+
+### iOS (iPhone/iPad)
+
+1. **Transfer CA certificate:**
+   - AirDrop `rootCA.pem` to device, OR
+   - Email it to yourself, OR
+   - Serve via HTTP from development machine
+
+2. **Install profile:**
+   - Open the certificate file on iOS
+   - Settings > Profile Downloaded > Install
+
+3. **Enable full trust (REQUIRED):**
+   - Settings > General > About > Certificate Trust Settings
+   - Toggle ON for the root CA
+
+### Android
+
+1. **Transfer CA certificate:**
+   - Copy `rootCA.pem` to device via USB/cloud/email
+
+2. **Install certificate:**
+   - Settings > Security > Install from storage > CA certificate
+   - Or: Settings > Certificate management > Install a certificate > CA certificate
+
+3. **App trust configuration (for WebView/Browser):**
+   - Android 7+ doesn't trust user CAs by default in apps
+   - For Chrome/browser testing: Works with user CA for regular browsing
+   - For custom apps: Requires `network_security_config.xml`
+
+---
+
+## CLI Command Design
+
+```python
+# Proposed new command: xbm lan-cert
+@app.command("lan-cert")
+def lan_cert(
+    install_ca: bool = typer.Option(False, "--install-ca", "-i", help="Install mkcert CA"),
+    show_ca: bool = typer.Option(False, "--show-ca", "-s", help="Show CA certificate location"),
+    generate: bool = typer.Option(False, "--generate", "-g", help="Generate new LAN certificates"),
+    force: bool = typer.Option(False, "--force", "-f", help="Regenerate existing certificates"),
+) -> None:
+    """Manage LAN-accessible SSL certificates.
+
+    LAN-01: User can generate locally-trusted certificates.
+    LAN-02: User can install CA on mobile devices.
+    LAN-03: Web server binds to LAN IP with proper certificate.
+
+    Examples:
+        xbm lan-cert --install-ca         # Install mkcert CA
+        xbm lan-cert --show-ca            # Show CA location for mobile install
+        xbm lan-cert --generate           # Generate certs for detected LAN IP
+        xbm lan-cert --generate --force   # Regenerate existing certs
+    """
+```
+
+---
+
+## Settings Changes
+
+```python
+# Add to src/config/settings.py
+class Settings(BaseSettings):
+    # ... existing settings ...
+
+    # LAN configuration
+    lan_enabled: bool = False  # Bind to 0.0.0.0 for LAN access
+    lan_cert_path: Path = Path("data/lan.crt")
+    lan_key_path: Path = Path("data/lan.key")
+```
+
+---
+
+## File Structure Changes
+
+```
+src/web/
+├── certs.py              # EXISTING: Self-signed cert generation
+├── lan_certs.py          # NEW: mkcert-based LAN certificate management
+└── ...
+
+src/cli/
+├── main.py               # MODIFY: Add lan-cert command
+└── ...
+
+data/
+├── localhost.crt         # EXISTING: Self-signed certs (localhost only)
+├── localhost.key          # EXISTING
+├── lan.crt               # NEW: mkcert-generated certs (LAN IPs)
+└── lan.key               # NEW
+```
+
+---
+
+## Alternatives Considered
+
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| **mkcert** | Self-signed certs (existing) | When mkcert not installed and user doesn't want to install it. Requires manual CA trust on each device. |
+| **mkcert** | trustme library | Testing only. Not suitable for LAN access - certificates not trusted by system. |
+| **mkcert** | openssl self-signed | When you need full control over certificate attributes. More complex, no automatic system trust. |
+| **psutil** | socket stdlib only | When you only need primary outbound IP. Use UDP connect trick - zero dependencies. |
+| **psutil** | netifaces2 | When you need Rust-based implementation. Drop-in replacement for netifaces. |
+| **mkcert** | mkdev (newer tool) | When you need mDNS broadcasting and reverse proxy built-in. Less mature than mkcert. |
+
+---
+
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| **trustme library** | Certificates not trusted by system, only works in test context | mkcert for LAN, trustme only for unit tests |
+| **socket.gethostbyname(socket.gethostname())** | Often returns `127.0.0.1` on many systems | UDP socket connect trick for primary IP |
+| **Global mkcert CA sharing** | Security risk - rootCA-key.pem gives MITM power | Each developer runs own `mkcert -install` |
+| **Self-signed certs for LAN** | Browser warnings, doesn't work with Google Cast | mkcert generates system-trusted certs |
+| **Hardcoded LAN IP** | IP changes on different networks | Detect at runtime with socket or psutil |
+
+---
+
+## Security Considerations
+
+1. **Never share rootCA-key.pem** - It can intercept all HTTPS traffic from your machine
+2. **Only distribute rootCA.pem** - The public certificate for device trust
+3. **Development only** - mkcert certificates are NOT for production
+4. **Per-developer CA** - Each developer should run their own `mkcert -install`
+5. **Certificate rotation** - Regenerate if CA key compromised (rare in dev)
+
+---
+
+## Installation
+
+```bash
+# External tool: mkcert (system-wide, not Python package)
+# macOS
+brew install mkcert
+
+# Linux (after installing libnss3-tools)
+brew install mkcert  # or download binary from GitHub releases
+
+# Windows
+choco install mkcert
+
+# Python dependencies (optional, for full interface enumeration)
+pip install psutil>=7.2.0
+```
+
+---
+
+## Version Compatibility
+
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| mkcert v1.4.4 | Python subprocess | Stable release, no breaking changes expected |
+| psutil 7.2.2 | Python >=3.6 | Active development, backwards compatible |
+| cryptography (existing) | mkcert certs | Both generate PEM format, interchangeable for uvicorn |
+| uvicorn (existing) | mkcert certs | Uses ssl_keyfile/ssl_certfile parameters |
+
+---
+
+## Sources
+
+### mkcert and SSL Certificates
+
+- [mkcert GitHub Repository](https://github.com/FiloSottile/mkcert) — HIGH confidence (official)
+- [mkcert README](https://github.com/FiloSottile/mkcert/blob/master/README.md) — HIGH confidence (official docs)
+- [Uvicorn SSL Settings](https://github.com/Kludex/uvicorn/blob/main/uvicorn/config.py) — HIGH confidence (source code)
+- [Uvicorn SSL Context Factory PR](https://github.com/Kludex/uvicorn/pull/2920) — HIGH confidence (merged April 2026)
+- [Python Local HTTPS with Mkcert](https://woile.dev/blog/local-https-development-in-python-with-mkcert.html) — MEDIUM confidence (community)
+- [Plain Framework MkcertManager](https://plainframework.com/docs/plain-dev/plain/dev/mkcert.py) — MEDIUM confidence (reference implementation)
+
+### IP Detection
+
+- [Stack Overflow: Finding Local IP Addresses](https://stackoverflow.com/questions/166506/finding-local-ip-addresses-using-pythons-stdlib) — MEDIUM confidence (community)
+- [psutil PyPI](https://pypi.org/project/psutil/) — HIGH confidence (official)
+
+### Mobile Device CA Installation
+
+- [Android Network Security Config](https://developer.android.com/privacy-and-security/security-config) — HIGH confidence (official Android docs)
+- [Apple QA1948: HTTPS and Test Servers](https://developer.apple.com/library/archive/qa/qa1948/_index.html) — HIGH confidence (official Apple docs)
+
+### Existing Project Files
+
+- [src/web/certs.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/web/certs.py) — HIGH confidence (project reference)
+- [src/config/settings.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/config/settings.py) — HIGH confidence (project reference)
+- [src/cli/main.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/cli/main.py) — HIGH confidence (project reference)
+
+---
+
+## Integration Summary
+
+| Component | Change Type | Description |
+|-----------|-------------|-------------|
+| `src/web/lan_certs.py` | ADD | mkcert-based certificate generation module |
+| `src/cli/main.py` | MODIFY | Add `lan-cert` command |
+| `src/config/settings.py` | MODIFY | Add `lan_enabled`, `lan_cert_path`, `lan_key_path` |
+| `data/lan.crt` | ADD | mkcert-generated certificate (gitignored) |
+| `data/lan.key` | ADD | mkcert-generated private key (gitignored) |
+| `xbm web` command | MODIFY | Add `--lan` flag to bind to 0.0.0.0 |
+| External: mkcert | INSTALL | User runs `brew install mkcert` or equivalent |
+
+---
+
+*Stack research for: LAN Casting Support milestone*
+*Researched: 2026-06-07*
+*Previous research: Milestone v1.2 (Embedded Post Rendering)*
+
+---
+
 ## Milestone v1.2: Embedded Post Rendering Additions
 
 The following additions extend the existing stack for embedded post (retweet/quote tweet) rendering.
@@ -369,7 +775,7 @@ No changes. All existing versions support this feature:
 
 ---
 
-## Integration Summary
+## Integration Summary (v1.2)
 
 | Component | Change Type | Description |
 |-----------|-------------|-------------|

@@ -731,6 +731,632 @@ def cleanup_orphaned_embedded_posts(self) -> int:
 
 ---
 
+---
+
+## Part 11: LAN SSL Architecture (Milestone v1.3)
+
+**Context:** Enable browsing and casting from mobile devices on the same LAN without certificate warnings.
+
+### Current SSL Handling
+
+```
+xbm web command
+    |
+    v
+ensure_https_certs() in src/web/certs.py
+    |
+    v
+Generate self-signed cert (cryptography library)
+    |
+    v
+uvicorn.run(app, host="127.0.0.1", ssl_keyfile, ssl_certfile)
+    |
+    v
+Browser shows certificate warning (self-signed)
+```
+
+### Component Responsibilities for LAN SSL
+
+| Component | Responsibility | Implementation |
+|-----------|---------------|----------------|
+| `src/web/certs.py` | Self-signed cert generation (existing) | cryptography library, RSA 2048-bit |
+| `src/web/lan_certs.py` (NEW) | mkcert integration, LAN IP detection | subprocess (mkcert), socket |
+| `src/config/settings.py` | Configuration management (modified) | Pydantic Settings with LAN options |
+| `src/cli/main.py` | CLI entry point (modified) | Typer commands for LAN setup |
+
+---
+
+## Part 12: New Module - LAN Certificates
+
+### Module: `src/web/lan_certs.py`
+
+**Purpose:** Detect LAN IP, generate mkcert-based certificates with proper SANs, manage CA installation.
+
+```python
+"""LAN SSL certificate generation using mkcert.
+
+LAN-01: Generate locally-trusted SSL certificates for LAN access.
+LAN-02: CLI command to set up mkcert and install CA on devices.
+"""
+
+import socket
+import subprocess
+from pathlib import Path
+from typing import Optional
+
+from .certs import generate_self_signed_cert
+
+
+def get_lan_ip() -> Optional[str]:
+    """Detect LAN IP using UDP socket trick (no network traffic sent).
+
+    Returns:
+        LAN IP address (e.g., "192.168.1.100") or None if detection fails.
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            # Connect to public DNS (8.8.8.8) to determine routing
+            # No data is actually sent
+            s.connect(('8.8.8.8', 80))
+            return s.getsockname()[0]
+    except OSError:
+        return None
+
+
+def check_mkcert_installed() -> bool:
+    """Check if mkcert CLI tool is available.
+
+    Returns:
+        True if mkcert is installed and accessible.
+    """
+    try:
+        result = subprocess.run(
+            ['mkcert', '-help'],
+            capture_output=True,
+            text=True
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def install_mkcert_ca() -> bool:
+    """Run 'mkcert -install' to install local CA.
+
+    Returns:
+        True if CA installation succeeded.
+    """
+    try:
+        result = subprocess.run(
+            ['mkcert', '-install'],
+            capture_output=True,
+            text=True
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def generate_mkcert_cert(
+    hosts: list[str],
+    cert_path: Path,
+    key_path: Path,
+) -> tuple[Path, Path]:
+    """Generate certificate valid for all specified hosts (SANs).
+
+    Args:
+        hosts: List of hostnames/IPs to include as SANs.
+        cert_path: Path to save certificate file.
+        key_path: Path to save private key file.
+
+    Returns:
+        Tuple of (cert_path, key_path).
+
+    Raises:
+        RuntimeError: If mkcert command fails.
+    """
+    # Ensure parent directories exist
+    cert_path.parent.mkdir(parents=True, exist_ok=True)
+    key_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Build mkcert command
+    cmd = [
+        'mkcert',
+        '-cert-file', str(cert_path),
+        '-key-file', str(key_path),
+    ] + hosts
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(f"mkcert failed: {result.stderr}")
+
+    return cert_path, key_path
+
+
+def ensure_lan_certs(
+    lan_ip: str,
+    cert_path: Optional[Path] = None,
+    key_path: Optional[Path] = None,
+) -> tuple[Path, Path]:
+    """Ensure HTTPS certificates exist for LAN access.
+
+    Uses mkcert if available (trusted), falls back to self-signed (warning).
+
+    Args:
+        lan_ip: LAN IP address to include in certificate.
+        cert_path: Path to certificate file. Defaults to data/lan.crt.
+        key_path: Path to private key file. Defaults to data/lan.key.
+
+    Returns:
+        Tuple of (cert_path, key_path).
+    """
+    if cert_path is None:
+        cert_path = Path("data/lan.crt")
+    if key_path is None:
+        key_path = Path("data/lan.key")
+
+    if not cert_path.exists() or not key_path.exists():
+        if check_mkcert_installed():
+            # Use mkcert for trusted certificates
+            generate_mkcert_cert(
+                hosts=["localhost", "127.0.0.1", lan_ip, "::1"],
+                cert_path=cert_path,
+                key_path=key_path,
+            )
+        else:
+            # Fall back to self-signed (shows browser warning)
+            generate_self_signed_cert(
+                cert_path=cert_path,
+                key_path=key_path,
+                common_name=lan_ip,
+            )
+
+    return cert_path, key_path
+
+
+__all__ = [
+    "get_lan_ip",
+    "check_mkcert_installed",
+    "install_mkcert_ca",
+    "generate_mkcert_cert",
+    "ensure_lan_certs",
+]
+```
+
+---
+
+## Part 13: Modified Files for LAN SSL
+
+### Modified: `src/config/settings.py`
+
+```python
+class Settings(BaseSettings):
+    # ... existing settings ...
+
+    # LAN access settings
+    enable_lan: bool = False  # Enable LAN binding (set via --lan flag)
+    lan_host: str = "0.0.0.0"  # Bind to all interfaces for LAN
+    lan_cert_path: Path = Path("data/lan.crt")
+    lan_key_path: Path = Path("data/lan.key")
+
+    # mkcert settings
+    mkcert_enabled: bool = True  # Use mkcert if available
+```
+
+### Modified: `src/cli/main.py` - New `lan-setup` Command
+
+```python
+@app.command("lan-setup")
+def lan_setup(
+    install_ca: bool = typer.Option(True, "--install-ca/--no-install-ca",
+                                    help="Install mkcert CA on this machine"),
+) -> None:
+    """Set up LAN-accessible HTTPS certificates using mkcert.
+
+    LAN-01: Generate locally-trusted SSL certificates for LAN access.
+    LAN-02: CLI command to set up mkcert and install CA on devices.
+
+    This command will:
+    1. Check if mkcert is installed
+    2. Install local CA (optional)
+    3. Detect LAN IP address
+    4. Generate certificate with SANs for localhost, 127.0.0.1, and LAN IP
+
+    Examples:
+        xbm lan-setup
+        xbm lan-setup --no-install-ca
+    """
+    try:
+        # Check mkcert installation
+        if not check_mkcert_installed():
+            console.print(Panel(
+                Text.assemble(
+                    ("mkcert is not installed\n\n", "bold red"),
+                    ("Install with:\n", "dim"),
+                    ("  macOS: brew install mkcert\n", "cyan"),
+                    ("  Linux: sudo apt install mkcert\n", "cyan"),
+                    ("  Windows: choco install mkcert\n", "cyan"),
+                    ("\nSee: https://github.com/FiloSottile/mkcert\n", "dim"),
+                ),
+                title="[bold red]Prerequisite Missing[/bold red]",
+                border_style="red",
+            ))
+            raise typer.Exit(1)
+
+        # Install CA if requested
+        if install_ca:
+            console.print("[cyan]Installing local CA...[/cyan]")
+            if not install_mkcert_ca():
+                console.print("[yellow]Warning: Could not install CA automatically[/yellow]")
+                console.print("[dim]Run 'mkcert -install' manually[/dim]")
+
+        # Detect LAN IP
+        lan_ip = get_lan_ip()
+        if not lan_ip:
+            console.print("[red]Could not detect LAN IP address[/red]")
+            console.print("[dim]Ensure you're connected to a network[/dim]")
+            raise typer.Exit(1)
+
+        console.print(f"[cyan]Detected LAN IP: {lan_ip}[/cyan]")
+
+        # Generate certificates
+        cert_path, key_path = ensure_lan_certs(lan_ip)
+
+        # Success message
+        console.print(Panel(
+            Text.assemble(
+                ("LAN certificates generated!\n\n", "bold green"),
+                ("Certificate: ", "dim"),
+                (f"{cert_path}\n", "cyan"),
+                ("Key: ", "dim"),
+                (f"{key_path}\n", "cyan"),
+                ("\n", ""),
+                ("LAN URL: ", "dim"),
+                (f"https://{lan_ip}:8000\n\n", "cyan"),
+                ("To access from mobile:\n", "bold yellow"),
+                ("1. Install the CA certificate on your device\n", "dim"),
+                ("   macOS: The CA is already trusted\n", "dim"),
+                ("   iOS: AirDrop rootCA.pem to device, Settings > General > About > Certificate Trust Settings\n", "dim"),
+                ("   Android: Transfer rootCA.pem, Settings > Security > Install certificates\n", "dim"),
+                ("2. Navigate to ", "dim"),
+                (f"https://{lan_ip}:8000", "cyan"),
+            ),
+            title="[bold]LAN Setup Complete[/bold]",
+            border_style="green",
+        ))
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("LAN setup failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+```
+
+### Modified: `src/cli/main.py` - Updated `web` Command
+
+```python
+@app.command()
+def web(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host to bind to"),
+    port: int = typer.Option(8000, "--port", "-p", help="Port to bind to"),
+    lan: bool = typer.Option(False, "--lan", help="Enable LAN access (bind to 0.0.0.0)"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="Open browser automatically"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Database path"),
+) -> None:
+    """Start the web application server.
+
+    WEB-01: User can access application via web browser at localhost.
+    WEB-02: Web app serves posts over HTTPS (required for Google Cast).
+    LAN-03: Web server binds to LAN IP with proper certificate.
+    LAN-04: Mobile browser can access and cast to TV.
+
+    Examples:
+        xbm web                      # Localhost only
+        xbm web --lan                # LAN access (requires lan-setup first)
+        xbm web --lan --port 3000
+    """
+    import uvicorn
+    import webbrowser
+
+    try:
+        # Load settings
+        try:
+            settings = Settings()
+            if db_path is None:
+                db_path = settings.database_path
+        except Exception:
+            db_path = Path("data/bookmarks.db")
+
+        # Determine certificate paths and host binding
+        if lan:
+            host = "0.0.0.0"  # Bind to all interfaces
+
+            # Detect LAN IP for display
+            from ..web.lan_certs import get_lan_ip
+            lan_ip = get_lan_ip()
+
+            if not lan_ip:
+                console.print("[red]Could not detect LAN IP address[/red]")
+                raise typer.Exit(1)
+
+            # Use LAN certificates
+            cert_path = settings.lan_cert_path
+            key_path = settings.lan_key_path
+
+            # Ensure certificates exist
+            if not cert_path.exists() or not key_path.exists():
+                console.print(Panel(
+                    Text.assemble(
+                        ("LAN certificates not found\n\n", "bold red"),
+                        ("Run 'xbm lan-setup' first\n", "cyan"),
+                    ),
+                    title="[bold red]Certificate Missing[/bold red]",
+                    border_style="red",
+                ))
+                raise typer.Exit(1)
+
+            display_url = f"https://{lan_ip}:{port}"
+        else:
+            # Localhost only
+            from ..web.certs import ensure_https_certs
+            cert_path, key_path = ensure_https_certs()
+            display_url = f"https://{host}:{port}"
+
+        # Create the FastAPI app
+        from ..web.app import create_app
+
+        app = create_app()
+
+        # Print startup message
+        console.print(Panel(
+            Text.assemble(
+                ("Starting web server...\n", "bold cyan"),
+                ("\n", ""),
+                ("URL: ", "dim"),
+                (f"{display_url}\n", "cyan"),
+                ("\n", ""),
+                ("Note: ", "yellow"),
+                ("HTTPS certificate active\n", "dim"),
+                ("      ", "dim"),
+                ("(trusted on this machine)" if lan else "(self-signed, browser warning expected)\n", "dim"),
+            ),
+            title="[bold]X Bookmarked Posts - Web[/bold]",
+            border_style="cyan",
+        ))
+
+        # Open browser if requested (localhost only)
+        if open_browser and not lan:
+            webbrowser.open(f"https://localhost:{port}")
+
+        # Run the server
+        uvicorn.run(
+            app,
+            host=host,
+            port=port,
+            ssl_keyfile=str(key_path),
+            ssl_certfile=str(cert_path),
+        )
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped[/yellow]")
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Failed to start web server\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+```
+
+---
+
+## Part 14: Data Flow for LAN SSL
+
+### Certificate Setup Flow
+
+```
+User runs: xbm lan-setup
+    |
+    v
+check_mkcert_installed() -> False?
+    |
+    +-- False --> Print instructions to install mkcert
+    |             Return error
+    |
+    v True
+install_mkcert_ca() -> Run 'mkcert -install'
+    |
+    v
+get_lan_ip() -> Detect LAN IP (e.g., 192.168.1.100)
+    |
+    v
+generate_mkcert_cert(
+    hosts=["localhost", "127.0.0.1", "192.168.1.100", "::1"],
+    cert_path="data/lan.crt",
+    key_path="data/lan.key"
+)
+    |
+    v
+Certificate created with SANs for all hosts
+    |
+    v
+Print success message with:
+  - LAN URL: https://192.168.1.100:8000
+  - Instructions for installing CA on mobile device
+```
+
+### LAN Web Server Flow
+
+```
+User runs: xbm web --lan
+    |
+    v
+Load Settings (enable_lan=True when --lan flag used)
+    |
+    v
+ensure_lan_certs(lan_ip="192.168.1.100")
+    |
+    +-- mkcert available --> Use mkcert-generated cert
+    |                          (trusted by devices with CA installed)
+    |
+    +-- mkcert not available --> Fall back to self-signed cert
+    |                            (browser warning on all devices)
+    |
+    v
+uvicorn.run(
+    app,
+    host="0.0.0.0",  # Bind to all interfaces
+    port=8000,
+    ssl_keyfile=str(key_path),
+    ssl_certfile=str(cert_path),
+)
+    |
+    v
+Server accessible at:
+  - https://localhost:8000 (local)
+  - https://192.168.1.100:8000 (LAN)
+```
+
+---
+
+## Part 15: Anti-Patterns for LAN SSL
+
+### Anti-Pattern 1: Hardcoded Certificate Paths
+
+**What people do:** Use hardcoded paths like `"cert.pem"` without checking if they exist.
+
+**Why it's wrong:** Breaks when run from different directories, no clear ownership.
+
+**Do this instead:**
+
+```python
+# Use Settings for all paths
+settings = Settings()
+cert_path = settings.lan_cert_path  # data/lan.crt by default
+```
+
+### Anti-Pattern 2: Certificate SANs Missing Localhost
+
+**What people do:** Generate cert only for LAN IP (e.g., `192.168.1.100`).
+
+**Why it's wrong:** Breaks local development access (https://localhost:8000 shows warning).
+
+**Do this instead:**
+
+```python
+# Always include localhost and loopback
+hosts = ["localhost", "127.0.0.1", lan_ip, "::1"]
+```
+
+### Anti-Pattern 3: Binding to 0.0.0.0 Without HTTPS
+
+**What people do:** Enable LAN binding (`--host 0.0.0.0`) without HTTPS.
+
+**Why it's wrong:** Exposes application to network without encryption, security risk.
+
+**Do this instead:**
+
+```python
+# Enforce HTTPS when LAN is enabled
+if lan and not cert_path.exists():
+    console.print("[red]LAN access requires HTTPS certificates.[/red]")
+    console.print("[dim]Run 'xbm lan-setup' first.[/dim]")
+    raise typer.Exit(1)
+```
+
+### Anti-Pattern 4: mkcert CA Key Shared
+
+**What people do:** Copy `rootCA-key.pem` to other machines.
+
+**Why it's wrong:** Compromises security - anyone with the key can sign certificates.
+
+**Do this instead:**
+
+```python
+# Never share or copy rootCA-key.pem
+# Install mkcert separately on each machine
+console.print("""
+[bold]To install CA on mobile device:[/bold]
+1. Run: mkcert -CAROOT  (shows CA certificate location)
+2. Transfer rootCA.pem (NOT rootCA-key.pem) to device
+3. Install as trusted certificate on device
+""")
+```
+
+---
+
+## Part 16: Integration Points for LAN SSL
+
+### New Files
+
+| File | Purpose | Dependencies |
+|------|---------|--------------|
+| `src/web/lan_certs.py` | mkcert integration, LAN IP detection | subprocess (mkcert), socket |
+
+### Modified Files
+
+| File | Changes | New Dependencies |
+|------|---------|------------------|
+| `src/config/settings.py` | Add LAN settings (enable_lan, lan_cert_path, etc.) | None |
+| `src/cli/main.py` | Add `lan-setup` command, modify `web` command | `src/web/lan_certs.py` |
+
+### Unchanged Files
+
+| File | Why No Changes |
+|------|----------------|
+| `src/web/app.py` | SSL is handled at uvicorn level, not app level |
+| `src/web/certs.py` | Still used as fallback for self-signed certs |
+| `src/web/routes/*.py` | HTTP handlers don't need to know about SSL |
+| `src/db/*.py` | Data layer independent of web serving |
+| `src/services/*.py` | Business logic independent of web serving |
+
+---
+
+## Part 17: Implementation Order
+
+Based on dependencies, implement in this order:
+
+1. **Phase 1: Core Infrastructure**
+   - `src/web/lan_certs.py` - LAN IP detection and mkcert integration
+   - Modify `src/config/settings.py` - Add LAN settings
+
+2. **Phase 2: CLI Integration**
+   - Add `lan-setup` command to `src/cli/main.py`
+   - Modify `web` command with `--lan` flag
+
+3. **Phase 3: User Guidance**
+   - Error messages when mkcert not installed
+   - Instructions for CA installation on mobile devices
+   - Documentation in CLI help text
+
+---
+
+## Part 18: Scaling Considerations for LAN
+
+| Scale | Considerations |
+|-------|----------------|
+| Single user (100-500 bookmarks) | Current architecture is optimal |
+| Family/home network (multiple devices) | LAN SSL handles multiple devices accessing same server |
+| Public internet | Out of scope - use reverse proxy (Caddy, Traefik) with Let's Encrypt |
+
+### Scaling Priorities
+
+1. **First priority:** Certificate refresh handling (mkcert certs expire, handle gracefully)
+2. **Future consideration:** If serving multiple households, consider separate instances rather than scaling single instance
+
+---
+
 ## Sources
 
 ### X API Documentation
@@ -746,6 +1372,14 @@ def cleanup_orphaned_embedded_posts(self) -> int:
 - [Twitter Database Design Patterns](https://thelinuxcode.com/how-i-design-a-database-for-a-twitterstyle-platform-in-2026/) — MEDIUM confidence (community)
 - [SQLite Foreign Keys](https://www.sqlite.org/foreignkeys.html) — HIGH confidence (official)
 
+### LAN SSL Patterns
+- [mkcert GitHub Repository](https://github.com/FiloSottile/mkcert) — HIGH confidence (official)
+- [Local HTTPS Development in Python with Mkcert](https://woile.dev/blog/local-https-development-in-python-with-mkcert.html) — MEDIUM confidence (community)
+- [mkcert Cheat Sheet](https://1337skills.com/cheatsheets/mkcert/) — MEDIUM confidence (community reference)
+- [FastAPI HTTPS Documentation](https://fastapi-fastapi.mintlify.app/deployment/https) — HIGH confidence (official)
+- [Python LAN IP Detection](https://thelinuxcode.com/finding-ip-address-using-python-practical-patterns-for-local-public-and-interface-specific-ips/) — MEDIUM confidence (community)
+- [Uvicorn SSL Configuration](https://github.com/tiangolo/fastapi/blob/master/docs/en/docs/deployment/https.md) — HIGH confidence (official)
+
 ### Existing Codebase
 - [src/db/schema.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/db/schema.py) — HIGH confidence (project reference)
 - [src/services/sync.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/services/sync.py) — HIGH confidence (project reference)
@@ -753,7 +1387,10 @@ def cleanup_orphaned_embedded_posts(self) -> int:
 - [src/web/templates/browse.html](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/web/templates/browse.html) — HIGH confidence (project reference)
 - [src/web/templates/receiver.html](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/web/templates/receiver.html) — HIGH confidence (project reference)
 - [src/api/x_client.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/api/x_client.py) — HIGH confidence (project reference)
+- [src/web/certs.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/web/certs.py) — HIGH confidence (project reference)
+- [src/cli/main.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/cli/main.py) — HIGH confidence (project reference)
+- [src/config/settings.py](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/config/settings.py) — HIGH confidence (project reference)
 
 ---
-*Architecture research for: Embedded Post Rendering (Milestone v1.2)*
-*Researched: 2026-06-04*
+*Architecture research for: Embedded Post Rendering (Milestone v1.2) and LAN SSL Integration (Milestone v1.3)*
+*Researched: 2026-06-04 (v1.2), 2026-06-07 (v1.3)*

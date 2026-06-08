@@ -1,24 +1,20 @@
-# Feature Research: Embedded Post Rendering
+# Feature Research: LAN SSL Certificate Setup
 
-**Domain:** X/Twitter bookmarked posts with embedded content (retweets, quote tweets)
-**Researched:** 2026-06-04
-**Confidence:** HIGH (X API v2 official documentation, existing project patterns verified)
+**Domain:** Local development HTTPS / LAN-accessible web applications
+**Researched:** 2026-06-07
+**Confidence:** HIGH (mkcert official docs, Plain Framework implementation, multiple community sources)
 
 ## Context
 
-This is a **subsequent milestone** (v1.2) adding embedded post rendering to an existing app. The app already provides:
+This is a **subsequent milestone** (v1.3) adding LAN-accessible HTTPS to an existing app. The app already provides:
 
-- OAuth 2.0 PKCE authentication
+- OAuth 2.0 PKCE authentication with X API
 - SQLite storage with posts, tags, topics, review state
-- Bookmark sync with incremental updates
-- FTS5 full-text search
-- Personal notes on posts
-- Tags and topic taxonomy
-- FSRS-based spaced repetition
-- FastAPI web app with HTTPS
-- Google Cast integration
+- FastAPI web app running on localhost:8443 with self-signed SSL
+- Google Cast integration for TV viewing
+- Embedded post rendering (retweets, quote tweets)
 
-Research below focuses **only** on new features for embedded post rendering (retweets and quote tweets).
+Research below focuses **only** on new features for LAN SSL certificate setup to enable mobile device access.
 
 ---
 
@@ -26,16 +22,16 @@ Research below focuses **only** on new features for embedded post rendering (ret
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist for embedded posts. Missing these = product feels incomplete.
+Features users assume exist for LAN HTTPS. Missing these = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Retweet indicator** | Users need to know when content is reshared vs original | LOW | Display "Reposted from @username" or retweet icon |
-| **Quote tweet nested display** | Quote tweets show commentary above the original post | MEDIUM | Nested card UI with distinct visual styling |
-| **Original author attribution** | Must credit the original author, not just the retweeter | LOW | Avatar, display name, handle of original author |
-| **Original content display** | Full text, media, and links from referenced tweet | MEDIUM | Requires storing and rendering referenced tweet data |
-| **Engagement metrics** | Likes, retweets, replies for both original and quote | LOW | Standard display, already implemented for regular posts |
-| **Link to original on X** | Users expect to open the original tweet on X | LOW | Deep link to x.com or twitter.com |
+| **mkcert binary management** | Users expect CLI to handle tool installation, not manual setup | MEDIUM | Auto-download from `dl.filippo.io` if not installed; detect platform/architecture |
+| **Local CA installation** | HTTPS requires trusted CA; users won't accept browser warnings | LOW | `mkcert -install` once per machine; requires admin/password on some platforms |
+| **Certificate generation** | SSL certificates must exist for HTTPS to work | LOW | `mkcert localhost 127.0.0.1 <LAN_IP>` generates certs in project directory |
+| **LAN IP binding** | Access from other devices requires binding to 0.0.0.0 or specific LAN IP | LOW | Detect LAN IP automatically; bind FastAPI to all interfaces |
+| **Clear status feedback** | Users need to know if setup succeeded or failed | LOW | Typer/Rich output showing CA status, certificate locations, expiration dates |
+| **Cross-platform support** | Users run macOS, Linux, Windows | MEDIUM | CA storage differs per platform; path handling varies |
 
 ### Differentiators (Competitive Advantage)
 
@@ -43,12 +39,12 @@ Features that set the product apart. Not required, but valuable.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Visual hierarchy for retweets** | Clear distinction between retweeter and original author | MEDIUM | Shows retweeter as "forwarder", original author prominent |
-| **Quote tweet as conversation starter** | Treats quote tweets as separate reviewable items | LOW | Different from retweets - user's commentary has value |
-| **Media inheritance** | Images/videos from original post render inline | MEDIUM | Requires storing media_urls from referenced tweet |
-| **Search includes embedded content** | Find posts by quoted/retweeted content, not just quoter's text | HIGH | FTS5 already exists, add referenced content to index |
-| **CLI tree display** | Rich Tree component shows nested structure elegantly | LOW | Terminal-native visualization using existing Rich library |
-| **TV/Chromecast nested card rendering** | Quote tweets display as card-within-card on large screen | MEDIUM | Existing Cast infrastructure, add nested template |
+| **Automatic LAN IP detection** | Eliminates manual IP lookup step | LOW | Use `socket.gethostbyname(socket.gethostname())` or netifaces library |
+| **One-command setup** | Single CLI command does all setup | MEDIUM | `x-bookmarked-posts setup-lan` installs mkcert, creates CA, generates certs |
+| **Certificate status command** | Users can verify setup before troubleshooting | LOW | Show CA installed, cert paths, expiration date, trusted IPs |
+| **Mobile device guidance** | Most users struggle with iOS/Android CA installation | LOW | Print clear instructions after setup; link to docs |
+| **Certificate renewal detection** | 2-year cert expiry sneaks up on users | MEDIUM | Store timestamp; warn if approaching expiration; offer regenerate command |
+| **Alternative: lancert.dev integration** | No CA installation needed on mobile devices | MEDIUM | Uses pre-issued Let's Encrypt certs for private IPs; less secure but zero-config |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
@@ -56,158 +52,164 @@ Features that seem good but create problems.
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Thread context expansion** | Users want full conversation context | Out of scope per PROJECT.md, significantly increases complexity | Link to original on X for full thread |
-| **Live retweet/quote counts** | Show current engagement on original | Requires additional API calls per post, rate limits hit quickly | Store snapshot metrics from sync time |
-| **Recursive nested quotes** | Quote of a quote of a quote... | X supports this, but UX degrades after 2 levels | Limit to 1 level of nesting, link to deeper |
-| **RT/@ prefix text parsing** | Old-style retweets had "RT @user: text" | API v2 provides structured `referenced_tweets`, no need to parse | Use `referenced_tweets` field exclusively |
+| **Self-signed certificates** | No external tool dependency | Browser warnings on every device; users bypass warnings incorrectly | mkcert creates trusted CA; same UX as production HTTPS |
+| **Production certificate handling** | "Could use this for deployment" | mkcert explicitly warns against production use; root key gives complete MITM power | Document clearly: development only; point to Let's Encrypt for production |
+| **CA key sharing between team members** | "Consistent certs across team" | Security nightmare: anyone with rootCA-key.pem can intercept all HTTPS | Each developer has own CA; share only rootCA.pem for mobile devices (not key) |
+| **Wildcard DNS domains (.dev, .app)** | "Like production subdomains" | Google HSTS preload forces HTTPS; breaks local development | Use `.test` or `.local` domains for local development |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Embedded Post Storage]
-    ├──requires──> [Database Migration: reference_type, reference_id columns]
-    ├──requires──> [Sync Enhancement: fetch referenced_tweets expansion]
-    └──requires──> [Referenced Post Storage: separate table or JSON blob]
+[FastAPI HTTPS Server]
+    └──requires──> [SSL Certificate Files]
+                        └──requires──> [mkcert binary installed]
+                        └──requires──> [Local CA created (mkcert -install)]
 
-[Embedded Post Display - Web]
-    ├──requires──> [Embedded Post Storage]
-    ├──requires──> [Template Update: nested post card component]
-    └──requires──> [API Enhancement: include referenced post in response]
+[Mobile Device Trust]
+    └──requires──> [rootCA.pem exported]
+    └──requires──> [Manual device installation]
 
-[Embedded Post Display - CLI]
-    ├──requires──> [Embedded Post Storage]
-    └──requires──> [Rich Tree/Panel component for nested display]
+[Certificate Renewal]
+    └──enhances──> [Long-term reliability]
+    └──requires──> [Timestamp tracking]
 
-[Embedded Post Display - Cast]
-    ├──requires──> [Embedded Post Storage]
-    └──requires──> [Cast Receiver Template: nested post card]
+[LAN IP Detection]
+    └──enhances──> [Automatic certificate generation]
+    └──conflicts──> [Static IP requirements] (if user changes IP, certs regenerate)
 ```
 
 ### Dependency Notes
 
-- **Embedded Post Storage requires Database Migration:** The current `posts` schema has no `reference_type` or `reference_id` columns. Need to add these fields plus storage for referenced post content.
-- **Embedded Post Display requires Storage:** Cannot display what isn't stored. All display surfaces depend on sync enhancement first.
-- **Web/CLI/Cast are parallel after Storage:** Once storage is complete, each display surface can be implemented independently.
+- **FastAPI HTTPS requires certificate files:** Cannot bind with SSL without valid cert/key PEM files
+- **Certificate generation requires mkcert binary:** Must download or find in PATH before generating
+- **Local CA requires `mkcert -install`:** First-time setup creates root CA in system trust store (may prompt for password)
+- **Mobile device trust requires manual CA export:** Cannot automate iOS/Android installation; must guide users through settings
+- **Certificate renewal requires timestamp tracking:** Store generation time to detect expiration (certificates valid 2 years)
+- **LAN IP detection enhances automation:** Eliminates manual IP lookup but certificates become IP-specific
 
 ---
 
-## Data Model Changes
+## User Workflow Phases
 
-### Current `posts` Schema (No Embedded Post Support)
+### Phase 1: Initial Setup (One-time per machine)
 
-```sql
-CREATE TABLE posts (
-    x_post_id TEXT PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL,
-    text TEXT NOT NULL,
-    author_id TEXT NOT NULL,
-    author_username TEXT NOT NULL,
-    author_display_name TEXT,
-    media_urls TEXT,           -- JSON array
-    link_urls TEXT,            -- JSON array
-    bookmarked_at TIMESTAMP,
-    ...
-);
+```
+User runs: x-bookmarked-posts setup-lan
+
+CLI actions:
+1. Check if mkcert installed → if not, download to ~/.local/bin/
+2. Run `mkcert -install` → creates CA in system trust store
+3. Detect LAN IP (e.g., 192.168.1.50)
+4. Generate certs: mkcert localhost 127.0.0.1 192.168.1.50
+5. Store certs in ~/.config/x-bookmarked-posts/certs/
+6. Print success message with:
+   - CA location (mkcert -CAROOT)
+   - Certificate files location
+   - Expiration date (2 years)
+   - Instructions for mobile device trust
 ```
 
-### Proposed Schema Enhancement
+**User experience by platform:**
+- **macOS:** May prompt for password to add CA to keychain
+- **Linux:** No password if libnss3-tools installed
+- **Windows:** May require admin for system trust store
 
-```sql
--- Add columns to posts table for reference tracking
-ALTER TABLE posts ADD COLUMN reference_type TEXT;  -- 'retweeted', 'quoted', or NULL
-ALTER TABLE posts ADD COLUMN reference_id TEXT;    -- Referenced tweet ID
+### Phase 2: Running the Server
 
--- New table for storing referenced tweet content
-CREATE TABLE referenced_posts (
-    x_post_id TEXT PRIMARY KEY,        -- Original tweet ID
-    created_at TIMESTAMP NOT NULL,
-    text TEXT NOT NULL,
-    author_id TEXT NOT NULL,
-    author_username TEXT NOT NULL,
-    author_display_name TEXT,
-    media_urls TEXT,                   -- JSON array
-    link_urls TEXT,                    -- JSON array
-    public_metrics TEXT,               -- JSON: like_count, retweet_count, etc.
-    fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+```
+User runs: x-bookmarked-posts web --lan
+
+CLI actions:
+1. Load certificates from stored location
+2. Detect current LAN IP (may differ from initial setup)
+3. Warn if IP changed since certificate generation
+4. Bind FastAPI to 0.0.0.0:8443 with SSL
+5. Print URLs:
+   - Local: https://localhost:8443
+   - LAN: https://192.168.1.50:8443
 ```
 
-### API Sync Enhancement
+### Phase 3: Mobile Device Trust (Manual)
 
-```python
-# Current sync fetches bookmarks without expansions
-response = client.get_bookmarks(
-    id=user_id,
-    tweet_fields=['created_at', 'text', 'author_id', ...]
-)
+```
+CLI outputs guidance:
 
-# Enhanced sync with referenced_tweets expansion
-response = client.get_bookmarks(
-    id=user_id,
-    expansions=['referenced_tweets.id', 'referenced_tweets.id.author_id'],
-    tweet_fields=['created_at', 'text', 'author_id', 'public_metrics', 'referenced_tweets'],
-    media_fields=['url', 'type', 'width', 'height']
-)
+"To access from mobile devices, install the CA certificate:
+
+  iOS:
+  1. Open https://localhost:8443/ca on this computer
+  2. Download rootCA.pem
+  3. AirDrop or email to iOS device
+  4. Settings > Profile Downloaded > Install
+  5. Settings > General > About > Certificate Trust Settings > Enable
+
+  Android:
+  1. Download rootCA.pem
+  2. Settings > Security > Install certificate > CA certificate
+  3. Select file and confirm
+
+  CA certificate location: /Users/you/.local/share/mkcert/rootCA.pem"
 ```
 
-### Processing Logic
+### Phase 4: Certificate Renewal (2-year cycle)
 
-```python
-def process_bookmark(tweet, includes):
-    """Process a bookmark, extracting embedded post data."""
-    post_data = {
-        'x_post_id': tweet.id,
-        'text': tweet.text,
-        'author_id': tweet.author_id,
-        ...
-    }
+```
+User runs: x-bookmarked-posts cert-status
 
-    # Check for referenced tweets
-    if tweet.referenced_tweets:
-        ref = tweet.referenced_tweets[0]  # Usually one reference
-        post_data['reference_type'] = ref.type  # 'retweeted' or 'quoted'
-        post_data['reference_id'] = ref.id
+CLI outputs:
+  CA Status: ✓ Installed
+  CA Location: /Users/you/.local/share/mkcert
+  CA Expires: 2031-06-07 (5 years)
 
-        # Get full referenced tweet from includes
-        ref_tweets = {t.id: t for t in includes.get('tweets', [])}
-        if ref.id in ref_tweets:
-            original = ref_tweets[ref.id]
-            # Store original post in referenced_posts table
-            store_referenced_post(original)
+  Certificate: ~/.config/x-bookmarked-posts/certs/localhost+3.pem
+  Expires: 2028-06-07 (1 year, 8 months)
+  Trusted IPs: localhost, 127.0.0.1, 192.168.1.50
 
-    return post_data
+  Recommendation: Certificates valid. No action needed.
+
+---
+
+User runs: x-bookmarked-posts cert-status (when expired)
+
+CLI outputs:
+  ⚠ Certificate expired on 2028-06-07
+
+  Run: x-bookmarked-posts renew-certs
 ```
 
 ---
 
 ## MVP Definition
 
-### Launch With (v1.2)
+### Launch With (v1.3 — LAN Casting Support)
 
-Minimum viable implementation for embedded posts.
+Minimum viable product — what's needed to enable mobile browser access.
 
-- [ ] **Database migration** — Add `reference_type`, `reference_id` to posts table; create `referenced_posts` table
-- [ ] **Sync enhancement** — Fetch `referenced_tweets.id` expansion; store referenced post data during sync
-- [ ] **Web display** — Nested card component showing quote tweets; retweet indicator for retweets
-- [ ] **CLI display** — Rich Panel/Tree showing embedded content distinctly
-- [ ] **Cast display** — Nested card in receiver template for TV viewing
+- [x] FastAPI web app running on localhost:8443 with HTTPS — **Already complete** (Milestone 2)
+- [ ] **CLI command to check mkcert status** — `cert-status` shows if CA installed, cert locations, expiration
+- [ ] **CLI command to setup LAN certificates** — `setup-lan` installs mkcert, creates CA, generates certs
+- [ ] **Automatic LAN IP detection** — Detect IP at setup time; bind to 0.0.0.0 with detected IP in cert
+- [ ] **Mobile device CA installation instructions** — Clear guidance in CLI output and documentation
+- [ ] **Server binds to LAN-accessible address** — FastAPI binds to 0.0.0.0 with certificate for LAN IP
 
-### Add After Validation (v1.3)
+### Add After Validation (v1.x)
 
-Features to add once core rendering works.
+Features to add once core LAN access is working.
 
-- [ ] **Search indexed content** — Include referenced post text in FTS5 search index
-- [ ] **Metrics inheritance** — Show original post's engagement metrics on retweet display
-- [ ] **Note attachment** — Allow notes on quote tweets that apply to user's commentary
+- [ ] **Certificate expiration warning** — Alert user when certificates approaching expiration
+- [ ] **LAN IP change detection** — Warn if current IP differs from certificate IP; offer regenerate
+- [ ] **Certificate regeneration command** — `renew-certs` to regenerate expired certs
+- [ ] **QR code for mobile access** — Display QR code with LAN URL for easy mobile scanning
 
 ### Future Consideration (v2+)
 
-Features to defer.
+Features to defer until LAN casting is validated.
 
-- [ ] **Recursive quotes** — Support quote-of-quote (2+ levels of nesting)
-- [ ] **Thread preview** — Show parent tweet for replies (out of scope per PROJECT.md)
+- [ ] **lancert.dev integration** — Alternative: use pre-issued Let's Encrypt certs (no CA installation needed)
+- [ ] **mDNS/Bonjour advertising** — Auto-discover service on LAN without knowing IP
+- [ ] **Custom domain support** — `.test` domains with /etc/hosts or DNSMasq integration
 
 ---
 
@@ -215,186 +217,167 @@ Features to defer.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Database migration + storage | HIGH | MEDIUM | P1 |
-| Sync enhancement for expansions | HIGH | MEDIUM | P1 |
-| Web nested card display | HIGH | MEDIUM | P1 |
-| CLI nested display | MEDIUM | LOW | P1 |
-| Cast nested display | MEDIUM | MEDIUM | P2 |
-| Search index integration | MEDIUM | MEDIUM | P2 |
-| Metrics inheritance | LOW | LOW | P3 |
+| mkcert binary auto-install | HIGH | MEDIUM | P1 |
+| Local CA installation | HIGH | LOW | P1 |
+| Certificate generation (localhost + LAN IP) | HIGH | LOW | P1 |
+| LAN IP detection | HIGH | LOW | P1 |
+| Mobile device instructions | MEDIUM | LOW | P1 |
+| Certificate status command | MEDIUM | LOW | P2 |
+| Certificate expiration tracking | LOW | MEDIUM | P2 |
+| LAN IP change detection | MEDIUM | MEDIUM | P2 |
+| QR code for mobile access | LOW | LOW | P3 |
+| lancert.dev integration | MEDIUM | MEDIUM | P3 |
 
 **Priority key:**
-- P1: Must have for launch — embedded posts must be visible across all surfaces
-- P2: Should have — enhances discoverability
-- P3: Nice to have — polish feature
+- P1: Must have for v1.3 launch (enables LAN casting)
+- P2: Should have, add after core validation
+- P3: Nice to have, future consideration
 
 ---
 
-## UI Patterns by Platform
+## Implementation Complexity Notes
 
-### Web App (FastAPI + Jinja2)
+### mkcert Binary Management (MEDIUM)
 
-**Quote Tweet Display:**
-```html
-<div class="post-card">
-  <!-- Quoter's commentary -->
-  <div class="quote-commentary">
-    <span class="author">@{{ post.author_username }}</span>
-    <p>{{ post.text }}</p>
-  </div>
-
-  <!-- Nested original post -->
-  <div class="quoted-post">
-    <span class="original-author">@{{ referenced.author_username }}</span>
-    <p>{{ referenced.text }}</p>
-    {% if referenced.media_urls %}
-      <!-- Media from original -->
-    {% endif %}
-  </div>
-</div>
-```
-
-**Retweet Display:**
-```html
-<div class="post-card retweet">
-  <div class="retweet-header">
-    <icon name="retweet" />
-    <span>{{ post.author_display_name }} reposted</span>
-  </div>
-
-  <!-- Original post content (prominent) -->
-  <div class="original-post">
-    <span class="author">@{{ referenced.author_username }}</span>
-    <p>{{ referenced.text }}</p>
-  </div>
-</div>
-```
-
-### CLI (Typer + Rich)
-
-**Quote Tweet Display:**
+**Platform detection:**
 ```python
-from rich.tree import Tree
-from rich.panel import Panel
-from rich.console import Console
+import platform
+import shutil
 
-def render_quote_tweet(post: dict, referenced: dict) -> Panel:
-    """Render a quote tweet with nested content."""
-    # Main panel with quoter's text
-    quoter_text = f"[bold]@{post['author_username']}[/bold]\n{post['text']}"
+def get_mkcert_binary():
+    # Check system PATH first
+    if shutil.which("mkcert"):
+        return shutil.which("mkcert")
 
-    # Nested panel with original
-    original_text = (
-        f"[dim]Quoting [bold]@{referenced['author_username']}[/bold][/dim]\n"
-        f"{referenced['text']}"
-    )
+    # Download from dl.filippo.io/mkcert/latest?for={os}/{arch}
+    os_map = {"Darwin": "darwin", "Linux": "linux", "Windows": "windows"}
+    arch_map = {"x86_64": "amd64", "amd64": "amd64", "arm64": "arm64", "aarch64": "arm64"}
 
-    return Panel(
-        f"{quoter_text}\n\n"
-        f"{'─' * 40}\n"
-        f"{original_text}",
-        title="Quote Tweet",
-        border_style="blue"
-    )
+    os_name = os_map.get(platform.system(), "linux")
+    arch = arch_map.get(platform.machine().lower(), "amd64")
+    url = f"https://dl.filippo.io/mkcert/latest?for={os_name}/{arch}"
+    # Download, chmod +x, store in ~/.local/bin/
 ```
 
-**Retweet Display:**
+**Reference:** Plain Framework mkcert.py implementation ([source](https://plainframework.com/docs/plain-dev/plain/dev/mkcert.py))
+
+### Certificate Generation (LOW)
+
+**Command execution:**
 ```python
-def render_retweet(post: dict, referenced: dict) -> Panel:
-    """Render a retweet with attribution."""
-    return Panel(
-        f"[dim]@{post['author_username']} reposted[/dim]\n\n"
-        f"[bold]@{referenced['author_username']}[/bold]\n"
-        f"{referenced['text']}",
-        border_style="green"
-    )
+import subprocess
+from pathlib import Path
+
+def generate_certs(lan_ip: str, cert_dir: Path) -> tuple[Path, Path]:
+    cert_dir.mkdir(parents=True, exist_ok=True)
+
+    subprocess.run([
+        "mkcert",
+        "-cert-file", str(cert_dir / "cert.pem"),
+        "-key-file", str(cert_dir / "key.pem"),
+        "localhost", "127.0.0.1", lan_ip
+    ], check=True)
+
+    # Store timestamp for renewal tracking
+    (cert_dir / ".timestamp").write_text(str(time.time()))
+
+    return cert_dir / "cert.pem", cert_dir / "key.pem"
 ```
 
-### Cast Receiver (Google Cast)
+### LAN IP Detection (LOW)
 
-Same nested card structure as web app, optimized for TV:
-- Larger text sizes
-- Higher contrast borders
-- Simplified layout (no hover states)
-- Quote card inset with distinct background color
+```python
+import socket
+
+def get_lan_ip() -> str:
+    """Get primary LAN IP address."""
+    try:
+        # Create socket to external address (doesn't send data)
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+```
+
+### CA Location Discovery (LOW)
+
+```python
+def get_ca_root() -> Path | None:
+    """Find mkcert CA directory."""
+    result = subprocess.run(["mkcert", "-CAROOT"], capture_output=True, text=True)
+    if result.returncode == 0:
+        return Path(result.stdout.strip())
+    return None
+```
 
 ---
 
-## Key Implementation Notes
+## Certificate Storage Locations (Cross-Platform)
 
-### X API v2 Specifics
+| Platform | CA Storage Location | Access Method |
+|----------|---------------------|---------------|
+| **macOS** | `~/Library/Application Support/mkcert/` | System Keychain via `security` command |
+| **Linux** | `~/.local/share/mkcert/` | NSS database (`certutil`) |
+| **Windows** | `%APPDATA%\mkcert\` | Windows Certificate Store |
 
-1. **Expansions are required** — Without `expansions=referenced_tweets.id`, you only get IDs, not content
-2. **Includes pattern** — Referenced tweets appear in `response.includes['tweets']`, not in main data
-3. **Dictionary mapping** — Build `{tweet.id: tweet}` dict from includes for efficient lookup
-4. **Author expansion** — Add `referenced_tweets.id.author_id` to get original author info in one call
+**Custom location:** Set `CAROOT` environment variable to override default.
 
-### Tweepy Code Pattern
+---
 
-```python
-import tweepy
+## Mobile Device Installation Details
 
-client = tweepy.Client(bearer_token="YOUR_BEARER_TOKEN")
+### iOS (Full Steps)
 
-# Fetch bookmarks with referenced tweets expansion
-response = client.get_bookmarks(
-    id=user_id,
-    expansions=['referenced_tweets.id', 'referenced_tweets.id.author_id'],
-    tweet_fields=['created_at', 'text', 'author_id', 'public_metrics', 'referenced_tweets'],
-    user_fields=['username', 'name', 'profile_image_url'],
-    media_fields=['url', 'type', 'width', 'height']
-)
+1. Transfer `rootCA.pem` to device (AirDrop, email, HTTP server)
+2. Open file → iOS shows "Profile Downloaded" prompt
+3. Settings → General → VPN & Device Management → Profile → Install
+4. Settings → General → About → Certificate Trust Settings
+5. Enable full trust for the certificate (required for HTTPS)
 
-# Build lookup dictionaries from includes
-referenced_tweets = {t.id: t for t in response.includes.get('tweets', [])}
-referenced_users = {u.id: u for u in response.includes.get('users', [])}
+**Key difference from Android:** iOS requires **two steps** — profile install AND trust enable.
 
-# Process each bookmark
-for tweet in response.data:
-    if tweet.referenced_tweets:
-        ref = tweet.referenced_tweets[0]
-        if ref.id in referenced_tweets:
-            original = referenced_tweets[ref.id]
-            # Now you have both the bookmark and the original
-```
+### Android (Full Steps)
 
-### Common Pitfalls
+1. Transfer `rootCA.pem` to device
+2. Settings → Security → Install certificate → CA certificate
+3. Select file and confirm
+4. For Android 7+, apps must explicitly trust user certificates (not default)
 
-| Pitfall | What Goes Wrong | Prevention |
-|---------|----------------|-------------|
-| Forgetting expansions | Only get IDs, not content | Always include `referenced_tweets.id` in sync |
-| Missing includes access | Tweepy's `.data` doesn't include referenced tweets | Use `response.includes` separately |
-| Assuming one reference | Some tweets reference multiple (reply + quote) | Iterate `referenced_tweets` array |
-| x.com URL handling | Twitter embed widgets don't recognize x.com | Normalize to twitter.com for any future web embedding |
-| Stale referenced content | Original tweet edited after bookmark | Accept snapshot semantics; sync re-fetches updates |
+**Key limitation:** Android 7+ doesn't trust user CAs by default; development builds must opt-in.
+
+---
+
+## Competitor Feature Analysis
+
+| Feature | mkcert (standard) | lancert.dev | Self-signed |
+|---------|-------------------|-------------|-------------|
+| **Setup complexity** | Install binary + run `-install` | None (API download) | OpenSSL commands |
+| **Mobile trust required** | Yes (manual) | No (Let's Encrypt) | Yes (manual) |
+| **Browser warnings** | No (trusted locally) | No (globally trusted) | Yes (every device) |
+| **Security model** | Local CA (good for dev) | Public keys (no confidentiality) | None (trivially MITM'd) |
+| **Certificate validity** | 2 years | 90 days (Let's Encrypt) | User-defined |
+| **Production safe** | No (explicitly) | No (explicitly) | No |
+| **LAN support** | Yes (specify IPs) | Yes (private IPs) | Yes (specify IPs) |
+
+**Recommendation:** Use mkcert as primary approach; lancert.dev as optional alternative for users who want zero-config mobile setup.
 
 ---
 
 ## Sources
 
-### X API Documentation (HIGH confidence)
-- [X API Data Dictionary](https://docs.x.com/x-api/fundamentals/data-dictionary) — Official, authoritative
-- [X API Expansions](https://docs.x.com/x-api/fundamentals/expansions) — Official, authoritative
-- [X API Post Lookup](https://docs.x.com/x-api/posts/post-lookup-by-id) — Official, authoritative
-
-### Tweepy Documentation (HIGH confidence)
-- [Tweepy Expansions and Fields](https://docs.tweepy.org/en/stable/expansions_and_fields.html) — Official library docs
-- [Tweepy Models](https://docs.tweepy.org/en/stable/v2_models.html) — Tweet object structure
-
-### Rich Documentation (HIGH confidence)
-- [Rich Tree](https://rich.readthedocs.io/en/stable/tree.html) — Official docs for nested display
-- [Rich Panel](https://rich.readthedocs.io/en/stable/reference/panel.html) — Official docs for bordered content
-
-### UI/UX Patterns (MEDIUM confidence)
-- [Quote Tweet vs Retweet Analysis](https://kwsmdigital.com/blog/the-difference-between-a-retweet-and-a-reply-on-twitter/) — Community, verified against official docs
-- [Tweet Rendering Challenges](https://www.swyx.io/the-hard-problem-of-rendering-tweets) — Community article on embedded tweet complexity
-- [Twitter Embed Patterns](https://www.tweetarchivist.com/how-to-embed-a-tweet-guide) — Community, verified against official embed patterns
-
-### Project References (HIGH confidence)
-- [Existing posts schema](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/db/schema.py) — Current database structure
-- [Posts repository](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/repositories/posts.py) — Current sync and storage patterns
-- [Browse template](file:///Users/ffaber/claude-projects/x-bookmarked-posts/src/web/templates/browse.html) — Current web display
+- [mkcert GitHub Repository](https://github.com/FiloSottile/mkcert) — HIGH confidence (official)
+- [mkcert README](https://github.com/FiloSottile/mkcert/blob/master/README.md) — HIGH confidence (official)
+- [Plain Framework mkcert.py](https://plainframework.com/docs/plain-dev/plain/dev/mkcert.py) — HIGH confidence (reference implementation)
+- [lancert.dev](https://lancert.dev/) — HIGH confidence (official)
+- [Local HTTPS with mkcert (Woile)](https://woile.dev/blog/local-https-development-in-python-with-mkcert.html) — MEDIUM confidence (community)
+- [Certificate Store Locations (Microsoft)](https://github.com/MicrosoftDocs/win32/blob/docs/desktop-src/SecCrypto/system-store-locations.md) — HIGH confidence (official)
+- [Linux Certificate Trust Stores (Red Hat)](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/securing_networks/using-shared-system-certificates) — HIGH confidence (official)
+- [NSS certutil Documentation (Mozilla)](https://devdoc.net/web/developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Reference/NSS_tools_:_certutil.html) — HIGH confidence (official)
+- [Let's Encrypt: Certificates for Localhost](https://letsencrypt.org/docs/certificates-for-localhost/) — HIGH confidence (official)
 
 ---
-*Feature research for: embedded post rendering (retweets, quote tweets)*
-*Researched: 2026-06-04*
+*Feature research for: LAN Casting Support (v1.3)*
+*Researched: 2026-06-07*
