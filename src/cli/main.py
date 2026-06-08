@@ -1885,16 +1885,21 @@ def web(
     port: int = typer.Option(8000, "--port", "-p", help="Port to bind to"),
     open_browser: bool = typer.Option(True, "--open/--no-open", help="Open browser automatically"),
     db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Path to database file"),
+    lan: bool = typer.Option(False, "--lan", help="Enable LAN network access (binds to 0.0.0.0)"),
 ) -> None:
     """Start the web application server.
 
     WEB-01: User can access application via web browser at localhost.
     WEB-02: Web app serves posts over HTTPS (required for Google Cast).
+    NET-01: --lan flag binds to all interfaces for mobile device access.
+    NET-02: LAN mode uses mkcert-generated certificates for HTTPS.
+    NET-03: Mobile browsers can access without certificate warnings after CA install.
 
     Examples:
         xbm web
         xbm web --port 3000
         xbm web --no-open
+        xbm web --lan
     """
     import uvicorn
     import webbrowser
@@ -1908,35 +1913,96 @@ def web(
         except Exception:
             db_path = Path("data/bookmarks.db")
 
-        # Ensure HTTPS certificates exist
-        from ..web.certs import ensure_https_certs
+        # Handle LAN mode
+        if lan:
+            # D-01: Bind to all interfaces when --lan is used
+            host = "0.0.0.0"
 
-        cert_path, key_path = ensure_https_certs()
+            # D-03: Block startup if certificates missing
+            cert_info = get_certificate_info(settings.lan_cert_path)
+            if not cert_info['exists']:
+                console.print(Panel(
+                    Text.assemble(
+                        ("LAN certificates not found\n\n", "bold red"),
+                        ("To enable LAN access, generate certificates first:\n\n", "dim"),
+                        ("  xbm lan-cert --generate\n\n", "cyan"),
+                        ("Then install the CA certificate on your mobile device:\n", "dim"),
+                        ("  xbm lan-cert --guide\n", "cyan"),
+                    ),
+                    title="[bold red]Certificate Required[/bold red]",
+                    border_style="red",
+                ))
+                raise typer.Exit(1)
+
+            # D-02, NET-02: Use LAN certificates for HTTPS
+            cert_path = settings.lan_cert_path
+            key_path = settings.lan_key_path
+        else:
+            # Ensure HTTPS certificates exist for localhost mode
+            from ..web.certs import ensure_https_certs
+            cert_path, key_path = ensure_https_certs()
 
         # Create the FastAPI app
         from ..web.app import create_app
 
         app = create_app()
 
-        # Print startup message
-        url = f"https://{host}:{port}"
-        console.print(Panel(
-            Text.assemble(
-                ("Starting web server...\n", "bold cyan"),
-                ("\n", ""),
-                ("URL: ", "dim"),
-                (f"{url}\n", "cyan"),
-                ("\n", ""),
-                ("Note: ", "yellow"),
-                ("Self-signed HTTPS certificate (browser warning expected)\n", "dim"),
-            ),
-            title="[bold]X Bookmarked Posts - Web[/bold]",
-            border_style="cyan",
-        ))
+        # D-02: Display both localhost and LAN URLs in startup output
+        if lan:
+            lan_ip = get_lan_ip()
+            if lan_ip:
+                console.print(Panel(
+                    Text.assemble(
+                        ("Starting web server...\n", "bold cyan"),
+                        ("\n", ""),
+                        ("Local: ", "dim"),
+                        (f"https://localhost:{port}\n", "cyan"),
+                        ("LAN:   ", "dim"),
+                        (f"https://{lan_ip}:{port}\n", "bold cyan"),
+                        ("\n", ""),
+                        ("Note: ", "yellow"),
+                        ("LAN access enabled - install CA on mobile devices to avoid warnings\n", "dim"),
+                    ),
+                    title="[bold]X Bookmarked Posts - Web (LAN)[/bold]",
+                    border_style="cyan",
+                ))
+            else:
+                # LAN IP detection failed - show warning but continue
+                console.print(f"[yellow]Warning: Could not detect LAN IP[/yellow]")
+                console.print(f"[dim]Access from: https://0.0.0.0:{port}[/dim]")
+                url = f"https://localhost:{port}"
+                console.print(Panel(
+                    Text.assemble(
+                        ("Starting web server...\n", "bold cyan"),
+                        ("\n", ""),
+                        ("URL: ", "dim"),
+                        (f"{url}\n", "cyan"),
+                        ("\n", ""),
+                        ("Note: ", "yellow"),
+                        ("LAN access enabled - install CA on mobile devices to avoid warnings\n", "dim"),
+                    ),
+                    title="[bold]X Bookmarked Posts - Web (LAN)[/bold]",
+                    border_style="cyan",
+                ))
+        else:
+            url = f"https://{host}:{port}"
+            console.print(Panel(
+                Text.assemble(
+                    ("Starting web server...\n", "bold cyan"),
+                    ("\n", ""),
+                    ("URL: ", "dim"),
+                    (f"{url}\n", "cyan"),
+                    ("\n", ""),
+                    ("Note: ", "yellow"),
+                    ("Self-signed HTTPS certificate (browser warning expected)\n", "dim"),
+                ),
+                title="[bold]X Bookmarked Posts - Web[/bold]",
+                border_style="cyan",
+            ))
 
-        # Open browser if requested
+        # Open browser if requested (only open localhost URL)
         if open_browser:
-            webbrowser.open(url)
+            webbrowser.open(f"https://localhost:{port}")
 
         # Run the server
         uvicorn.run(

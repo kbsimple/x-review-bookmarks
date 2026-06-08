@@ -4068,3 +4068,119 @@ class TestSeedCommand:
                     assert "10" in result.stdout or "seeded" in result.stdout.lower(), (
                         f"Expected seeded count in output: {result.stdout}"
                     )
+
+class TestWebLanCommand:
+    """Tests for `xbm web --lan` command."""
+
+    def test_web_lan_flag_shows_in_help(self) -> None:
+        """Verify --lan appears in help output."""
+        result = runner.invoke(app, ["web", "--help"])
+        assert result.exit_code == 0
+        assert "--lan" in result.stdout
+
+    def test_web_lan_blocks_without_certificates(self) -> None:
+        """Verify error when certs missing with --lan."""
+        import sys
+        mock_uvicorn = MagicMock()
+        mock_cert_info = {
+            'path': Path('data/lan.crt'),
+            'exists': False,
+        }
+        with patch.dict(sys.modules, {"uvicorn": mock_uvicorn}):
+            with patch("src.cli.main.get_certificate_info", return_value=mock_cert_info):
+                with patch("src.cli.main.Settings") as mock_settings:
+                    mock_settings.return_value.lan_cert_path = Path('data/lan.crt')
+                    mock_settings.return_value.lan_key_path = Path('data/lan.key')
+                    result = runner.invoke(app, ["web", "--lan", "--no-open"])
+                    assert result.exit_code == 1
+                    assert "LAN certificates not found" in result.stdout or "lan-cert --generate" in result.stdout
+
+    def test_web_lan_binds_to_all_interfaces(self) -> None:
+        """Verify host=0.0.0.0 when --lan used."""
+        import sys
+        mock_uvicorn = MagicMock()
+        mock_cert_info = {
+            'path': Path('data/lan.crt'),
+            'exists': True,
+            'days_until_expiry': 365,
+            'sans': ['localhost', '127.0.0.1', '192.168.1.100', '::1'],
+            'is_expired': False,
+            'is_expiring_soon': False,
+        }
+        with patch.dict(sys.modules, {"uvicorn": mock_uvicorn}):
+            with patch("src.cli.main.get_certificate_info", return_value=mock_cert_info):
+                with patch("src.cli.main.get_lan_ip", return_value="192.168.1.100"):
+                    with patch("src.cli.main.Settings") as mock_settings:
+                        mock_settings.return_value.lan_cert_path = Path('data/lan.crt')
+                        mock_settings.return_value.lan_key_path = Path('data/lan.key')
+                        result = runner.invoke(app, ["web", "--lan", "--no-open"])
+                        assert result.exit_code == 0
+                        # Verify uvicorn.run was called with host=0.0.0.0
+                        call_args = mock_uvicorn.run.call_args
+                        assert call_args[1]["host"] == "0.0.0.0"
+
+    def test_web_lan_shows_both_urls(self) -> None:
+        """Verify both URLs displayed with --lan."""
+        import sys
+        mock_uvicorn = MagicMock()
+        mock_cert_info = {
+            'path': Path('data/lan.crt'),
+            'exists': True,
+            'days_until_expiry': 365,
+            'sans': ['localhost', '127.0.0.1', '192.168.1.100', '::1'],
+            'is_expired': False,
+            'is_expiring_soon': False,
+        }
+        with patch.dict(sys.modules, {"uvicorn": mock_uvicorn}):
+            with patch("src.cli.main.get_certificate_info", return_value=mock_cert_info):
+                with patch("src.cli.main.get_lan_ip", return_value="192.168.1.100"):
+                    with patch("src.cli.main.Settings") as mock_settings:
+                        mock_settings.return_value.lan_cert_path = Path('data/lan.crt')
+                        mock_settings.return_value.lan_key_path = Path('data/lan.key')
+                        result = runner.invoke(app, ["web", "--lan", "--no-open"])
+                        assert result.exit_code == 0
+                        assert "Local:" in result.stdout
+                        assert "LAN:" in result.stdout
+                        assert "localhost" in result.stdout
+                        assert "192.168.1.100" in result.stdout
+
+    def test_web_lan_uses_lan_certificates(self) -> None:
+        """Verify correct cert paths when --lan used."""
+        import sys
+        mock_uvicorn = MagicMock()
+        mock_cert_info = {
+            'path': Path('data/lan.crt'),
+            'exists': True,
+            'days_until_expiry': 365,
+            'sans': ['localhost', '127.0.0.1', '192.168.1.100', '::1'],
+            'is_expired': False,
+            'is_expiring_soon': False,
+        }
+        with patch.dict(sys.modules, {"uvicorn": mock_uvicorn}):
+            with patch("src.cli.main.get_certificate_info", return_value=mock_cert_info):
+                with patch("src.cli.main.get_lan_ip", return_value="192.168.1.100"):
+                    with patch("src.cli.main.Settings") as mock_settings:
+                        mock_settings.return_value.lan_cert_path = Path('data/lan.crt')
+                        mock_settings.return_value.lan_key_path = Path('data/lan.key')
+                        result = runner.invoke(app, ["web", "--lan", "--no-open"])
+                        assert result.exit_code == 0
+                        call_args = mock_uvicorn.run.call_args
+                        assert "lan.crt" in str(call_args[1]["ssl_certfile"])
+                        assert "lan.key" in str(call_args[1]["ssl_keyfile"])
+
+    def test_web_lan_shows_only_localhost_without_lan_flag(self) -> None:
+        """Verify only localhost URL shown without --lan."""
+        import sys
+        mock_uvicorn = MagicMock()
+        mock_certs = MagicMock(return_value=(Path("data/localhost.crt"), Path("data/localhost.key")))
+        with patch.dict(sys.modules, {"uvicorn": mock_uvicorn}):
+            with patch("src.cli.main.Settings") as mock_settings:
+                mock_settings.return_value.database_path = Path('data/bookmarks.db')
+                # Patch certs module import
+                with patch.dict(sys.modules, {"src.web.certs": MagicMock(ensure_https_certs=mock_certs)}):
+                    result = runner.invoke(app, ["web", "--no-open"])
+                    assert result.exit_code == 0
+                    # Default host is 127.0.0.1, shown in URL
+                    assert "127.0.0.1" in result.stdout
+                    # Should NOT show LAN URL without --lan flag
+                    assert "LAN:" not in result.stdout
