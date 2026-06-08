@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>X Bookmarked Posts - Cast Receiver</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 6rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .loading-spinner {
+            width: 80px;
+            height: 80px;
+            border: 4px solid #333;
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .post-container {
+            display: none;
+        }
+
+        .post-container.active {
+            display: block;
+        }
+
+        .author {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .author-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
+
+        .author-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .author-name {
+            font-size: 2.5rem;
+            font-weight: 600;
+        }
+
+        .post-date {
+            font-size: 1.5rem;
+            color: #888;
+        }
+
+        .post-content {
+            font-size: 3rem;
+            line-height: 1.5;
+            margin-bottom: 2rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .post-images {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .post-images img {
+            max-width: 100%;
+            border-radius: 1rem;
+        }
+
+        .post-topics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .topic-tag {
+            background: #2563eb;
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 2rem;
+            font-size: 1.5rem;
+        }
+
+        /* D-03: Nested card structure for quote tweets */
+        .quote-card {
+            background-color: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        /* D-03, D-04: "Quoting @username" label */
+        .quote-label {
+            font-size: 1.8rem;
+            color: #888;
+            margin-bottom: 1rem;
+        }
+
+        /* D-07: Retweet attribution header */
+        .retweet-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .retweet-header .reposted-by {
+            font-size: 1.5rem;
+            color: #888;
+            margin-bottom: 0.5rem;
+        }
+
+        .retweet-header .reposted-from {
+            font-size: 1.8rem;
+            color: #888;
+        }
+
+        /* D-09: Unavailable post placeholder */
+        .unavailable-card {
+            background-color: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 1rem;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .unavailable-card .unavailable-icon {
+            font-size: 4rem;
+            color: #888;
+            margin-bottom: 1rem;
+        }
+
+        .unavailable-card .unavailable-message {
+            font-size: 2rem;
+            color: #888;
+        }
+
+        .unavailable-card .unavailable-author {
+            font-size: 1.8rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        /* D-05, D-06: Embedded post media within nested cards */
+        .embedded-images {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .embedded-images img {
+            max-width: 100%;
+            border-radius: 1rem;
+        }
+
+        /* Embedded post author info */
+        .embedded-author {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .embedded-author-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        .embedded-author-name {
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .embedded-post-content {
+            font-size: 2.5rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Loading State -->
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p style="font-size: 2rem;">Loading...</p>
+        </div>
+
+        <!-- Post Content -->
+        <div class="post-container" id="post-container">
+            <div class="author">
+                <div class="author-avatar" id="author-avatar">@</div>
+                <div class="author-info">
+                    <div class="author-name" id="author-name">Loading...</div>
+                    <div class="post-date" id="post-date">-</div>
+                </div>
+            </div>
+            <div class="post-content" id="post-content">Loading post content...</div>
+            <div class="post-images" id="post-images"></div>
+            <div class="post-topics" id="post-topics"></div>
+        </div>
+    </div>
+
+    <script src="//www.gstatic.com/cast/sdk/libs/receiver/2.0.0/cast_receiver.js"></script>
+    <script>
+        // Cast receiver initialization
+        const context = cast.framework.CastReceiverContext.getInstance();
+
+        // Custom message namespace
+        const CUSTOM_NAMESPACE = 'urn:x-cast:com.bookmarked.posts';
+
+        // Message handler
+        context.addCustomMessageListener(CUSTOM_NAMESPACE, (event) => {
+            try {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'LOAD_POST') {
+                    loadPost(data.post);
+
+                    // Send acknowledgment
+                    context.sendCustomMessage(CUSTOM_NAMESPACE, event.senderId, {
+                        type: 'ACKNOWLEDGE',
+                        postId: data.postId
+                    });
+                }
+            } catch (e) {
+                console.error('Message parse error:', e);
+            }
+        });
+
+        function loadPost(post) {
+            // Hide loading, show content
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('post-container').classList.add('active');
+
+            // Update author
+            document.getElementById('author-avatar').textContent = '@';
+            document.getElementById('author-name').textContent = post.author_username || 'Unknown';
+            document.getElementById('post-date').textContent = formatDate(post.created_at);
+
+            // Update content
+            document.getElementById('post-content').textContent = post.text || 'No content';
+
+            // Update images
+            const imagesContainer = document.getElementById('post-images');
+            imagesContainer.innerHTML = '';
+            if (post.media_urls && post.media_urls.length > 0) {
+                post.media_urls.forEach(url => {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = 'Post image';
+                    imagesContainer.appendChild(img);
+                });
+            }
+
+            // Update topics
+            const topicsContainer = document.getElementById('post-topics');
+            topicsContainer.innerHTML = '';
+            if (post.topics && post.topics.length > 0) {
+                post.topics.forEach(topic => {
+                    const tag = document.createElement('span');
+                    tag.className = 'topic-tag';
+                    tag.textContent = topic.name;
+                    topicsContainer.appendChild(tag);
+                });
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        // Start receiver
+        context.start();
+    </script>
+</body>
+</html>
