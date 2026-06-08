@@ -33,6 +33,15 @@ from rich.text import Text
 from ..auth import AuthError, ensure_authenticated
 from ..config import Settings
 from ..db import init_database
+from ..web.lan_certs import (
+    check_mkcert_installed,
+    get_mkcert_ca_root,
+    get_ca_certificate_path,
+    generate_lan_certificates,
+    backup_old_certificates,
+    get_certificate_info,
+    get_lan_ip,
+)
 
 # Create Typer application with Rich markup support
 app = typer.Typer(
@@ -1867,6 +1876,389 @@ def seed(
             border_style="red",
         ))
         sys.exit(1)
+
+
+@app.command()
+def web(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host to bind to"),
+    port: int = typer.Option(8000, "--port", "-p", help="Port to bind to"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="Open browser automatically"),
+    db_path: Optional[Path] = typer.Option(None, "--db", "-d", help="Path to database file"),
+) -> None:
+    """Start the web application server.
+
+    WEB-01: User can access application via web browser at localhost.
+    WEB-02: Web app serves posts over HTTPS (required for Google Cast).
+
+    Examples:
+        xbm web
+        xbm web --port 3000
+        xbm web --no-open
+    """
+    import uvicorn
+    import webbrowser
+
+    try:
+        # Load settings
+        try:
+            settings = Settings()
+            if db_path is None:
+                db_path = settings.database_path
+        except Exception:
+            db_path = Path("data/bookmarks.db")
+
+        # Ensure HTTPS certificates exist
+        from ..web.certs import ensure_https_certs
+
+        cert_path, key_path = ensure_https_certs()
+
+        # Create the FastAPI app
+        from ..web.app import create_app
+
+        app = create_app()
+
+        # Print startup message
+        url = f"https://{host}:{port}"
+        console.print(Panel(
+            Text.assemble(
+                ("Starting web server...\n", "bold cyan"),
+                ("\n", ""),
+                ("URL: ", "dim"),
+                (f"{url}\n", "cyan"),
+                ("\n", ""),
+                ("Note: ", "yellow"),
+                ("Self-signed HTTPS certificate (browser warning expected)\n", "dim"),
+            ),
+            title="[bold]X Bookmarked Posts - Web[/bold]",
+            border_style="cyan",
+        ))
+
+        # Open browser if requested
+        if open_browser:
+            webbrowser.open(url)
+
+        # Run the server
+        uvicorn.run(
+            app,
+            host=host,
+            port=port,
+            ssl_keyfile=str(key_path),
+            ssl_certfile=str(cert_path),
+        )
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped[/yellow]")
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Failed to start web server\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
+@app.command("lan-cert")
+def lan_cert(
+    status: bool = typer.Option(
+        False, "--status", "-s",
+        help="Check mkcert installation and certificate status"
+    ),
+    generate: bool = typer.Option(
+        False, "--generate", "-g",
+        help="Generate LAN SSL certificates"
+    ),
+    guide: bool = typer.Option(
+        False, "--guide",
+        help="Show platform-specific CA installation instructions"
+    ),
+    all_platforms: bool = typer.Option(
+        False, "--all", "-a",
+        help="Show instructions for all platforms (use with --guide)"
+    ),
+    force: bool = typer.Option(
+        False, "--force", "-f",
+        help="Regenerate certificates even if they exist"
+    ),
+) -> None:
+    """Manage LAN-accessible SSL certificates.
+
+    CERT-01: Check mkcert installation status via CLI.
+    CERT-02: Generate LAN-accessible SSL certificates via CLI.
+    MAINT-01: Check certificate status and expiration.
+    MAINT-02: Regenerate certificates when expired or LAN IP changes.
+
+    Examples:
+        xbm lan-cert --status           # Check mkcert and cert status
+        xbm lan-cert --generate         # Generate certificates
+        xbm lan-cert --generate --force  # Regenerate existing certificates
+        xbm lan-cert --guide            # Show CA installation guide
+    """
+    import platform
+
+    settings = Settings()
+
+    if status:
+        _handle_status(settings)
+    elif generate:
+        _handle_generate(settings, force)
+    elif guide:
+        _handle_guide(all_platforms)
+    else:
+        # Default: show status
+        _handle_status(settings)
+
+
+def _handle_status(settings: Settings) -> None:
+    """Handle --status flag: check mkcert and certificate status.
+
+    CERT-01: User can check mkcert installation status via CLI.
+    MAINT-01: User can check certificate status and expiration.
+    """
+    # Check mkcert installation
+    mkcert_installed = check_mkcert_installed()
+
+    if not mkcert_installed:
+        # Per D-08: Clear error with install instructions
+        console.print(Panel(
+            Text.assemble(
+                ("mkcert is not installed\n\n", "bold red"),
+                ("Install with:\n", "dim"),
+                ("  macOS: ", "cyan"),
+                ("brew install mkcert nss\n", "bold"),
+                ("  Linux: ", "cyan"),
+                ("sudo apt install libnss3-tools && brew install mkcert\n", "bold"),
+                ("  Windows: ", "cyan"),
+                ("choco install mkcert\n\n", "bold"),
+                ("After installation, run:\n", "dim"),
+                ("  mkcert -install\n", "cyan"),
+            ),
+            title="[bold red]mkcert Not Found[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+    # Show mkcert status
+    try:
+        ca_root = get_mkcert_ca_root()
+        ca_cert = get_ca_certificate_path()
+
+        console.print(Panel(
+            Text.assemble(
+                ("mkcert is installed\n", "bold green"),
+                ("CA Root: ", "dim"),
+                (str(ca_root), "cyan"),
+            ),
+            title="[bold]mkcert Status[/bold]",
+            border_style="green",
+        ))
+    except (FileNotFoundError, RuntimeError) as e:
+        console.print(f"[red]Error getting mkcert info: {e}[/red]")
+        raise typer.Exit(1)
+
+    # Check certificate status
+    cert_path = settings.lan_cert_path
+    key_path = settings.lan_key_path
+
+    if not cert_path.exists() and not key_path.exists():
+        console.print(Panel(
+            Text.assemble(
+                ("No LAN certificates found\n\n", "yellow"),
+                ("Generate with:\n", "dim"),
+                ("  xbm lan-cert --generate\n", "cyan"),
+            ),
+            title="[bold yellow]Certificate Status[/bold yellow]",
+            border_style="yellow",
+        ))
+        return
+
+    # Show certificate info
+    cert_info = get_certificate_info(cert_path)
+
+    # Build status table
+    table = Table(title="Certificate Status")
+    table.add_column("Property", style="dim")
+    table.add_column("Value", style="cyan")
+
+    table.add_row("Certificate Path", str(cert_path))
+    table.add_row("Key Path", str(key_path))
+
+    if cert_info['exists']:
+        table.add_row("Created", str(cert_info.get('created', 'N/A')))
+        table.add_row("Expires", str(cert_info.get('expires', 'N/A')))
+        table.add_row("Days Until Expiry", str(cert_info['days_until_expiry']))
+        table.add_row("SANs", ", ".join(cert_info['sans']))
+
+        # Per D-04: Warn if certificate expires within 30 days
+        if cert_info['is_expired']:
+            console.print("[bold red]Certificate has EXPIRED![/bold red]")
+            console.print("[dim]Regenerate with: xbm lan-cert --generate --force[/dim]")
+        elif cert_info['is_expiring_soon']:
+            console.print(f"[yellow]Certificate expires in {cert_info['days_until_expiry']} days[/yellow]")
+            console.print("[dim]Consider regenerating: xbm lan-cert --generate --force[/dim]")
+    else:
+        table.add_row("Status", "Certificate file not found")
+
+    console.print(table)
+
+
+def _handle_generate(settings: Settings, force: bool) -> None:
+    """Handle --generate flag: generate LAN certificates.
+
+    CERT-02: User can generate LAN-accessible SSL certificates via CLI.
+    MAINT-02: Regenerate certificates when expired or LAN IP changes.
+    """
+    # Check mkcert installed
+    if not check_mkcert_installed():
+        console.print(Panel(
+            Text.assemble(
+                ("mkcert is not installed\n\n", "bold red"),
+                ("Install with:\n", "dim"),
+                ("  macOS: ", "cyan"),
+                ("brew install mkcert nss\n", "bold"),
+                ("  Linux: ", "cyan"),
+                ("sudo apt install libnss3-tools && brew install mkcert\n", "bold"),
+                ("  Windows: ", "cyan"),
+                ("choco install mkcert\n\n", "bold"),
+                ("After installation, run:\n", "dim"),
+                ("  mkcert -install\n", "cyan"),
+            ),
+            title="[bold red]mkcert Not Found[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+    cert_path = settings.lan_cert_path
+    key_path = settings.lan_key_path
+
+    # Check existing certificates
+    if cert_path.exists() and not force:
+        console.print("[yellow]Certificates already exist. Use --force to regenerate.[/yellow]")
+        console.print(f"[dim]Certificate: {cert_path}[/dim]")
+        console.print(f"[dim]Key: {key_path}[/dim]")
+        raise typer.Exit(1)
+
+    # Detect LAN IP
+    lan_ip = get_lan_ip()
+    if not lan_ip:
+        console.print("[red]Could not detect LAN IP address.[/red]")
+        console.print("[dim]Ensure you are connected to a network.[/dim]")
+        raise typer.Exit(1)
+
+    # Backup old certificates if force regenerating
+    if force and cert_path.exists():
+        backup_result = backup_old_certificates(cert_path, key_path)
+        if backup_result:
+            console.print(f"[dim]Backed up old certificates to {backup_result[0]}[/dim]")
+
+    # Generate certificates
+    try:
+        console.print(f"[cyan]Generating certificates for LAN IP: {lan_ip}[/cyan]")
+        generate_lan_certificates(lan_ip, cert_path, key_path)
+
+        console.print(Panel(
+            Text.assemble(
+                ("Certificates generated successfully!\n\n", "bold green"),
+                ("Certificate: ", "dim"),
+                (f"{cert_path}\n", "cyan"),
+                ("Key: ", "dim"),
+                (f"{key_path}\n\n", "cyan"),
+                ("LAN URL: ", "dim"),
+                (f"https://{lan_ip}:8000", "bold cyan"),
+            ),
+            title="[bold green]Success[/bold green]",
+            border_style="green",
+        ))
+    except RuntimeError as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Certificate generation failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+
+def _handle_guide(all_platforms: bool) -> None:
+    """Handle --guide flag: show platform-specific CA installation instructions."""
+    import platform as platform_module
+
+    current_os = platform_module.system()
+
+    instructions = {
+        "Darwin": {
+            "name": "macOS",
+            "install": "brew install mkcert nss",
+            "setup": "mkcert -install",
+            "note": "Keychain will prompt for password to trust the CA.",
+        },
+        "Linux": {
+            "name": "Linux",
+            "install": "sudo apt install libnss3-tools && brew install mkcert",
+            "setup": "mkcert -install",
+            "note": "You may need to import the CA manually into your browser.",
+        },
+        "Windows": {
+            "name": "Windows",
+            "install": "choco install mkcert",
+            "setup": "mkcert -install",
+            "note": "Run PowerShell as Administrator for the install command.",
+        },
+    }
+
+    # Mobile instructions
+    mobile_instructions = """
+[bold]Mobile Device Setup:[/bold]
+After generating certificates, install the CA on mobile devices:
+
+1. Get CA certificate location:
+   [cyan]mkcert -CAROOT[/cyan]
+
+2. Transfer [cyan]rootCA.pem[/cyan] to your mobile device
+
+3. [bold]iOS:[/bold] Settings > General > About > Certificate Trust Settings
+   (This step is commonly missed and breaks HTTPS)
+
+4. [bold]Android:[/bold] Settings > Security > Install from storage
+"""
+
+    if all_platforms:
+        # Show all platforms
+        console.print(Panel(
+            "Certificate Setup Guide (All Platforms)",
+            border_style="cyan",
+        ))
+        for os_key, info in instructions.items():
+            console.print(f"\n[bold]{info['name']}:[/bold]")
+            console.print(f"  Install: {info['install']}")
+            console.print(f"  Setup: {info['setup']}")
+            console.print(f"  [dim]{info['note']}[/dim]")
+        console.print(mobile_instructions)
+    else:
+        # Show current platform only
+        if current_os in instructions:
+            info = instructions[current_os]
+            console.print(Panel(
+                Text.assemble(
+                    (f"{info['name']}\n\n", "bold"),
+                    ("Install:\n", "dim"),
+                    (f"  {info['install']}\n\n", "cyan"),
+                    ("Setup:\n", "dim"),
+                    (f"  {info['setup']}\n\n", "cyan"),
+                    (info['note'], "dim"),
+                ),
+                title="[bold]Certificate Setup Guide[/bold]",
+                border_style="cyan",
+            ))
+            console.print(mobile_instructions)
+            console.print("[dim]Use --guide --all to see all platforms[/dim]")
+        else:
+            console.print(f"[yellow]Platform '{current_os}' not recognized.[/yellow]")
+            console.print("[dim]Use --guide --all to see all platforms[/dim]")
 
 
 def main() -> None:
