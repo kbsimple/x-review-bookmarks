@@ -19,6 +19,7 @@ from __future__ import annotations
 import warnings
 warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL')
 
+import platform
 import sys
 from pathlib import Path
 from typing import Optional, Union
@@ -1996,8 +1997,6 @@ def lan_cert(
         xbm lan-cert --generate --force  # Regenerate existing certificates
         xbm lan-cert --guide            # Show CA installation guide
     """
-    import platform
-
     settings = Settings()
 
     if status:
@@ -2184,81 +2183,216 @@ def _handle_generate(settings: Settings, force: bool) -> None:
 
 
 def _handle_guide(all_platforms: bool) -> None:
-    """Handle --guide flag: show platform-specific CA installation instructions."""
-    import platform as platform_module
+    """Handle --guide flag: show platform-specific CA installation instructions.
 
-    current_os = platform_module.system()
+    CERT-03: User can find instructions for installing CA on devices.
+    PLAT-01 to PLAT-05: Platform-specific guidance.
 
-    instructions = {
-        "Darwin": {
-            "name": "macOS",
-            "install": "brew install mkcert nss",
-            "setup": "mkcert -install",
-            "note": "Keychain will prompt for password to trust the CA.",
-        },
-        "Linux": {
-            "name": "Linux",
-            "install": "sudo apt install libnss3-tools && brew install mkcert",
-            "setup": "mkcert -install",
-            "note": "You may need to import the CA manually into your browser.",
-        },
-        "Windows": {
-            "name": "Windows",
-            "install": "choco install mkcert",
-            "setup": "mkcert -install",
-            "note": "Run PowerShell as Administrator for the install command.",
-        },
+    Per D-07: Detect current OS and show relevant guide first.
+    Per D-06: Inline CLI output with --guide flag.
+    """
+    # Check mkcert installation first
+    if not check_mkcert_installed():
+        console.print(Panel(
+            Text.assemble(
+                ("mkcert is not installed\n\n", "bold red"),
+                ("Cannot show guide without mkcert CA\n", "dim"),
+                ("Run: mkcert -install\n", "cyan"),
+            ),
+            title="[bold red]Prerequisite Missing[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+    # Get CA certificate path
+    try:
+        ca_cert_path = get_ca_certificate_path()
+    except FileNotFoundError:
+        console.print("[red]Could not find CA certificate[/red]")
+        raise typer.Exit(1)
+
+    # Detect current platform
+    current_os = platform.system()
+
+    # Define platform guides
+    guides = {
+        "Darwin": _get_macos_guide,
+        "Windows": _get_windows_guide,
+        "Linux": _get_linux_guide,
+        "iOS": _get_ios_guide,
+        "Android": _get_android_guide,
     }
 
-    # Mobile instructions
-    mobile_instructions = """
-[bold]Mobile Device Setup:[/bold]
-After generating certificates, install the CA on mobile devices:
-
-1. Get CA certificate location:
-   [cyan]mkcert -CAROOT[/cyan]
-
-2. Transfer [cyan]rootCA.pem[/cyan] to your mobile device
-
-3. [bold]iOS:[/bold] Settings > General > About > Certificate Trust Settings
-   (This step is commonly missed and breaks HTTPS)
-
-4. [bold]Android:[/bold] Settings > Security > Install from storage
-"""
-
     if all_platforms:
-        # Show all platforms
+        # Show all platform guides
+        for os_name, guide_func in guides.items():
+            console.print(guide_func(ca_cert_path))
+            console.print()
+    else:
+        # Show current OS guide first, then others
         console.print(Panel(
-            "Certificate Setup Guide (All Platforms)",
+            Text.assemble(
+                ("Platform: ", "dim"),
+                (f"{current_os}\n", "cyan"),
+                ("CA Certificate: ", "dim"),
+                (str(ca_cert_path), "cyan"),
+            ),
+            title="[bold]CA Installation Guide[/bold]",
             border_style="cyan",
         ))
-        for os_key, info in instructions.items():
-            console.print(f"\n[bold]{info['name']}:[/bold]")
-            console.print(f"  Install: {info['install']}")
-            console.print(f"  Setup: {info['setup']}")
-            console.print(f"  [dim]{info['note']}[/dim]")
-        console.print(mobile_instructions)
-    else:
-        # Show current platform only
-        if current_os in instructions:
-            info = instructions[current_os]
-            console.print(Panel(
-                Text.assemble(
-                    (f"{info['name']}\n\n", "bold"),
-                    ("Install:\n", "dim"),
-                    (f"  {info['install']}\n\n", "cyan"),
-                    ("Setup:\n", "dim"),
-                    (f"  {info['setup']}\n\n", "cyan"),
-                    (info['note'], "dim"),
-                ),
-                title="[bold]Certificate Setup Guide[/bold]",
-                border_style="cyan",
-            ))
-            console.print(mobile_instructions)
-            console.print("[dim]Use --guide --all to see all platforms[/dim]")
+        console.print()
+
+        # Show current OS guide
+        if current_os == "Darwin":
+            console.print(_get_macos_guide(ca_cert_path))
+        elif current_os == "Windows":
+            console.print(_get_windows_guide(ca_cert_path))
+        elif current_os == "Linux":
+            console.print(_get_linux_guide(ca_cert_path))
         else:
-            console.print(f"[yellow]Platform '{current_os}' not recognized.[/yellow]")
-            console.print("[dim]Use --guide --all to see all platforms[/dim]")
+            # Unknown OS, show all
+            for os_name, guide_func in guides.items():
+                console.print(guide_func(ca_cert_path))
+                console.print()
+
+        console.print("[dim]See other platforms: xbm lan-cert --guide --all[/dim]")
+
+
+def _get_macos_guide(ca_cert_path: Path) -> Panel:
+    """Get macOS CA installation guide.
+
+    PLAT-01: macOS guide covers Keychain CA installation.
+    """
+    return Panel(
+        Text.assemble(
+            ("macOS Installation\n\n", "bold cyan"),
+            ("1. Run: ", "dim"),
+            ("mkcert -install\n", "cyan"),
+            ("   This installs the CA in Keychain automatically\n\n", "dim"),
+            ("2. Safari and Chrome will trust certificates immediately\n", "dim"),
+            ("3. For verification: open Keychain Access, look for 'mkcert'\n", "dim"),
+            ("   in System Keychain or Login Keychain\n\n", "dim"),
+            ("For Mobile Devices:\n", "bold"),
+            ("   Transfer ", "dim"),
+            (str(ca_cert_path), "cyan"),
+            (" to device\n", "dim"),
+        ),
+        title="[bold]macOS[/bold]",
+        border_style="green",
+    )
+
+
+def _get_windows_guide(ca_cert_path: Path) -> Panel:
+    """Get Windows CA installation guide.
+
+    PLAT-02: Windows guide covers certificate store installation.
+    """
+    return Panel(
+        Text.assemble(
+            ("Windows Installation\n\n", "bold cyan"),
+            ("1. Run: ", "dim"),
+            ("mkcert -install\n", "cyan"),
+            ("   This installs the CA in Current User store\n\n", "dim"),
+            ("2. Edge and Chrome will trust certificates immediately\n\n", "dim"),
+            ("For Local Machine (Administrator):\n", "bold yellow"),
+            ("   Run in elevated PowerShell:\n", "dim"),
+            ("   Import-Certificate -FilePath '", "dim"),
+            (str(ca_cert_path), "cyan"),
+            ("' -CertStoreLocation Cert:\\LocalMachine\\Root\n", "dim"),
+        ),
+        title="[bold]Windows[/bold]",
+        border_style="blue",
+    )
+
+
+def _get_linux_guide(ca_cert_path: Path) -> Panel:
+    """Get Linux CA installation guide.
+
+    PLAT-03: Linux guide covers system CA installation.
+    """
+    return Panel(
+        Text.assemble(
+            ("Linux Installation\n\n", "bold cyan"),
+            ("1. Run: ", "dim"),
+            ("mkcert -install\n", "cyan"),
+            ("   This adds CA to system trust store\n\n", "dim"),
+            ("2. For Debian/Ubuntu, run:\n", "dim"),
+            ("   sudo update-ca-certificates\n\n", "dim"),
+            ("3. Location: /usr/local/share/ca-certificates/\n\n", "dim"),
+            ("For Firefox:\n", "bold yellow"),
+            ("   Install NSS tools first: ", "dim"),
+            ("sudo apt install libnss3-tools\n", "cyan"),
+            ("   Then run: mkcert -install\n\n", "dim"),
+            ("For Mobile Devices:\n", "bold"),
+            ("   Transfer ", "dim"),
+            (str(ca_cert_path), "cyan"),
+            (" to device\n", "dim"),
+        ),
+        title="[bold]Linux[/bold]",
+        border_style="yellow",
+    )
+
+
+def _get_ios_guide(ca_cert_path: Path) -> Panel:
+    """Get iOS CA installation guide.
+
+    PLAT-04: iOS guide covers profile installation and full trust enablement.
+    Per D-08: Prominently highlight iOS extra trust step.
+    """
+    return Panel(
+        Text.assemble(
+            ("iOS Installation\n\n", "bold cyan"),
+            ("Step 1: Transfer CA Certificate\n", "bold"),
+            ("   AirDrop ", "dim"),
+            (str(ca_cert_path), "cyan"),
+            (" to device, or\n", "dim"),
+            ("   Email it to yourself, or\n", "dim"),
+            ("   Download via web server\n\n", "dim"),
+            ("Step 2: Install Profile\n", "bold"),
+            ("   Open the certificate file on iOS\n", "dim"),
+            ("   Settings > General > VPN & Device Management > Install\n\n", "dim"),
+            ("Step 3: Enable Full Trust (REQUIRED)\n", "bold red"),
+            ("   ", "red"),
+            ("Settings > General > About > Certificate Trust Settings\n", "bold cyan"),
+            ("   Toggle ON for the root CA\n\n", "red"),
+            ("   ", "red"),
+            ("[CRITICAL] Safari will not work without this step!\n", "bold red"),
+            ("\n", ""),
+            ("CA Certificate: ", "dim"),
+            (str(ca_cert_path), "cyan"),
+        ),
+        title="[bold]iOS[/bold]",
+        border_style="green",
+    )
+
+
+def _get_android_guide(ca_cert_path: Path) -> Panel:
+    """Get Android CA installation guide.
+
+    PLAT-05: Android guide covers CA installation and network security config.
+    """
+    return Panel(
+        Text.assemble(
+            ("Android Installation\n\n", "bold cyan"),
+            ("Step 1: Transfer CA Certificate\n", "bold"),
+            ("   Copy ", "dim"),
+            (str(ca_cert_path), "cyan"),
+            (" to device via USB/cloud/email\n\n", "dim"),
+            ("Step 2: Install Certificate\n", "bold"),
+            ("   Settings > Security > Install certificate > CA certificate\n", "dim"),
+            ("   or: Settings > Certificate management > Install a certificate\n\n", "dim"),
+            ("For Android 7+ Apps (Optional):\n", "bold yellow"),
+            ("   Chrome browser will work with user-installed CA\n", "dim"),
+            ("   For custom apps, create network_security_config.xml:\n", "dim"),
+            ("   ", "dim"),
+            ("<trust-anchors><certificates src=\"user\"/></trust-anchors>", "cyan"),
+            ("\n\n", ""),
+            ("CA Certificate: ", "dim"),
+            (str(ca_cert_path), "cyan"),
+        ),
+        title="[bold]Android[/bold]",
+        border_style="green",
+    )
 
 
 def main() -> None:

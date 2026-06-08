@@ -231,17 +231,21 @@ class TestLanCertGuideCommand:
 
     def test_guide_shows_platform_specific_instructions(self):
         """Test that --guide shows platform-specific CA installation instructions."""
-        with patch("platform.system", return_value="Darwin"):
-            result = runner.invoke(app, ["lan-cert", "--guide"])
+        with patch("src.cli.main.check_mkcert_installed", return_value=True):
+            with patch("src.cli.main.get_ca_certificate_path", return_value=Path("/home/user/.local/share/mkcert/rootCA.pem")):
+                with patch("platform.system", return_value="Darwin"):
+                    result = runner.invoke(app, ["lan-cert", "--guide"])
 
-            assert result.exit_code == 0
-            # Should show instructions
-            assert "mkcert" in result.stdout.lower() or "install" in result.stdout.lower()
+                    assert result.exit_code == 0
+                    # Should show instructions
+                    assert "mkcert" in result.stdout.lower() or "install" in result.stdout.lower()
 
     def test_guide_shows_all_platforms_with_flag(self):
         """Test that --guide --all shows instructions for all platforms."""
-        result = runner.invoke(app, ["lan-cert", "--guide", "--all"])
+        with patch("src.cli.main.check_mkcert_installed", return_value=True):
+            with patch("src.cli.main.get_ca_certificate_path", return_value=Path("/home/user/.local/share/mkcert/rootCA.pem")):
+                result = runner.invoke(app, ["lan-cert", "--guide", "--all"])
 
-        assert result.exit_code == 0
-        # Should show all platforms
-        assert "macOS" in result.stdout or "Darwin" in result.stdout or "mac" in result.stdout.lower()
+                assert result.exit_code == 0
+                # Should show all platforms
+                assert "macOS" in result.stdout or "Darwin" in result.stdout or "mac" in result.stdout.lower()
