@@ -34,11 +34,19 @@ Milestone 2 delivered:
 
 ### Active
 
-Milestone v1.2 — Enhanced Post Rendering:
-- [ ] Store embedded post data during sync (retweets and quote tweets)
-- [ ] Web app renders embedded posts with nested original content
-- [ ] Cast receiver displays embedded posts on TV
-- [ ] CLI renders embedded posts in terminal output
+Milestone v1.3 — LAN Casting Support:
+- [ ] Generate locally-trusted SSL certificates for LAN access
+- [ ] CLI command to set up mkcert and install CA on devices
+- [ ] Web server binds to LAN IP with proper certificate
+- [ ] Mobile browser can access and cast to TV
+
+### Validated
+
+Milestone v1.2 delivered:
+- ✓ Embedded post data stored during sync (retweets and quote tweets)
+- ✓ Web app renders embedded posts with nested original content
+- ✓ Cast receiver displays embedded posts on TV
+- ✓ CLI renders embedded posts in terminal output
 
 ### Out of Scope
 
@@ -57,7 +65,9 @@ Milestone v1.2 — Enhanced Post Rendering:
 
 **Milestones:**
 - **Milestone 1 (v1.0):** CLI + SQLite — COMPLETE
-- **Milestone 2 (v1.1):** Web App with Casting — IN PROGRESS
+- **Milestone 2 (v1.1):** Web App with Casting — COMPLETE
+- **Milestone 3 (v1.2):** Enhanced Post Rendering — COMPLETE
+- **Milestone 4 (v1.3):** LAN Casting Support — IN PROGRESS
 
 ## Constraints
 
@@ -76,17 +86,17 @@ Milestone v1.2 — Enhanced Post Rendering:
 | Samsung TV as primary target | Matches user's viewing context | — Pending |
 
 ---
-*Last updated: 2026-06-04 after Milestone 2 completion*
+*Last updated: 2026-06-07 after Milestone 3 completion*
 
-## Current Milestone: v1.2 Enhanced Post Rendering
+## Current Milestone: v1.3 LAN Casting Support
 
-**Goal:** Render embedded posts (retweets and quote tweets) with full original content across all display surfaces.
+**Goal:** Enable browsing and casting from mobile devices on the same LAN without certificate warnings.
 
 **Target features:**
-- Expand sync to store embedded post data from X API
-- Web app renders retweets/quote tweets with nested original post
-- Cast receiver displays embedded posts on TV
-- CLI renders embedded posts in terminal output
+- Generate locally-trusted SSL certificates using mkcert
+- CLI command to set up LAN-accessible certificates
+- Web server binds to LAN IP with proper certificate
+- Mobile browser can access and cast to TV
 
 ## Evolution
 

@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Enhanced Post Rendering
-status: completed
-last_updated: "2026-06-08T00:30:00Z"
-last_activity: 2026-06-07 — Phase 11 complete (Cast Display with embedded posts on TV)
+milestone: v1.3
+milestone_name: LAN Casting Support
+status: defining
+last_updated: "2026-06-08T01:00:00Z"
+last_activity: 2026-06-07 — Milestone v1.3 started (LAN Casting Support)
 progress:
-  total_phases: 11
-  completed_phases: 11
-  total_plans: 47
-  completed_plans: 47
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -21,68 +21,51 @@ progress:
 
 **Core Value:** Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind
 
-**Current Focus:** Milestone v1.2 — COMPLETE
+**Current Focus:** Milestone v1.3 — LAN Casting Support
 
-**Milestone:** v1.2 Enhanced Post Rendering — COMPLETE
+**Milestone:** v1.3 LAN Casting Support — IN PROGRESS
 
 ## Current Position
 
-Phase: 11 — Cast Display
-Status: COMPLETE (3/3 plans done)
-Last activity: 2026-06-07 — Phase 11 complete (Cast Display with embedded posts on TV)
+Phase: Not started (defining requirements)
+Status: Defining requirements
+Last activity: 2026-06-07 — Milestone v1.3 started
 
 ## Progress
 
 ```
-Milestone v1.2 Progress
-├─ Phase 8: Storage Foundation ██████████ 100% (complete)
-├─ Phase 9: Web Display       ██████████ 100% (complete)
-├─ Phase 10: CLI Display      ██████████ 100% (complete)
-└─ Phase 11: Cast Display     ██████████ 100% (complete)
+Milestone v1.3 Progress
+(no phases defined yet)
 ```
 
-## Milestone v1.2 Goals
+## Milestone v1.3 Goals
 
-**Goal:** Render embedded posts (retweets and quote tweets) with full original content across all display surfaces.
+**Goal:** Enable browsing and casting from mobile devices on the same LAN without certificate warnings.
 
 **Target features:**
 
-- Store embedded post data during sync (retweets and quote tweets) ✓
-- Web app renders embedded posts with nested original content ✓
-- Cast receiver displays embedded posts on TV ✓
-- CLI renders embedded posts in terminal output ✓
+- Generate locally-trusted SSL certificates using mkcert
+- CLI command to set up LAN-accessible certificates
+- Web server binds to LAN IP with proper certificate
+- Mobile browser can access and cast to TV
 
 ## Phase Overview
 
 | Phase | Goal | Requirements | Status |
 |-------|------|--------------|--------|
-| 8. Storage Foundation | Fetch and store embedded post data | STR-01, STR-02, STR-03 | Complete |
-| 9. Web Display | Render embedded posts in web interface | WEB-07, WEB-08, WEB-09, WEB-10 | Complete |
-| 10. CLI Display | Render embedded posts in terminal | CLI-06, CLI-07, CLI-08 | Complete |
-| 11. Cast Display | Display embedded posts on TV | CAST-06, CAST-07, CAST-08 | Complete |
-
-## Dependencies
-
-```
-Phase 8 (Storage) ← Phase 9 (Web), Phase 10 (CLI), Phase 11 (Cast)
-```
-
-All display phases depend on Phase 8. Phases 9, 10, and 11 can run in parallel after Phase 8 completes.
+| (phases to be defined) | | | |
 
 ## Key Decisions
 
-- **Storage first:** All display surfaces depend on embedded post data being stored correctly
-- **Normalized storage:** Embedded posts stored in separate `embedded_posts` table (NOT JSON blobs)
-- **Parallel potential:** Web, CLI, and Cast phases can run in parallel after storage complete
-- **X API expansions:** Use `referenced_tweets.id`, `referenced_tweets.id.author_id`, `referenced_tweets.id.attachments.media_keys`
-- **HTMX HTML endpoint:** Returns HTML snippets instead of JSON for direct rendering
-- **TV-optimized rendering:** 3rem base text, nested cards with #1a1a1a background, high contrast colors
+- **mkcert for local SSL:** Generate locally-trusted certificates that mobile devices can trust
+- **LAN IP binding:** Server must bind to LAN IP (not just localhost) for network access
+- **One-time setup:** CA installation on devices is a one-time manual step per device
 
 ## Active Constraints
 
-- X API v2 separates referenced content into `includes` object — must build lookup dictionary
-- Expansions require both `referenced_tweets.id` AND `tweet.fields=referenced_tweets`
-- Deleted/protected originals must show "unavailable" placeholder — cannot assume all embedded posts exist
+- Self-signed certificates don't work on mobile Chrome — no "proceed anyway" option
+- mkcert requires installing root CA on each device that needs to access the server
+- HTTPS is required for Cast SDK — no workaround
 
 ## Completed Milestones
 
@@ -108,11 +91,10 @@ All display phases depend on Phase 8. Phases 9, 10, and 11 can run in parallel a
 
 ### Next Actions
 
-Milestone v1.2 is complete. To continue:
-
-1. `/gsd-new-milestone` — Start planning the next milestone
-2. `/gsd-progress` — View complete project progress
+1. Define requirements for LAN casting support
+2. Create roadmap with phases
+3. Start Phase 1 discussion
 
 ---
 *State initialized: 2026-06-04*
-*Milestone v1.2 completed: 2026-06-07*
+*Milestone v1.3 started: 2026-06-07*
