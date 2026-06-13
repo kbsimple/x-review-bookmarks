@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: LAN Casting Support
-status: complete
-last_updated: "2026-06-08T07:45:00Z"
-last_activity: 2026-06-08 — Milestone v1.3 complete
+milestone: v1.4
+milestone_name: Static Export
+status: in_progress
+last_updated: "2026-06-13T18:30:00Z"
+last_activity: 2026-06-13 — Phase 14 Plan 02 (StaticExportService + JSON writers) complete
 progress:
-  total_phases: 13
+  total_phases: 14
   completed_phases: 13
-  total_plans: 52
-  completed_plans: 52
-  percent: 100
+  total_plans: 57
+  completed_plans: 55
+  percent: 96
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -27,15 +27,15 @@ progress:
 
 ## Current Position
 
-Phase: All phases complete
-Status: Milestone v1.3 complete
-Last activity: 2026-06-08 — Phase 13 (LAN Network Access) complete
+Phase: 14 — Static Export (in progress — Plans 01 and 02 complete)
+Status: Executing Phase 14 (Wave 2 Plan 02 complete, Plan 03 next)
+Last activity: 2026-06-13 — Plan 14-02 StaticExportService + JSON writers committed (5def81c)
 
 ## Progress
 
 ```
-Milestone v1.3 Progress
-████████████████████████ 100% (13/13 phases complete)
+Phase 14 Progress
+█████████████████████████ 96% (13/14 phases complete, plan 55/57)
 ```
 
 ## Milestone v1.3 Goals
@@ -57,6 +57,11 @@ Milestone v1.3 Progress
 
 ## Key Decisions
 
+- **StaticExportService is standalone:** Does not extend ExportService — different shape (directory vs file, multiple outputs)
+- **source field = 'xbm-static':** Distinguishes static export from CLI export format ('xbm')
+- **Sorted search-index strings:** tags/topics strings sorted alphabetically for deterministic test output
+- **get_all_with_embedded reuses _row_to_dict_with_embedded:** Avoids duplicating JSON parsing logic
+- **get_all excludes FSRS internals:** user_preference, step, fsrs_data omitted from export
 - **mkcert for local SSL:** Generate locally-trusted certificates that mobile devices can trust
 - **LAN IP binding:** Server binds to 0.0.0.0 for network access (dual binding)
 - **One-time setup:** CA installation on devices is a one-time manual step per device
@@ -112,12 +117,12 @@ Milestone v1.3 Progress
 
 ### Next Actions
 
-Milestone v1.3 is complete. All planned features implemented.
+Phase 14 (Static Export) is in progress.
 
-To start a new milestone:
-1. Create milestone definition in `.planning/MILESTONES.md`
-2. Run `/gsd-new-milestone` to create roadmap and requirements
-3. Run `/gsd-autonomous` to execute phases
+Wave 0 complete (Plan 14-00: test infrastructure stubs).
+Wave 1 Plan 14-01 complete (repository extensions: get_all_with_embedded + ReviewStateRepository.get_all).
+Wave 2 Plan 14-02 complete (StaticExportService + 5 JSON writers + activated tests).
+Next: Plan 14-03 (Wave 3: index.html + netlify.toml writers).
 
 ---
 *State initialized: 2026-04-18*
