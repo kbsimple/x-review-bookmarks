@@ -788,6 +788,128 @@ def import_cmd(
         sys.exit(1)
 
 
+@app.command("export-static")
+def export_static(
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output directory (default: data/static-export/)",
+    ),
+    db_path: Optional[Path] = typer.Option(
+        None,
+        "--db",
+        "-d",
+        help="Path to database file (default: data/bookmarks.db)",
+    ),
+) -> None:
+    """Export bookmarks to static files for Netlify deployment.
+
+    Generates a self-contained static web app for hosting on Netlify:
+      posts.json, tags.json, topics.json, review_state.json,
+      search-index.json, index.html, netlify.toml
+
+    To deploy to Netlify:
+      Option 1: Drag the output directory to netlify.com/drop
+      Option 2: netlify deploy --dir data/static-export/
+
+    Note: Open index.html via Netlify, not by double-clicking.
+    Direct file:// access does not support fetch() for loading JSON files.
+
+    Examples:
+        xbm export-static
+        xbm export-static --output ~/Desktop/bookmarks-site
+    """
+    try:
+        db_path = get_database_path(db_path)
+        conn = init_database(db_path)
+
+        if output is None:
+            output = Path("data/static-export")
+
+        from ..services.static_export import StaticExportService
+
+        svc = StaticExportService(conn)
+
+        step_labels = [
+            "Writing posts.json...",
+            "Writing tags.json...",
+            "Writing topics.json...",
+            "Writing review_state.json...",
+            "Writing search-index.json...",
+            "Writing index.html...",
+            "Writing netlify.toml...",
+        ]
+
+        result = None
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task(step_labels[0], total=7)
+            for label in step_labels[:-1]:
+                progress.update(task, description=label)
+            result = svc.export(output)
+            progress.update(task, description="Done!", completed=7)
+
+        conn.close()
+
+        summary_table = Table(
+            title=f"Export Complete — {output}",
+            show_header=True,
+            header_style="bold cyan",
+        )
+        summary_table.add_column("File", style="dim")
+        summary_table.add_column("Size", justify="right")
+
+        for file_path in result.files:
+            try:
+                size_bytes = file_path.stat().st_size
+                size_str = f"{size_bytes / 1024:.1f} KB" if size_bytes >= 1024 else f"{size_bytes} B"
+            except OSError:
+                size_str = "—"
+            summary_table.add_row(file_path.name, size_str)
+
+        console.print()
+        console.print(summary_table)
+        console.print()
+        console.print(Panel(
+            Text.assemble(
+                ("Deploy to Netlify:\n\n", "bold"),
+                ("  Option 1: ", "dim"),
+                ("Drag ", ""),
+                (str(output), "cyan"),
+                (" to ", ""),
+                ("netlify.com/drop\n\n", "cyan"),
+                ("  Option 2: ", "dim"),
+                (f"netlify deploy --dir {output}\n\n", "cyan"),
+                ("Note: ", "dim"),
+                ("Open index.html via Netlify, not by double-clicking.\n", ""),
+                ("      Direct file:// access does not support fetch().", "dim"),
+            ),
+            title="[bold]Deployment Instructions[/bold]",
+            border_style="green",
+        ))
+        console.print()
+        console.print(f"[green]Exported {result.post_count} posts to {output}/[/green]")
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(Panel(
+            Text.assemble(
+                ("Static export failed\n", "bold red"),
+                (str(e), "red"),
+            ),
+            title="[bold red]Error[/bold red]",
+            border_style="red",
+        ))
+        sys.exit(1)
+
+
 @app.command("check-links")
 def check_links(
     force: bool = typer.Option(False, "--force", "-f", help="Recheck all links, ignoring cache"),
