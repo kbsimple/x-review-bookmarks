@@ -85,7 +85,7 @@
 **Plans:** 2 plans
 
 Plans:
-- [ ] 16-00-PLAN.md — Wave 0: TestIndexHtmlCarousel failing stubs (Nyquist compliance)
+- [x] 16-00-PLAN.md — Wave 0: TestIndexHtmlCarousel failing stubs (Nyquist compliance)
 - [ ] 16-01-PLAN.md — Wave 1: Implement carousel in _build_index_html() (CSS + HTML + JS)
 
 ## Progress
@@ -107,10 +107,11 @@ Plans:
 | 13. LAN Network Access | v1.3 | 1/1 | Complete | 2026-06-08 |
 | 14. Static Export | v1.4 | 5/5 | Complete | 2026-06-13 |
 | 15. oEmbed Rich Embeds | v1.5 | 1/1 | Complete | 2026-06-13 |
-| 16. Viewer Presentation Modes | v1.6 | 0/2 | Not started | — |
+| 16. Viewer Presentation Modes | v1.6 | 1/2 | In Progress | — |
 
 ---
 *Roadmap created: 2026-04-18*
 *Roadmap updated: 2026-06-13 — v1.5 (oEmbed Rich Embeds) complete — all 15 phases done*
 *Roadmap updated: 2026-06-13 — Phase 16 (Viewer Presentation Modes) added*
 *Roadmap updated: 2026-06-13 — Phase 16 planned: 2 plans (Wave 0 stubs + Wave 1 implementation)*
+*Roadmap updated: 2026-06-13 — Phase 16 Plan 00 complete (Wave 0 RED stubs — TestIndexHtmlCarousel)*

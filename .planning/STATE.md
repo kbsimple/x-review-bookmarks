@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: oEmbed Rich Embeds
-status: complete
-last_updated: "2026-06-13T20:28:00Z"
-last_activity: 2026-06-13 — Phase 15 Plan 01 (oEmbed rich embeds) complete
+status: in-progress
+last_updated: "2026-06-13T22:05:00Z"
+last_activity: 2026-06-13 — Phase 16 Plan 00 (TestIndexHtmlCarousel Wave 0 stubs) complete
 progress:
-  total_phases: 15
+  total_phases: 16
   completed_phases: 15
-  total_plans: 58
-  completed_plans: 58
-  percent: 100
+  total_plans: 60
+  completed_plans: 59
+  percent: 98
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -27,15 +27,15 @@ progress:
 
 ## Current Position
 
-Phase: 15 — oEmbed Rich Embeds (COMPLETE — Plan 01 done)
-Status: Phase 15 complete — all 58 plans done across 15 phases
-Last activity: 2026-06-13 — Plan 15-01 oEmbed rich embeds committed (324be1d)
+Phase: 16 — Viewer Presentation Modes (IN PROGRESS — Plan 00 done)
+Status: Phase 16 plan 00 complete (Wave 0 RED stubs) — plan 01 (Wave 1 implementation) pending
+Last activity: 2026-06-13 — Plan 16-00 TestIndexHtmlCarousel stubs committed (21b7580)
 
 ## Progress
 
 ```
-Phase 15 Progress
-███████████████████████████ 100% (15/15 phases complete, plan 58/58)
+Phase 16 Progress
+██████████████████████████░ 98% (15/16 phases complete, plan 59/60)
 ```
 
 ## Milestone v1.3 Goals
@@ -59,6 +59,7 @@ Phase 15 Progress
 
 ## Key Decisions
 
+- **Wave 0 TestIndexHtmlCarousel stubs:** test_oembed_reinit_called_in_carousel passes in RED because twttr.widgets.load is already present from Phase 15 — expected and acceptable (5/6 stubs fail)
 - **oembed_map guard:** Changed `is not None` to truthy check `if oembed_map:` — empty dict (default path) is falsy, cleanly omits oembed_html field
 - **OEmbedService patch target:** src.services.oembed.OEmbedService (definition site) not static_export — lazy import resolves at call time
 - **OEMBED-03 manual-only:** Viewer JS (renderOEmbedCard + loadTwitterWidget) has no unit tests — JS embedded in Python string, no JS test infrastructure
@@ -130,7 +131,10 @@ Phase 15 Progress
 
 ### Next Actions
 
-Phase 15 complete. All 58 plans across 15 phases complete. Project is fully feature-complete for v1.4/v1.5 milestone.
+Phase 16 in progress. Plan 16-00 (Wave 0 RED stubs) complete. Next: Plan 16-01 (Wave 1 carousel implementation in _build_index_html()).
+
+Phase 16 summary:
+- Plan 00 (16-00): TestIndexHtmlCarousel Wave 0 RED stubs — 6 test methods, 5 fail, 1 passes (twttr.widgets.load already present)
 
 Phase 15 summary:
 - Plan 01 (15-01): OEmbedService + --rich-embeds flag + viewer JS + bug fix + 8 tests + netlify-deploy skill (622 tests pass)
