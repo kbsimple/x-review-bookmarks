@@ -226,6 +226,23 @@ class TestIndexHtml:
         html = (tmp_path / "index.html").read_text()
         assert "function esc(" in html
 
+    def test_index_html_contains_linkify_helper(self, temp_db_v6, tmp_path):
+        """index.html contains linkify() for converting URLs in text to links."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "function linkify(" in html
+
+    def test_index_html_contains_profile_link_helper(self, temp_db_v6, tmp_path):
+        """index.html contains profileLink() for linking @usernames to x.com profiles."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "function profileLink(" in html
+        assert "https://x.com/" in html
+
 
 class TestNetlifyToml:
     """Tests for netlify.toml content. EXPORT-04."""

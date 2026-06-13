@@ -562,6 +562,24 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
+// -- Linkify: convert URLs in text to clickable links --
+function linkify(text) {
+  if (!text) return '';
+  return String(text).split(/(https?:\/\/[^\s]+)/g).map((part, i) => {
+    if (i % 2 === 1) {
+      const escaped = esc(part);
+      return `<a href="${escaped}" target="_blank" rel="noopener noreferrer">${escaped}</a>`;
+    }
+    return esc(part);
+  }).join('');
+}
+
+// -- Profile link: @username -> x.com link --
+function profileLink(username) {
+  if (!username) return '';
+  return `<a href="https://x.com/${esc(username)}" target="_blank" rel="noopener noreferrer">@${esc(username)}</a>`;
+}
+
 // -- Global state --
 let allPosts = {};
 let searchIndex = [];
@@ -661,13 +679,13 @@ function renderEmbeddedCard(ep) {
   if (!ep.available) {
     return `<div class="embedded-card">
       <div class="unavailable-placeholder">
-        Original post unavailable${ep.author_username ? ' &middot; @' + esc(ep.author_username) : ''}
+        Original post unavailable${ep.author_username ? ' &middot; ' + profileLink(ep.author_username) : ''}
       </div>
     </div>`;
   }
   return `<div class="embedded-card">
-    <div class="embedded-meta">@${esc(ep.author_username)} &middot; ${formatDate(ep.created_at)}</div>
-    <div class="embedded-text">${esc(ep.text || '')}</div>
+    <div class="embedded-meta">${profileLink(ep.author_username)} &middot; ${formatDate(ep.created_at)}</div>
+    <div class="embedded-text">${linkify(ep.text || '')}</div>
     ${renderMediaGrid(ep.media_urls)}
   </div>`;
 }
@@ -688,8 +706,8 @@ function renderPillsRow(tags, topics) {
 
 function renderOriginalCard(post, reviewState) {
   return `<div class="post-card">
-    <div class="post-meta">@${esc(post.author_username)} &middot; ${formatDate(post.created_at)}</div>
-    <div class="post-text">${esc(post.text || '')}</div>
+    <div class="post-meta">${profileLink(post.author_username)} &middot; ${formatDate(post.created_at)}</div>
+    <div class="post-text">${linkify(post.text || '')}</div>
     ${renderMediaGrid(post.media_urls)}
     ${renderPillsRow(post.tags, post.topics)}
     ${renderReviewBadge(reviewState)}
@@ -699,8 +717,8 @@ function renderOriginalCard(post, reviewState) {
 
 function renderRetweetCard(post, reviewState) {
   return `<div class="post-card">
-    <div class="post-meta">@${esc(post.author_username)} &middot; ${formatDate(post.created_at)}</div>
-    <div class="post-type-label">Reposted from @${esc(post.embedded_post ? post.embedded_post.author_username : '')}</div>
+    <div class="post-meta">${profileLink(post.author_username)} &middot; ${formatDate(post.created_at)}</div>
+    <div class="post-type-label">Reposted from ${profileLink(post.embedded_post ? post.embedded_post.author_username : '')}</div>
     ${renderEmbeddedCard(post.embedded_post)}
     ${renderPillsRow(post.tags, post.topics)}
     ${renderReviewBadge(reviewState)}
@@ -710,9 +728,9 @@ function renderRetweetCard(post, reviewState) {
 
 function renderQuoteCard(post, reviewState) {
   return `<div class="post-card">
-    <div class="post-meta">@${esc(post.author_username)} &middot; ${formatDate(post.created_at)}</div>
-    <div class="post-type-label">Quoting @${esc(post.embedded_post ? post.embedded_post.author_username : '')}</div>
-    <div class="post-text">${esc(post.text || '')}</div>
+    <div class="post-meta">${profileLink(post.author_username)} &middot; ${formatDate(post.created_at)}</div>
+    <div class="post-type-label">Quoting ${profileLink(post.embedded_post ? post.embedded_post.author_username : '')}</div>
+    <div class="post-text">${linkify(post.text || '')}</div>
     ${renderMediaGrid(post.media_urls)}
     ${renderEmbeddedCard(post.embedded_post)}
     ${renderPillsRow(post.tags, post.topics)}
