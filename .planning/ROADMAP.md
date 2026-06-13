@@ -32,7 +32,7 @@
 - [x] **Phase 12: Certificate Management** - LAN SSL certificate generation and CLI commands
 - [x] **Phase 13: LAN Network Access** - Web server LAN binding and mobile device access
 - [x] **Phase 14: Static Export** - Export bookmarks to static JSON for cloud hosting
-- [ ] **Phase 15: oEmbed Rich Embeds** - Add --rich-embeds option to export-static for native X widget rendering
+- [x] **Phase 15: oEmbed Rich Embeds** - Add --rich-embeds option to export-static for native X widget rendering
 
 ## Phase Details
 
@@ -298,7 +298,7 @@ Plans:
 | 12. Certificate Management | 3/3 | Complete | 2026-06-08 |
 | 13. LAN Network Access | 1/1 | Complete | 2026-06-08 |
 | 14. Static Export | 5/5 | Complete | 2026-06-13 |
-| 15. oEmbed Rich Embeds | 0/1 | Not planned | — |
+| 15. oEmbed Rich Embeds | 1/1 | Complete | 2026-06-13 |
 
 ## Coverage
 
@@ -419,3 +419,4 @@ Plans:
 *Roadmap updated: 2026-06-08 - Milestone v1.3 (LAN Casting Support) complete*
 *Roadmap updated: 2026-06-13 - Phase 14 (Static Export) planned: 5 plans across 5 waves*
 *Roadmap updated: 2026-06-13 - Phase 15 (oEmbed Rich Embeds) planned: 1 plan in 1 wave*
+*Roadmap updated: 2026-06-13 - Phase 15 (oEmbed Rich Embeds) complete: 1/1 plans done*

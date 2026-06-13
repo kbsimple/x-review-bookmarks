@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: Static Export
+milestone: v1.5
+milestone_name: oEmbed Rich Embeds
 status: complete
-last_updated: "2026-06-13T19:00:00Z"
-last_activity: 2026-06-13 — Phase 14 Plan 04 (export-static CLI command) complete
+last_updated: "2026-06-13T20:28:00Z"
+last_activity: 2026-06-13 — Phase 15 Plan 01 (oEmbed rich embeds) complete
 progress:
   total_phases: 15
-  completed_phases: 14
+  completed_phases: 15
   total_plans: 58
-  completed_plans: 57
-  percent: 96
+  completed_plans: 58
+  percent: 100
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -27,15 +27,15 @@ progress:
 
 ## Current Position
 
-Phase: 14 — Static Export (COMPLETE — All plans 00-04 done)
-Status: Phase 14 complete — all 57 plans done across 14 phases
-Last activity: 2026-06-13 — Plan 14-04 export-static CLI command committed (0b81bc1)
+Phase: 15 — oEmbed Rich Embeds (COMPLETE — Plan 01 done)
+Status: Phase 15 complete — all 58 plans done across 15 phases
+Last activity: 2026-06-13 — Plan 15-01 oEmbed rich embeds committed (324be1d)
 
 ## Progress
 
 ```
-Phase 14 Progress
-███████████████████████████ 100% (14/14 phases complete, plan 57/57)
+Phase 15 Progress
+███████████████████████████ 100% (15/15 phases complete, plan 58/58)
 ```
 
 ## Milestone v1.3 Goals
@@ -55,9 +55,13 @@ Phase 14 Progress
 | 12. Certificate Management | Generate and manage LAN SSL certificates | ✅ Complete |
 | 13. LAN Network Access | Bind server to LAN and enable mobile access | ✅ Complete |
 | 14. Static Export | Export bookmarks to Netlify-deployable static site | ✅ Complete |
+| 15. oEmbed Rich Embeds | --rich-embeds option for export-static with native X widget rendering | ✅ Complete |
 
 ## Key Decisions
 
+- **oembed_map guard:** Changed `is not None` to truthy check `if oembed_map:` — empty dict (default path) is falsy, cleanly omits oembed_html field
+- **OEmbedService patch target:** src.services.oembed.OEmbedService (definition site) not static_export — lazy import resolves at call time
+- **OEMBED-03 manual-only:** Viewer JS (renderOEmbedCard + loadTwitterWidget) has no unit tests — JS embedded in Python string, no JS test infrastructure
 - **export-static lazy import:** StaticExportService imported inside function body to avoid circular import risk
 - **StaticExportService is standalone:** Does not extend ExportService — different shape (directory vs file, multiple outputs)
 - **source field = 'xbm-static':** Distinguishes static export from CLI export format ('xbm')
@@ -125,7 +129,10 @@ Phase 14 Progress
 
 ### Next Actions
 
-Phase 15 (oEmbed Rich Embeds) added. Implementation partially complete (OEmbedService, StaticExportService, CLI flag, viewer rendering done in conversation). Netlify-deploy skill update pending.
+Phase 15 complete. All 58 plans across 15 phases complete. Project is fully feature-complete for v1.4/v1.5 milestone.
+
+Phase 15 summary:
+- Plan 01 (15-01): OEmbedService + --rich-embeds flag + viewer JS + bug fix + 8 tests + netlify-deploy skill (622 tests pass)
 
 Phase 14 summary:
 - Wave 0 (14-00): test infrastructure stubs
