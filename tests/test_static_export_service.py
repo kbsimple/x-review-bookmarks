@@ -336,6 +336,20 @@ class TestIndexHtmlCarousel:
         html = (tmp_path / "index.html").read_text()
         assert "currentMode !== 'carousel'" in html
 
+    def test_carousel_index_not_reset_unconditionally(self, temp_db_v6, tmp_path):
+        """carouselIndex is preserved across renderView() calls — only clamped when out of bounds.
+
+        Regression guard: a naive reset (carouselIndex = 0) inside the renderView carousel
+        branch causes Next/Prev to flicker without advancing — the index increments then
+        renderView() resets it to 0 before passing it to renderCarousel().
+        The correct guard is carouselIndex >= results.length, not unconditional assignment.
+        """
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "carouselIndex >= results.length" in html
+
 
 class TestNetlifyToml:
     """Tests for netlify.toml content. EXPORT-04."""
