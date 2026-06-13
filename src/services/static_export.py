@@ -532,6 +532,47 @@ a:hover { text-decoration: underline; }
   text-align: center;
   font-size: 13px; color: var(--color-muted);
 }
+/* -- Mode switcher (pill group in header) -- */
+.mode-switcher {
+  display: flex; margin-left: auto; gap: 2px;
+  border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden;
+}
+.mode-btn {
+  background: transparent;
+  color: var(--color-muted);
+  border: none;
+  padding: 6px var(--md);
+  font-size: 13px; font-weight: 400; min-height: 32px;
+  cursor: pointer;
+}
+.mode-btn.active {
+  background: var(--color-accent);
+  color: #fff; font-weight: 600;
+}
+/* -- Carousel nav controls row -- */
+#carousel-nav {
+  display: flex; align-items: center; justify-content: center;
+  gap: var(--lg); margin-top: var(--lg);
+}
+.carousel-btn {
+  display: inline-flex; align-items: center;
+  background: transparent;
+  color: var(--color-link);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: var(--xs) var(--md);
+  font-size: 13px; min-height: 44px; cursor: pointer;
+}
+.carousel-btn:disabled {
+  opacity: 0.3; cursor: not-allowed; pointer-events: none;
+}
+.carousel-counter {
+  font-size: 13px; color: var(--color-secondary);
+}
+/* -- Carousel mode: wider max-width -- */
+.carousel-mode #main {
+  max-width: 860px;
+}
 </style>
 </head>
 <body>
@@ -539,6 +580,10 @@ a:hover { text-decoration: underline; }
 <div id="header">
   <h1>X Bookmarks</h1>
   <span id="count-badge">...</span>
+  <div class="mode-switcher">
+    <button class="mode-btn active" data-mode="stream" onclick="setMode('stream')">Stream</button>
+    <button class="mode-btn" data-mode="carousel" onclick="setMode('carousel')">Carousel</button>
+  </div>
 </div>
 
 <div id="controls">
@@ -614,6 +659,9 @@ let reviewMap = new Map();
 let totalPostCount = 0;
 let exportedDate = '';
 let debounceTimer = null;
+let currentMode = localStorage.getItem('xbm_mode') || 'stream';
+let carouselIndex = 0;
+let savedScrollY = 0;
 
 // -- Date helpers --
 function getDateRange(filter) {
