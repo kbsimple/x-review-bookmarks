@@ -581,8 +581,8 @@ a:hover { text-decoration: underline; }
   <h1>X Bookmarks</h1>
   <span id="count-badge">...</span>
   <div class="mode-switcher">
-    <button class="mode-btn active" data-mode="stream" onclick="setMode('stream')">Stream</button>
-    <button class="mode-btn" data-mode="carousel" onclick="setMode('carousel')">Carousel</button>
+    <button class="mode-btn active" data-mode="carousel" onclick="setMode('carousel')">Carousel</button>
+    <button class="mode-btn" data-mode="stream" onclick="setMode('stream')">Stream</button>
   </div>
 </div>
 
@@ -660,7 +660,7 @@ let reviewMap = new Map();
 let totalPostCount = 0;
 let exportedDate = '';
 let debounceTimer = null;
-let currentMode = localStorage.getItem('xbm_mode') || 'stream';
+let currentMode = localStorage.getItem('xbm_mode') || 'carousel';
 let carouselIndex = 0;
 let savedScrollY = 0;
 
