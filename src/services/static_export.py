@@ -76,13 +76,23 @@ class StaticExportService:
         self._tags_repo = TagsRepository(conn)
         self._topics_repo = TopicsRepository(conn)
 
-    def export(self, output_dir: Path) -> StaticExportResult:
+    def export(
+        self,
+        output_dir: Path,
+        rich_embeds: bool = False,
+        on_oembed_progress: Any = None,
+    ) -> StaticExportResult:
         """Export all data to output_dir.
 
         Creates output_dir if it does not exist. Silently overwrites on re-run.
 
         Args:
             output_dir: Directory to write all export files into.
+            rich_embeds: If True, fetch oEmbed HTML from Twitter for each post
+                and store it as oembed_html in posts.json. Requires internet
+                access. Posts that are deleted or protected get oembed_html=null.
+            on_oembed_progress: Optional callable(completed, total) for oEmbed
+                fetch progress, passed through to OEmbedService.fetch_all().
 
         Returns:
             StaticExportResult with counts and list of files written.
@@ -95,8 +105,14 @@ class StaticExportService:
         tag_map = self._build_post_tag_map()
         topic_map = self._build_post_topic_map()
 
+        oembed_map: dict[str, Any] = {}
+        if rich_embeds and posts:
+            from .oembed import OEmbedService
+            post_ids = [p['x_post_id'] for p in posts]
+            oembed_map = OEmbedService().fetch_all(post_ids, on_progress=on_oembed_progress)
+
         files: list[Path] = []
-        files.append(self._write_posts_json(output_dir, posts, tag_map, topic_map, exported_at))
+        files.append(self._write_posts_json(output_dir, posts, tag_map, topic_map, exported_at, oembed_map))
         files.append(self._write_tags_json(output_dir, exported_at))
         files.append(self._write_topics_json(output_dir, exported_at))
         files.append(self._write_review_state_json(output_dir, exported_at))
@@ -147,6 +163,7 @@ class StaticExportService:
         tag_map: dict[str, list[str]],
         topic_map: dict[str, list[dict[str, Any]]],
         exported_at: str,
+        oembed_map: dict[str, Any] | None = None,
     ) -> Path:
         """Write posts.json -- all posts with tags, topics, embedded_post inline."""
         export_posts = []
@@ -168,6 +185,8 @@ class StaticExportService:
                 "topics": topic_map.get(post_id, []),
                 "embedded_post": p.get('embedded_post'),
             }
+            if oembed_map:
+                export_post["oembed_html"] = oembed_map.get(post_id)
             export_posts.append(export_post)
 
         payload = {
@@ -476,6 +495,10 @@ a:hover { text-decoration: underline; }
   text-decoration: none;
 }
 .view-on-x:hover { text-decoration: underline; }
+/* -- oEmbed (native Twitter widget) card -- */
+.oembed-card { padding: var(--sm) var(--sm) var(--xs); }
+.oembed-container { max-width: 550px; }
+.oembed-container .twitter-tweet { margin: 0 !important; }
 /* -- Loading -- */
 #loading {
   display: flex; flex-direction: column; align-items: center;
@@ -739,7 +762,28 @@ function renderQuoteCard(post, reviewState) {
   </div>`;
 }
 
+// -- oEmbed (native Twitter widget) rendering --
+let _twitterWidgetLoaded = false;
+function loadTwitterWidget() {
+  if (_twitterWidgetLoaded) return;
+  _twitterWidgetLoaded = true;
+  const s = document.createElement('script');
+  s.src = 'https://platform.twitter.com/widgets.js';
+  s.async = true;
+  s.charset = 'utf-8';
+  document.head.appendChild(s);
+}
+
+function renderOEmbedCard(post, reviewState) {
+  return `<div class="post-card oembed-card">
+    <div class="oembed-container">${post.oembed_html}</div>
+    ${renderPillsRow(post.tags, post.topics)}
+    ${renderReviewBadge(reviewState)}
+  </div>`;
+}
+
 function renderPost(post, reviewState) {
+  if (post.oembed_html) return renderOEmbedCard(post, reviewState);
   const type = post.post_type || 'original';
   if (type === 'retweet') return renderRetweetCard(post, reviewState);
   if (type === 'quote')   return renderQuoteCard(post, reviewState);
@@ -799,6 +843,13 @@ function renderView() {
       return renderPost(post, rs);
     })
     .join('');
+
+  if (results.some(e => allPosts[e.id] && allPosts[e.id].oembed_html)) {
+    loadTwitterWidget();
+    if (window.twttr && window.twttr.widgets) {
+      window.twttr.widgets.load(container);
+    }
+  }
 }
 
 // -- Event listeners --

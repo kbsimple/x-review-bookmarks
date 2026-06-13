@@ -802,6 +802,15 @@ def export_static(
         "-d",
         help="Path to database file (default: data/bookmarks.db)",
     ),
+    rich_embeds: bool = typer.Option(
+        False,
+        "--rich-embeds/--no-rich-embeds",
+        help=(
+            "Fetch native X embed HTML for each post via the oEmbed API. "
+            "Requires internet during export. "
+            "Note: embedded posts load Twitter's widget JS at view time (external CDN call)."
+        ),
+    ),
 ) -> None:
     """Export bookmarks to static files for Netlify deployment.
 
@@ -819,6 +828,7 @@ def export_static(
     Examples:
         xbm export-static
         xbm export-static --output ~/Desktop/bookmarks-site
+        xbm export-static --rich-embeds
     """
     try:
         db_path = get_database_path(db_path)
@@ -831,15 +841,11 @@ def export_static(
 
         svc = StaticExportService(conn)
 
-        step_labels = [
-            "Writing posts.json...",
-            "Writing tags.json...",
-            "Writing topics.json...",
-            "Writing review_state.json...",
-            "Writing search-index.json...",
-            "Writing index.html...",
-            "Writing netlify.toml...",
-        ]
+        if rich_embeds:
+            console.print(
+                "[yellow]Note:[/yellow] --rich-embeds fetches native X widget HTML via the oEmbed API.\n"
+                "      Twitter's widget JS will be loaded from an external CDN at view time.\n"
+            )
 
         result = None
         with Progress(
@@ -849,11 +855,28 @@ def export_static(
             TaskProgressColumn(),
             console=console,
         ) as progress:
-            task = progress.add_task(step_labels[0], total=7)
-            for label in step_labels[:-1]:
-                progress.update(task, description=label)
-            result = svc.export(output)
-            progress.update(task, description="Done!", completed=7)
+            oembed_task = None
+            if rich_embeds:
+                oembed_task = progress.add_task("Fetching oEmbed HTML (0/?)", total=None)
+
+            def on_oembed_progress(completed: int, total: int) -> None:
+                if oembed_task is not None:
+                    progress.update(
+                        oembed_task,
+                        description=f"Fetching oEmbed HTML ({completed}/{total})",
+                        total=total,
+                        completed=completed,
+                    )
+
+            export_task = progress.add_task("Exporting static files...", total=1)
+            result = svc.export(
+                output,
+                rich_embeds=rich_embeds,
+                on_oembed_progress=on_oembed_progress if rich_embeds else None,
+            )
+            progress.update(export_task, description="Done!", completed=1)
+            if oembed_task is not None:
+                progress.update(oembed_task, description="oEmbed done")
 
         conn.close()
 

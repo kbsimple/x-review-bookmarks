@@ -6,11 +6,11 @@ status: complete
 last_updated: "2026-06-13T19:00:00Z"
 last_activity: 2026-06-13 — Phase 14 Plan 04 (export-static CLI command) complete
 progress:
-  total_phases: 14
+  total_phases: 15
   completed_phases: 14
-  total_plans: 57
+  total_plans: 58
   completed_plans: 57
-  percent: 100
+  percent: 96
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -119,9 +119,13 @@ Phase 14 Progress
 - **Research:** `.planning/research/STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md`
 - **Milestones:** `.planning/MILESTONES.md`
 
+### Roadmap Evolution
+
+- Phase 15 added: oEmbed Rich Embeds — --rich-embeds option for export-static with native X widget rendering and netlify-deploy skill update
+
 ### Next Actions
 
-All 14 phases complete. Milestone v1.4 Static Export is DONE.
+Phase 15 (oEmbed Rich Embeds) added. Implementation partially complete (OEmbedService, StaticExportService, CLI flag, viewer rendering done in conversation). Netlify-deploy skill update pending.
 
 Phase 14 summary:
 - Wave 0 (14-00): test infrastructure stubs
