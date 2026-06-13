@@ -13,7 +13,7 @@
 | v1.1 Requirements | 14 (Complete) |
 | v1.2 Requirements | 13 (Complete) |
 | v1.3 Requirements | 14 (Planned) |
-| Phases | 13 |
+| Phases | 15 |
 | Milestone | Milestone 4 (v1.3 — LAN Casting Support) |
 
 ## Phases
@@ -32,6 +32,7 @@
 - [x] **Phase 12: Certificate Management** - LAN SSL certificate generation and CLI commands
 - [x] **Phase 13: LAN Network Access** - Web server LAN binding and mobile device access
 - [x] **Phase 14: Static Export** - Export bookmarks to static JSON for cloud hosting
+- [ ] **Phase 15: oEmbed Rich Embeds** - Add --rich-embeds option to export-static for native X widget rendering
 
 ## Phase Details
 
@@ -265,6 +266,20 @@ Plans:
 - [x] 14-03-PLAN.md — index.html and netlify.toml generation (complete service)
 - [x] 14-04-PLAN.md — CLI command export-static (progress bar, summary table, deployment instructions)
 
+### Phase 15: oEmbed Rich Embeds
+**Goal:** Users can export the static viewer with native X widget rendering by passing --rich-embeds to export-static
+**Depends on:** Phase 14
+**Requirements:** OEMBED-01, OEMBED-02, OEMBED-03, OEMBED-04
+**Success Criteria** (what must be TRUE):
+  1. `xbm export-static --rich-embeds` fetches oEmbed HTML from Twitter's public API for each post and stores it in posts.json as `oembed_html`
+  2. Deleted or protected posts get `oembed_html: null` and fall back to the existing custom card renderer
+  3. The static viewer renders posts with `oembed_html` as native Twitter blockquote widgets (Twitter widget JS loaded from CDN at view time)
+  4. Posts without `oembed_html` (--no-rich-embeds default) continue rendering with the existing custom card layout unchanged
+  5. The netlify-deploy skill is updated to accept an optional --rich-embeds flag and passes it to xbm export-static
+**Plans:** 1 plan in 1 wave
+Plans:
+- [ ] 15-01-PLAN.md — OEmbedService, StaticExportService rich_embeds param, CLI flag, viewer rendering, netlify-deploy skill update
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -283,6 +298,7 @@ Plans:
 | 12. Certificate Management | 3/3 | Complete | 2026-06-08 |
 | 13. LAN Network Access | 1/1 | Complete | 2026-06-08 |
 | 14. Static Export | 5/5 | Complete | 2026-06-13 |
+| 15. oEmbed Rich Embeds | 0/1 | Not planned | — |
 
 ## Coverage
 
@@ -402,3 +418,4 @@ Plans:
 *Roadmap created: 2026-04-18*
 *Roadmap updated: 2026-06-08 - Milestone v1.3 (LAN Casting Support) complete*
 *Roadmap updated: 2026-06-13 - Phase 14 (Static Export) planned: 5 plans across 5 waves*
+*Roadmap updated: 2026-06-13 - Phase 15 (oEmbed Rich Embeds) planned: 1 plan in 1 wave*
