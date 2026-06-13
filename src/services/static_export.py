@@ -606,6 +606,7 @@ a:hover { text-decoration: underline; }
   <select id="sort-order">
     <option value="newest">Newest first</option>
     <option value="oldest">Oldest first</option>
+    <option value="random">Random</option>
     <option value="author">By author</option>
   </select>
 </div>
@@ -723,6 +724,11 @@ function filterAndSort() {
     results.sort((a, b) => a.created_at_ts - b.created_at_ts);
   } else if (sortOrder === 'author') {
     results.sort((a, b) => (a.author_username || '').localeCompare(b.author_username || ''));
+  } else if (sortOrder === 'random') {
+    for (let i = results.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [results[i], results[j]] = [results[j], results[i]];
+    }
   } else {
     results.sort((a, b) => b.created_at_ts - a.created_at_ts);
   }
