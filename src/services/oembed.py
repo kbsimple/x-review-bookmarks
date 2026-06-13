@@ -18,7 +18,7 @@ import httpx
 
 
 _OEMBED_API = "https://publish.twitter.com/oembed"
-_POST_URL = "https://x.com/i/web/status/{post_id}"
+_POST_URL = "https://x.com/{username}/status/{post_id}"
 _DEFAULT_DELAY = 0.15
 
 
@@ -35,12 +35,12 @@ class OEmbedService:
     def __init__(self, request_delay: float = _DEFAULT_DELAY) -> None:
         self._delay = request_delay
 
-    def fetch_oembed(self, post_id: str) -> Optional[str]:
+    def fetch_oembed(self, post_id: str, username: str) -> Optional[str]:
         """Return oEmbed HTML for one post, or None if unavailable.
 
         Returns None for deleted/protected posts (404) and any network error.
         """
-        url = _POST_URL.format(post_id=post_id)
+        url = _POST_URL.format(username=username, post_id=post_id)
         try:
             resp = httpx.get(
                 _OEMBED_API,
@@ -57,22 +57,22 @@ class OEmbedService:
 
     def fetch_all(
         self,
-        post_ids: list[str],
+        posts: list[tuple[str, str]],
         on_progress: Optional[Callable[[int, int], None]] = None,
     ) -> dict[str, Optional[str]]:
-        """Fetch oEmbed HTML for a list of post IDs.
+        """Fetch oEmbed HTML for a list of (post_id, username) pairs.
 
         Args:
-            post_ids: X post IDs to fetch.
+            posts: List of (post_id, author_username) tuples.
             on_progress: Optional callback invoked as (completed, total) after each fetch.
 
         Returns:
             Dict mapping post_id -> HTML string, or None for unavailable posts.
         """
         results: dict[str, Optional[str]] = {}
-        total = len(post_ids)
-        for i, post_id in enumerate(post_ids):
-            results[post_id] = self.fetch_oembed(post_id)
+        total = len(posts)
+        for i, (post_id, username) in enumerate(posts):
+            results[post_id] = self.fetch_oembed(post_id, username)
             if on_progress:
                 on_progress(i + 1, total)
             if i < total - 1:

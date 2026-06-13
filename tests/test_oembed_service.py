@@ -15,7 +15,7 @@ class TestOEmbedService:
         mock_resp.json.return_value = {"html": "<blockquote>...</blockquote>"}
         with patch("httpx.get", return_value=mock_resp) as mock_get:
             svc = OEmbedService()
-            result = svc.fetch_oembed("1234567890")
+            result = svc.fetch_oembed("1234567890", "testuser")
         assert result == "<blockquote>...</blockquote>"
         mock_get.assert_called_once()
 
@@ -25,14 +25,14 @@ class TestOEmbedService:
         mock_resp.status_code = 404
         with patch("httpx.get", return_value=mock_resp):
             svc = OEmbedService()
-            result = svc.fetch_oembed("9999999999")
+            result = svc.fetch_oembed("9999999999", "testuser")
         assert result is None
 
     def test_fetch_oembed_network_error_returns_none(self):
         """Network exception (e.g. connection timeout) returns None."""
         with patch("httpx.get", side_effect=Exception("Connection timeout")):
             svc = OEmbedService()
-            result = svc.fetch_oembed("1234567890")
+            result = svc.fetch_oembed("1234567890", "testuser")
         assert result is None
 
     def test_fetch_all_maps_ids_to_html(self):
@@ -42,7 +42,7 @@ class TestOEmbedService:
         mock_resp.json.return_value = {"html": "<blockquote>test</blockquote>"}
         with patch("httpx.get", return_value=mock_resp):
             svc = OEmbedService(request_delay=0)  # no sleep in tests
-            result = svc.fetch_all(["id1", "id2"])
+            result = svc.fetch_all([("id1", "user1"), ("id2", "user2")])
         assert result == {
             "id1": "<blockquote>test</blockquote>",
             "id2": "<blockquote>test</blockquote>",
@@ -56,5 +56,8 @@ class TestOEmbedService:
         calls = []
         with patch("httpx.get", return_value=mock_resp):
             svc = OEmbedService(request_delay=0)
-            svc.fetch_all(["a", "b", "c"], on_progress=lambda c, t: calls.append((c, t)))
+            svc.fetch_all(
+                [("a", "u1"), ("b", "u2"), ("c", "u3")],
+                on_progress=lambda c, t: calls.append((c, t)),
+            )
         assert calls == [(1, 3), (2, 3), (3, 3)]

@@ -108,8 +108,8 @@ class StaticExportService:
         oembed_map: dict[str, Any] = {}
         if rich_embeds and posts:
             from .oembed import OEmbedService
-            post_ids = [p['x_post_id'] for p in posts]
-            oembed_map = OEmbedService().fetch_all(post_ids, on_progress=on_oembed_progress)
+            post_pairs = [(p['x_post_id'], p['author_username']) for p in posts]
+            oembed_map = OEmbedService().fetch_all(post_pairs, on_progress=on_oembed_progress)
 
         files: list[Path] = []
         files.append(self._write_posts_json(output_dir, posts, tag_map, topic_map, exported_at, oembed_map))

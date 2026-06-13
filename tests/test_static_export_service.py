@@ -332,7 +332,7 @@ class TestRichEmbeds:
             assert "oembed_html" not in post
 
     def test_rich_embeds_calls_fetch_all_with_all_post_ids(self, temp_db_v6, tmp_path):
-        """OEmbedService.fetch_all is called with all 3 post IDs."""
+        """OEmbedService.fetch_all is called with (post_id, username) pairs for all 3 posts."""
         mock_svc_instance = MagicMock()
         mock_svc_instance.fetch_all.return_value = {
             "post_001": None,
@@ -342,5 +342,6 @@ class TestRichEmbeds:
         with patch("src.services.oembed.OEmbedService", return_value=mock_svc_instance):
             svc = StaticExportService(temp_db_v6)
             svc.export(tmp_path, rich_embeds=True)
-        called_ids = set(mock_svc_instance.fetch_all.call_args[0][0])
+        called_pairs = mock_svc_instance.fetch_all.call_args[0][0]
+        called_ids = {pair[0] for pair in called_pairs}
         assert called_ids == {"post_001", "post_002", "post_003"}
