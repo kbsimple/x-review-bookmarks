@@ -31,6 +31,7 @@
 - [x] **Phase 11: Cast Display** - Display embedded posts on TV with TV-optimized visual styling
 - [x] **Phase 12: Certificate Management** - LAN SSL certificate generation and CLI commands
 - [x] **Phase 13: LAN Network Access** - Web server LAN binding and mobile device access
+- [ ] **Phase 14: Static Export** - Export bookmarks to static JSON for cloud hosting
 
 ## Phase Details
 
@@ -247,6 +248,23 @@ Plans: 1 plan in 1 wave
 Plans:
 - [ ] 13-01-PLAN.md — LAN network access (--lan flag, certificate check, dual URL display)
 
+### Phase 14: Static Export
+**Goal:** Users can export their bookmarks to static JSON files and deploy to free static hosting (Netlify/Cloudflare Pages)
+**Depends on:** Phase 13
+**Requirements:** EXPORT-01, EXPORT-02, EXPORT-03, EXPORT-04
+**Success Criteria** (what must be TRUE):
+  1. User runs `xbm export-static` and generates JSON files for all posts, tags, topics, and review state
+  2. User can deploy exported files to Netlify or Cloudflare Pages for free hosting
+  3. Static web app displays posts with search functionality (client-side)
+  4. Export includes pre-built search index for instant client-side search
+**Plans:** 5 plans across 5 waves
+Plans:
+- [ ] 14-00-PLAN.md — Test infrastructure (conftest temp_db_v6 fixture, stub test files)
+- [ ] 14-01-PLAN.md — Repository extensions (PostsRepository.get_all_with_embedded, ReviewStateRepository.get_all)
+- [ ] 14-02-PLAN.md — StaticExportService JSON writers (5 JSON files)
+- [ ] 14-03-PLAN.md — index.html and netlify.toml generation (complete service)
+- [ ] 14-04-PLAN.md — CLI command export-static (progress bar, summary table, deployment instructions)
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -264,6 +282,7 @@ Plans:
 | 11. Cast Display | 3/3 | Complete | 2026-06-07 |
 | 12. Certificate Management | 3/3 | Complete | 2026-06-08 |
 | 13. LAN Network Access | 1/1 | Complete | 2026-06-08 |
+| 14. Static Export | 0/5 | In progress | - |
 
 ## Coverage
 
@@ -362,6 +381,15 @@ Plans:
 | PLAT-04 | Phase 13 | Complete |
 | PLAT-05 | Phase 13 | Complete |
 
+### Phase 14 Requirements (Planned)
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| EXPORT-01 | Phase 14 | Planned |
+| EXPORT-02 | Phase 14 | Planned |
+| EXPORT-03 | Phase 14 | Planned |
+| EXPORT-04 | Phase 14 | Planned |
+
 **Coverage:**
 - v1 requirements: 34 total (Complete)
 - v1.1 requirements: 14 total (Complete)
@@ -373,3 +401,4 @@ Plans:
 ---
 *Roadmap created: 2026-04-18*
 *Roadmap updated: 2026-06-08 - Milestone v1.3 (LAN Casting Support) complete*
+*Roadmap updated: 2026-06-13 - Phase 14 (Static Export) planned: 5 plans across 5 waves*
