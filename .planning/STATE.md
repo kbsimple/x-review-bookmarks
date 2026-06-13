@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: oEmbed Rich Embeds
 status: in-progress
-last_updated: "2026-06-13T22:05:00Z"
-last_activity: 2026-06-13 — Phase 16 Plan 00 (TestIndexHtmlCarousel Wave 0 stubs) complete
+last_updated: "2026-06-13T05:55:00Z"
+last_activity: 2026-06-13 — Phase 16 Plan 01 (carousel implementation) complete — 628 tests pass
 progress:
   total_phases: 16
-  completed_phases: 15
+  completed_phases: 16
   total_plans: 60
-  completed_plans: 59
-  percent: 98
+  completed_plans: 60
+  percent: 100
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -27,15 +27,15 @@ progress:
 
 ## Current Position
 
-Phase: 16 — Viewer Presentation Modes (IN PROGRESS — Plan 00 done)
-Status: Phase 16 plan 00 complete (Wave 0 RED stubs) — plan 01 (Wave 1 implementation) pending
-Last activity: 2026-06-13 — Plan 16-00 TestIndexHtmlCarousel stubs committed (21b7580)
+Phase: 16 — Viewer Presentation Modes (COMPLETE)
+Status: Phase 16 complete — all 2 plans done, 628 tests pass
+Last activity: 2026-06-13 — Plan 16-01 carousel implementation committed (78a933b)
 
 ## Progress
 
 ```
 Phase 16 Progress
-██████████████████████████░ 98% (15/16 phases complete, plan 59/60)
+███████████████████████████ 100% (16/16 phases complete, plan 60/60)
 ```
 
 ## Milestone v1.3 Goals
@@ -59,6 +59,9 @@ Phase 16 Progress
 
 ## Key Decisions
 
+- **Carousel index resets to 0 on every renderView() call in carousel mode:** simpler UX, avoids out-of-bounds risk
+- **Keyboard listener registered once outside renderView():** avoids duplicate event registration on each render
+- **twttr.widgets.load scoped to post-list element not document:** avoids re-processing entire DOM per RESEARCH.md anti-pattern
 - **Wave 0 TestIndexHtmlCarousel stubs:** test_oembed_reinit_called_in_carousel passes in RED because twttr.widgets.load is already present from Phase 15 — expected and acceptable (5/6 stubs fail)
 - **oembed_map guard:** Changed `is not None` to truthy check `if oembed_map:` — empty dict (default path) is falsy, cleanly omits oembed_html field
 - **OEmbedService patch target:** src.services.oembed.OEmbedService (definition site) not static_export — lazy import resolves at call time
@@ -131,7 +134,7 @@ Phase 16 Progress
 
 ### Next Actions
 
-Phase 16 in progress. Plan 16-00 (Wave 0 RED stubs) complete. Next: Plan 16-01 (Wave 1 carousel implementation in _build_index_html()).
+Phase 16 complete. All plans done. v1.6 Viewer Presentation Modes shipped.
 
 Phase 16 summary:
 - Plan 00 (16-00): TestIndexHtmlCarousel Wave 0 RED stubs — 6 test methods, 5 fail, 1 passes (twttr.widgets.load already present)

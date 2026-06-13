@@ -13,7 +13,7 @@
 - ✅ **v1.3 LAN Casting Support** — Phases 12–13 (shipped 2026-06-08)
 - ✅ **v1.4 Static Export** — Phase 14 (shipped 2026-06-13)
 - ✅ **v1.5 oEmbed Rich Embeds** — Phase 15 (shipped 2026-06-13)
-- 🚧 **v1.6 Viewer Presentation Modes** — Phase 16 (in progress)
+- ✅ **v1.6 Viewer Presentation Modes** — Phase 16 (shipped 2026-06-13)
 
 ## Phases
 
@@ -68,7 +68,7 @@
 
 </details>
 
-### 🚧 v1.6 Viewer Presentation Modes (Phase 16)
+### ✅ v1.6 Viewer Presentation Modes (Phase 16) — SHIPPED 2026-06-13
 
 **Goal:** Add multiple presentation modes to the static viewer — stream view (existing scrollable list) and a one-at-a-time carousel where posts are displayed prominently and navigated individually.
 
@@ -86,7 +86,7 @@
 
 Plans:
 - [x] 16-00-PLAN.md — Wave 0: TestIndexHtmlCarousel failing stubs (Nyquist compliance)
-- [ ] 16-01-PLAN.md — Wave 1: Implement carousel in _build_index_html() (CSS + HTML + JS)
+- [x] 16-01-PLAN.md — Wave 1: Implement carousel in _build_index_html() (CSS + HTML + JS)
 
 ## Progress
 
