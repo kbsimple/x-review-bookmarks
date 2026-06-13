@@ -277,6 +277,40 @@ class PostsRepository:
             'embedded_post_id': row['embedded_post_id'] if 'embedded_post_id' in row.keys() else None,
         }
 
+    def _row_to_dict_with_embedded(self, row: sqlite3.Row) -> dict[str, Any]:
+        """Convert row to dict with embedded post data.
+
+        Handles LEFT JOIN result where embedded columns may be NULL
+        for original posts (no embedded content).
+
+        Args:
+            row: SQLite Row object with post columns and embedded_ columns.
+
+        Returns:
+            Dict with post data and 'embedded_post' key.
+            embedded_post is None for original posts.
+        """
+        post = self._row_to_dict(row)
+
+        # Add embedded post if present (check for NULL, not truthy)
+        # CRITICAL: Use 'is not None' check because embedded_id could be empty string
+        if row['embedded_id'] is not None:
+            post['embedded_post'] = {
+                'x_post_id': row['embedded_id'],
+                'created_at': row['embedded_created_at'],
+                'text': row['embedded_text'],
+                'author_id': row['embedded_author_id'],
+                'author_username': row['embedded_author_username'],
+                'author_display_name': row['embedded_author_display_name'],
+                'media_urls': json.loads(row['embedded_media_urls']) if row['embedded_media_urls'] else [],
+                'link_urls': json.loads(row['embedded_link_urls']) if row['embedded_link_urls'] else [],
+                'available': bool(row['embedded_available']),
+            }
+        else:
+            post['embedded_post'] = None
+
+        return post
+
     def update_note(self, x_post_id: str, note: Optional[str]) -> None:
         """Update or clear the note for a post.
 
