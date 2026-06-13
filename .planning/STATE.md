@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: LAN Casting Support
 status: in_progress
-last_updated: "2026-06-13T18:14:02Z"
-last_activity: 2026-06-13 — Phase 14 Plan 00 (test infrastructure) complete
+last_updated: "2026-06-13T18:21:11Z"
+last_activity: 2026-06-13 — Phase 14 Plan 01 (repository extensions) complete
 progress:
   total_phases: 14
   completed_phases: 13
   total_plans: 57
-  completed_plans: 53
-  percent: 93
+  completed_plans: 54
+  percent: 95
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -27,15 +27,15 @@ progress:
 
 ## Current Position
 
-Phase: 14 — Static Export (in progress — Plan 00 complete)
-Status: Executing Phase 14 (Wave 0 complete, Wave 1 next)
-Last activity: 2026-06-13 — Plan 14-00 test infrastructure committed (54b9731)
+Phase: 14 — Static Export (in progress — Plan 01 complete)
+Status: Executing Phase 14 (Wave 1 Plan 01 complete, Plan 02 next)
+Last activity: 2026-06-13 — Plan 14-01 repository extensions committed (999e797)
 
 ## Progress
 
 ```
 Milestone v1.3 Progress
-██████████████████████░░ 93% (13/14 phases complete, plan 53/57)
+███████████████████████░ 95% (13/14 phases complete, plan 54/57)
 ```
 
 ## Milestone v1.3 Goals
@@ -57,6 +57,8 @@ Milestone v1.3 Progress
 
 ## Key Decisions
 
+- **get_all_with_embedded reuses _row_to_dict_with_embedded:** Avoids duplicating JSON parsing logic for media_urls/link_urls
+- **get_all excludes FSRS internals:** user_preference, step, fsrs_data omitted from export — not useful to static viewer
 - **mkcert for local SSL:** Generate locally-trusted certificates that mobile devices can trust
 - **LAN IP binding:** Server binds to 0.0.0.0 for network access (dual binding)
 - **One-time setup:** CA installation on devices is a one-time manual step per device
@@ -115,7 +117,8 @@ Milestone v1.3 Progress
 Phase 14 (Static Export) is in progress.
 
 Wave 0 complete (Plan 14-00: test infrastructure stubs).
-Next: Wave 1 (Plans 14-01, 14-02: repository extensions + StaticExportService + JSON writers).
+Wave 1 Plan 14-01 complete (repository extensions: get_all_with_embedded + ReviewStateRepository.get_all).
+Next: Plan 14-02 (StaticExportService + JSON writers).
 
 ---
 *State initialized: 2026-04-18*
