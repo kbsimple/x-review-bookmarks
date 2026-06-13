@@ -15,7 +15,7 @@ User says: "deploy to netlify", "redeploy", "push the static site", or similar.
 
 ## Site
 
-- **URL:** https://vocal-cajeta-fad3a6.netlify.app
+- **URL:** https://xbm-viewer-export.netlify.app
 - **Site ID:** 883d2359-e4e8-45bb-8ac1-c1b287abaf95 (stored in `.netlify/state.json`)
 
 ## Prerequisites
