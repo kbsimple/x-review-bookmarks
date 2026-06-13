@@ -43,3 +43,24 @@ If the token expires or is revoked:
 1. Go to https://app.netlify.com/user/applications#personal-access-tokens
 2. Create a new token
 3. Update `.env.local`: `NETLIFY_AUTH_TOKEN=<new-token>`
+
+
+## Rich Embeds
+
+Trigger: user says "deploy with rich embeds" or "redeploy with rich embeds"
+
+Note: Twitter widget JS will be loaded from an external CDN at view time.
+
+Command:
+```bash
+# 1. Load token
+source .env.local
+
+# 2. Regenerate export with native X widget HTML
+venv/bin/xbm export-static --rich-embeds
+
+# 3. Deploy
+NETLIFY_AUTH_TOKEN=$NETLIFY_AUTH_TOKEN netlify deploy --dir data/static-export/ --prod
+```
+
+No confirmation prompt needed — CDN note above is informational only.
