@@ -217,6 +217,37 @@ class PostsRepository:
 
         return [self._row_to_dict(row) for row in rows]
 
+    def get_all_with_embedded(self) -> list[dict[str, Any]]:
+        """Get all posts with embedded post data, ordered by created_at DESC.
+
+        EXPORT-01: Returns all posts for static export, including embedded post
+        data for retweets and quote tweets via LEFT JOIN.
+
+        No pagination -- returns the complete post set for export.
+
+        Returns:
+            List of post dicts, each with 'embedded_post' key.
+            embedded_post is None for original posts.
+            embedded_post is a dict for retweets/quote tweets.
+        """
+        query = """
+            SELECT p.*,
+                   e.x_post_id as embedded_id,
+                   e.created_at as embedded_created_at,
+                   e.text as embedded_text,
+                   e.author_id as embedded_author_id,
+                   e.author_username as embedded_author_username,
+                   e.author_display_name as embedded_author_display_name,
+                   e.media_urls as embedded_media_urls,
+                   e.link_urls as embedded_link_urls,
+                   e.available as embedded_available
+            FROM posts p
+            LEFT JOIN embedded_posts e ON p.embedded_post_id = e.x_post_id
+            ORDER BY p.created_at DESC
+        """
+        rows = self._conn.execute(query).fetchall()
+        return [self._row_to_dict_with_embedded(row) for row in rows]
+
     def count(self) -> int:
         """Get total post count.
 

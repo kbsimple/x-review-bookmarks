@@ -48,15 +48,22 @@ class TestStaticExportService:
         """Each post in posts.json has a topics field (list of {id, name} dicts)."""
         pass
 
-    @pytest.mark.skip(reason="Wave 1: implement StaticExportService first")
     def test_posts_json_retweet_has_embedded_post(self, temp_db_v6, tmp_path):
         """Retweet post in posts.json has non-null embedded_post field."""
-        pass
+        from src.repositories.posts import PostsRepository
+        repo = PostsRepository(temp_db_v6)
+        posts = repo.get_all_with_embedded()
+        retweet = next(p for p in posts if p['post_type'] == 'retweet')
+        assert retweet['embedded_post'] is not None
+        assert retweet['embedded_post']['x_post_id'] == 'emb_001'
 
-    @pytest.mark.skip(reason="Wave 1: implement StaticExportService first")
     def test_posts_json_original_has_null_embedded_post(self, temp_db_v6, tmp_path):
         """Original post in posts.json has embedded_post: null."""
-        pass
+        from src.repositories.posts import PostsRepository
+        repo = PostsRepository(temp_db_v6)
+        posts = repo.get_all_with_embedded()
+        original = next(p for p in posts if p['post_type'] == 'original')
+        assert original['embedded_post'] is None
 
     @pytest.mark.skip(reason="Wave 1: implement StaticExportService first")
     def test_tags_json_has_post_ids(self, temp_db_v6, tmp_path):
@@ -168,3 +175,42 @@ class TestNetlifyToml:
     def test_netlify_toml_has_build_section(self, temp_db_v6, tmp_path):
         """netlify.toml contains [build] section with publish = '.'."""
         pass
+
+
+# ============================================================================
+# Module-level repository tests (Wave 1)
+# ============================================================================
+
+
+def test_get_all_with_embedded_returns_all_posts(temp_db_v6):
+    """PostsRepository.get_all_with_embedded() returns all posts with embedded data."""
+    from src.repositories.posts import PostsRepository
+    repo = PostsRepository(temp_db_v6)
+    posts = repo.get_all_with_embedded()
+    assert len(posts) == 3
+    # Ordered newest first
+    assert posts[0]['x_post_id'] == 'post_003'
+    # All have embedded_post key
+    assert all('embedded_post' in p for p in posts)
+    # Retweet has embedded post
+    retweet = next(p for p in posts if p['post_type'] == 'retweet')
+    assert retweet['embedded_post'] is not None
+    assert isinstance(retweet['embedded_post']['media_urls'], list)
+
+
+def test_get_all_review_states_returns_seeded_states(temp_db_v6):
+    """ReviewStateRepository.get_all() returns all seeded review states."""
+    from src.repositories.review_state import ReviewStateRepository
+    repo = ReviewStateRepository(temp_db_v6)
+    states = repo.get_all()
+    assert len(states) == 2
+    post_ids = [s['post_id'] for s in states]
+    assert 'post_001' in post_ids
+    assert 'post_002' in post_ids
+    # post_001 has FSRS state 2 (review)
+    post_001_state = next(s for s in states if s['post_id'] == 'post_001')
+    assert post_001_state['state'] == 2
+    assert post_001_state['stability'] == pytest.approx(12.5)
+    # Internal fields not present
+    assert 'user_preference' not in post_001_state
+    assert 'fsrs_data' not in post_001_state
