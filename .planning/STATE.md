@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: LAN Casting Support
-status: complete
-last_updated: "2026-06-08T07:45:00Z"
-last_activity: 2026-06-08 — Milestone v1.3 complete
+milestone: v1.4
+milestone_name: Static Export
+status: in_progress
+last_updated: "2026-06-13T18:14:02Z"
+last_activity: 2026-06-13 — Phase 14 Plan 00 (test infrastructure) complete
 progress:
-  total_phases: 13
+  total_phases: 14
   completed_phases: 13
-  total_plans: 52
-  completed_plans: 52
-  percent: 100
+  total_plans: 57
+  completed_plans: 53
+  percent: 93
 ---
 
 # STATE: X Bookmarked Posts Organizer
@@ -27,15 +27,15 @@ progress:
 
 ## Current Position
 
-Phase: All phases complete
-Status: Milestone v1.3 complete
-Last activity: 2026-06-08 — Phase 13 (LAN Network Access) complete
+Phase: 14 — Static Export (in progress — Plan 00 complete)
+Status: Executing Phase 14 (Wave 0 complete, Wave 1 next)
+Last activity: 2026-06-13 — Plan 14-00 test infrastructure committed (54b9731)
 
 ## Progress
 
 ```
-Milestone v1.3 Progress
-████████████████████████ 100% (13/13 phases complete)
+Milestone v1.4 Progress
+██████████████████████░░ 93% (13/14 phases complete, plan 53/57)
 ```
 
 ## Milestone v1.3 Goals
@@ -112,12 +112,10 @@ Milestone v1.3 Progress
 
 ### Next Actions
 
-Milestone v1.3 is complete. All planned features implemented.
+Phase 14 (Static Export) is in progress.
 
-To start a new milestone:
-1. Create milestone definition in `.planning/MILESTONES.md`
-2. Run `/gsd-new-milestone` to create roadmap and requirements
-3. Run `/gsd-autonomous` to execute phases
+Wave 0 complete (Plan 14-00: test infrastructure stubs).
+Next: Wave 1 (Plans 14-01, 14-02: repository extensions + StaticExportService + JSON writers).
 
 ---
 *State initialized: 2026-04-18*
