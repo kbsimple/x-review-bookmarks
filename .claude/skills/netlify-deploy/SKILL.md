@@ -64,3 +64,27 @@ NETLIFY_AUTH_TOKEN=$NETLIFY_AUTH_TOKEN netlify deploy --dir data/static-export/ 
 ```
 
 No confirmation prompt needed — CDN note above is informational only.
+
+
+## Sample Export
+
+Trigger: user says "export a sample", "deploy a sample", "sample export", or "export with limit"
+
+Exports only the N most recently bookmarked posts (default: 15). Useful for quick previews or testing.
+
+Command:
+```bash
+# 1. Load token
+source .env.local
+
+# 2. Export a sample (15 posts by default; override with --limit N)
+venv/bin/xbm export-static --limit 15
+
+# 3. Deploy
+NETLIFY_AUTH_TOKEN=$NETLIFY_AUTH_TOKEN netlify deploy --dir data/static-export/ --prod
+```
+
+Can be combined with `--rich-embeds`:
+```bash
+venv/bin/xbm export-static --limit 15 --rich-embeds
+```

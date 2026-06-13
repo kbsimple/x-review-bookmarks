@@ -811,6 +811,12 @@ def export_static(
             "Note: embedded posts load Twitter's widget JS at view time (external CDN call)."
         ),
     ),
+    limit: Optional[int] = typer.Option(
+        None,
+        "--limit",
+        "-n",
+        help="Export only the N most recently bookmarked posts. Omit to export all.",
+    ),
 ) -> None:
     """Export bookmarks to static files for Netlify deployment.
 
@@ -829,6 +835,7 @@ def export_static(
         xbm export-static
         xbm export-static --output ~/Desktop/bookmarks-site
         xbm export-static --rich-embeds
+        xbm export-static --limit 15
     """
     try:
         db_path = get_database_path(db_path)
@@ -873,6 +880,7 @@ def export_static(
                 output,
                 rich_embeds=rich_embeds,
                 on_oembed_progress=on_oembed_progress if rich_embeds else None,
+                limit=limit,
             )
             progress.update(export_task, description="Done!", completed=1)
             if oembed_task is not None:

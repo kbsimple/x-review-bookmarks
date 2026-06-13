@@ -19,7 +19,7 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from ..repositories.posts import PostsRepository
 from ..repositories.review_state import ReviewStateRepository
@@ -81,6 +81,7 @@ class StaticExportService:
         output_dir: Path,
         rich_embeds: bool = False,
         on_oembed_progress: Any = None,
+        limit: Optional[int] = None,
     ) -> StaticExportResult:
         """Export all data to output_dir.
 
@@ -93,6 +94,7 @@ class StaticExportService:
                 access. Posts that are deleted or protected get oembed_html=null.
             on_oembed_progress: Optional callable(completed, total) for oEmbed
                 fetch progress, passed through to OEmbedService.fetch_all().
+            limit: If set, export only the N most recently bookmarked posts.
 
         Returns:
             StaticExportResult with counts and list of files written.
@@ -102,6 +104,8 @@ class StaticExportService:
 
         # Load all data once -- bulk queries only
         posts = self._posts_repo.get_all_with_embedded()
+        if limit is not None:
+            posts = posts[:limit]
         tag_map = self._build_post_tag_map()
         topic_map = self._build_post_topic_map()
 
