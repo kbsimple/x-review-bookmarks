@@ -15,6 +15,7 @@ Test classes:
 import json
 import pytest
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 from src.services.static_export import StaticExportService
 
 
@@ -299,3 +300,47 @@ def test_get_all_review_states_returns_seeded_states(temp_db_v6):
     assert post_001_state['stability'] == pytest.approx(12.5)
     assert 'user_preference' not in post_001_state
     assert 'fsrs_data' not in post_001_state
+
+
+class TestRichEmbeds:
+    """Tests for StaticExportService rich_embeds path (OEMBED-01, OEMBED-02, OEMBED-04)."""
+
+    def test_rich_embeds_adds_oembed_html_to_posts_json(self, temp_db_v6, tmp_path):
+        """With rich_embeds=True and mocked OEmbedService, oembed_html appears in posts.json."""
+        fake_html = "<blockquote class='twitter-tweet'>...</blockquote>"
+        mock_svc_instance = MagicMock()
+        mock_svc_instance.fetch_all.return_value = {
+            "post_001": fake_html,
+            "post_002": None,   # deleted/protected
+            "post_003": fake_html,
+        }
+        with patch("src.services.oembed.OEmbedService", return_value=mock_svc_instance):
+            svc = StaticExportService(temp_db_v6)
+            svc.export(tmp_path, rich_embeds=True)
+        data = json.loads((tmp_path / "posts.json").read_text())
+        post_001 = next(p for p in data["posts"] if p["x_post_id"] == "post_001")
+        post_002 = next(p for p in data["posts"] if p["x_post_id"] == "post_002")
+        assert post_001["oembed_html"] == fake_html
+        assert post_002["oembed_html"] is None
+
+    def test_no_rich_embeds_omits_oembed_html_field(self, temp_db_v6, tmp_path):
+        """With rich_embeds=False (default), posts.json posts do not have oembed_html key."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)  # default: rich_embeds=False
+        data = json.loads((tmp_path / "posts.json").read_text())
+        for post in data["posts"]:
+            assert "oembed_html" not in post
+
+    def test_rich_embeds_calls_fetch_all_with_all_post_ids(self, temp_db_v6, tmp_path):
+        """OEmbedService.fetch_all is called with all 3 post IDs."""
+        mock_svc_instance = MagicMock()
+        mock_svc_instance.fetch_all.return_value = {
+            "post_001": None,
+            "post_002": None,
+            "post_003": None,
+        }
+        with patch("src.services.oembed.OEmbedService", return_value=mock_svc_instance):
+            svc = StaticExportService(temp_db_v6)
+            svc.export(tmp_path, rich_embeds=True)
+        called_ids = set(mock_svc_instance.fetch_all.call_args[0][0])
+        assert called_ids == {"post_001", "post_002", "post_003"}
