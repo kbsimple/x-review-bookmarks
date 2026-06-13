@@ -33,7 +33,7 @@ overrides_applied: 0
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
 | `src/services/static_export.py` | Mode switcher CSS, HTML, JS globals, setMode(), renderCarousel(), renderView() carousel branch, keydown listener | VERIFIED | All elements present and substantive; file contains full implementation |
-| `tests/test_static_export_service.py` | `TestIndexHtmlCarousel` class with 6 tests covering VIEWER-01 through VIEWER-05 | VERIFIED | Class at line 248 with 6 test methods, all passing |
+| `tests/test_static_export_service.py` | `TestIndexHtmlCarousel` class with 10 tests covering VIEWER-01 through VIEWER-08 | VERIFIED | Class at line 248 with 10 test methods, all passing |
 
 ### Key Link Verification
 
@@ -53,8 +53,8 @@ Level 4 not applicable — this phase adds pure client-side JavaScript/CSS to a 
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| 38 static-export tests pass (32 original + 6 new carousel) | `venv/bin/python -m pytest tests/test_static_export_service.py -q` | `38 passed, 1 warning in 3.91s` | PASS |
-| Full suite 628 tests pass | `venv/bin/python -m pytest --tb=short -q` | `628 passed, 31 warnings in 36.16s` | PASS |
+| 42 static-export tests pass (32 original + 10 new carousel) | `venv/bin/python -m pytest tests/test_static_export_service.py -q` | `42 passed` | PASS |
+| Full suite 632 tests pass | `venv/bin/python -m pytest --tb=short -q` | `632 passed` | PASS |
 
 ### Requirements Coverage
 
@@ -65,6 +65,8 @@ Level 4 not applicable — this phase adds pure client-side JavaScript/CSS to a 
 | VIEWER-03 | 16-01 | `renderCarousel()` shows one post at a time | SATISFIED | Function at line 858 renders single `cardHtml + nav`; `carouselIndex` global at line 663; test `test_carousel_render_function_present` passes |
 | VIEWER-04 | 16-01 | Keyboard navigation ArrowLeft/ArrowRight/Escape | SATISFIED | `keydown` listener at line 962 with all three keys handled; test `test_keyboard_nav_listener_present` and `test_carousel_nav_dom_ids_present` pass |
 | VIEWER-05 | 16-01 | oEmbed `twttr.widgets.load` scoped to `#post-list` in carousel | SATISFIED | Line 881 scoped call inside `renderCarousel()`; test `test_oembed_reinit_called_in_carousel` passes |
+| VIEWER-07 | 16-01 | Carousel nav button labels `← Prev` / `Next →` present | SATISFIED | `&larr; Prev` and `Next &rarr;` verified by `test_carousel_button_labels_present` |
+| VIEWER-08 | 16-01 | ArrowLeft/ArrowRight increment/decrement logic; Escape returns to stream; carousel-only guard | SATISFIED | `carouselIndex++`, `carouselIndex--`, `setMode('stream')`, `currentMode !== 'carousel'` verified by 3 dedicated tests |
 | VIEWER-06 | 16-01 | Stream mode unchanged/regression-free | SATISFIED | Stream path at lines 937-952 is original code with comment "original path — unchanged"; 628 total tests pass |
 
 ### Anti-Patterns Found
@@ -74,13 +76,17 @@ No blockers or warnings found.
 - `renderView()` resets `carouselIndex = 0` on every call in carousel mode (line 932). This is intentional per CONTEXT.md decision: "Carousel index resets to 0 on any filter/sort/search change." Not a stub.
 - The `setMode()` guard `if (mode === currentMode) return` (line 846) is correct early-return behavior, not a stub.
 
-### Human Verification Required
+### Testing Gap
 
-None. All VIEWER requirements are verifiable via static analysis and automated tests.
+**VIEWER-09: oEmbed Twitter widget visual rendering in carousel** — not automated.
+
+The automated test `test_oembed_reinit_called_in_carousel` confirms `twttr.widgets.load` is present in the generated HTML. The code path (scoped call inside `renderCarousel()` guarded by `post.oembed_html`) is verified. What is not tested: whether the Twitter widget script actually executes, contacts the CDN, and renders a widget in the DOM. This requires a live browser with internet access.
+
+This gap is inherent to the project's test infrastructure (Python + pytest, no browser runtime). Adding Playwright or Selenium would cover it, but those are not currently in the stack. The code path is verified; only the CDN-dependent rendering step is untested.
 
 ### Gaps Summary
 
-No gaps. All six requirements fully implemented and tested.
+One testing gap: VIEWER-09 oEmbed widget visual rendering requires browser + CDN (see above). All other requirements are fully tested by automated string-grep tests.
 
 ---
 

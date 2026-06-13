@@ -302,6 +302,40 @@ class TestIndexHtmlCarousel:
         html = (tmp_path / "index.html").read_text()
         assert "twttr.widgets.load" in html
 
+    def test_carousel_button_labels_present(self, temp_db_v6, tmp_path):
+        """VIEWER-07: ← Prev and Next → button label text present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "&larr; Prev" in html
+        assert "Next &rarr;" in html
+
+    def test_carousel_index_navigation_logic_present(self, temp_db_v6, tmp_path):
+        """VIEWER-08: carouselIndex increment/decrement logic present for ArrowRight/ArrowLeft."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "carouselIndex++" in html
+        assert "carouselIndex--" in html
+
+    def test_keyboard_escape_returns_to_stream(self, temp_db_v6, tmp_path):
+        """VIEWER-08: Escape key triggers setMode('stream') in keydown handler."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "setMode('stream')" in html
+
+    def test_keyboard_listener_carousel_mode_guard_present(self, temp_db_v6, tmp_path):
+        """VIEWER-08: keydown listener exits early when not in carousel mode."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "currentMode !== 'carousel'" in html
+
 
 class TestNetlifyToml:
     """Tests for netlify.toml content. EXPORT-04."""
