@@ -259,10 +259,10 @@ Plans:
   4. Export includes pre-built search index for instant client-side search
 **Plans:** 5 plans across 5 waves
 Plans:
-- [ ] 14-00-PLAN.md — Test infrastructure (conftest temp_db_v6 fixture, stub test files)
-- [ ] 14-01-PLAN.md — Repository extensions (PostsRepository.get_all_with_embedded, ReviewStateRepository.get_all)
-- [ ] 14-02-PLAN.md — StaticExportService JSON writers (5 JSON files)
-- [ ] 14-03-PLAN.md — index.html and netlify.toml generation (complete service)
+- [x] 14-00-PLAN.md — Test infrastructure (conftest temp_db_v6 fixture, stub test files)
+- [x] 14-01-PLAN.md — Repository extensions (PostsRepository.get_all_with_embedded, ReviewStateRepository.get_all)
+- [x] 14-02-PLAN.md — StaticExportService JSON writers (5 JSON files)
+- [x] 14-03-PLAN.md — index.html and netlify.toml generation (complete service)
 - [ ] 14-04-PLAN.md — CLI command export-static (progress bar, summary table, deployment instructions)
 
 ## Progress
@@ -282,7 +282,7 @@ Plans:
 | 11. Cast Display | 3/3 | Complete | 2026-06-07 |
 | 12. Certificate Management | 3/3 | Complete | 2026-06-08 |
 | 13. LAN Network Access | 1/1 | Complete | 2026-06-08 |
-| 14. Static Export | 0/5 | In progress | - |
+| 14. Static Export | 4/5 | In progress | - |
 
 ## Coverage
 
