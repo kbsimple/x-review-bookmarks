@@ -126,6 +126,7 @@ Phase 15 Progress
 ### Roadmap Evolution
 
 - Phase 15 added: oEmbed Rich Embeds — --rich-embeds option for export-static with native X widget rendering and netlify-deploy skill update
+- Phase 16 added: Viewer Presentation Modes — stream view (existing) + one-at-a-time carousel with prev/next navigation
 
 ### Next Actions
 

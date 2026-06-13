@@ -13,6 +13,7 @@
 - ✅ **v1.3 LAN Casting Support** — Phases 12–13 (shipped 2026-06-08)
 - ✅ **v1.4 Static Export** — Phase 14 (shipped 2026-06-13)
 - ✅ **v1.5 oEmbed Rich Embeds** — Phase 15 (shipped 2026-06-13)
+- 🚧 **v1.6 Viewer Presentation Modes** — Phase 16 (in progress)
 
 ## Phases
 
@@ -67,6 +68,24 @@
 
 </details>
 
+### 🚧 v1.6 Viewer Presentation Modes (Phase 16)
+
+**Goal:** Add multiple presentation modes to the static viewer — stream view (existing scrollable list) and a one-at-a-time carousel where posts are displayed prominently and navigated individually.
+
+**Depends on:** Phase 15 (oEmbed Rich Embeds)
+
+**Success Criteria:**
+1. Viewer has a mode switcher (Stream / Carousel) accessible from the header
+2. Stream mode is the existing scrollable vertical list (default, unchanged)
+3. Carousel mode shows one post at a time, prominently, with prev/next navigation
+4. Carousel supports keyboard navigation (arrow keys)
+5. Active mode persists across search/filter changes
+6. Both modes work with oEmbed rich embeds
+
+**Plans:** TBD
+
+- [ ] 16-01-PLAN.md — TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -86,7 +105,9 @@
 | 13. LAN Network Access | v1.3 | 1/1 | Complete | 2026-06-08 |
 | 14. Static Export | v1.4 | 5/5 | Complete | 2026-06-13 |
 | 15. oEmbed Rich Embeds | v1.5 | 1/1 | Complete | 2026-06-13 |
+| 16. Viewer Presentation Modes | v1.6 | 0/? | Not started | — |
 
 ---
 *Roadmap created: 2026-04-18*
 *Roadmap updated: 2026-06-13 — v1.5 (oEmbed Rich Embeds) complete — all 15 phases done*
+*Roadmap updated: 2026-06-13 — Phase 16 (Viewer Presentation Modes) added*
