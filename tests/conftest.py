@@ -425,3 +425,132 @@ def original_post_with_media():
         "bookmarked_at": "2024-01-23T10:00:00Z",
         # No embedded_post for original posts
     }
+
+
+# ============================================================================
+# Phase 14 Fixtures: Static Export
+# ============================================================================
+
+
+@pytest.fixture
+def temp_db_v6(temp_db_v5):
+    """Create a temporary SQLite database with Phase 14 schema tables.
+
+    Extends temp_db_v5 with embedded_posts table and post_type/embedded_post_id
+    columns on posts. Seeds 3 posts (original, retweet, quote), 2 tags, 2 topics,
+    2 review states for static export tests.
+
+    Yields:
+        sqlite3.Connection: Connection with v6 schema tables and seed data.
+    """
+    import json as _json
+
+    # Add post_type and embedded_post_id columns (already exist if V6 migration ran)
+    for alter_sql in [
+        "ALTER TABLE posts ADD COLUMN post_type TEXT DEFAULT 'original'",
+        "ALTER TABLE posts ADD COLUMN embedded_post_id TEXT",
+    ]:
+        try:
+            temp_db_v5.execute(alter_sql)
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
+    # Create embedded_posts table
+    temp_db_v5.execute("""
+        CREATE TABLE IF NOT EXISTS embedded_posts (
+            x_post_id TEXT PRIMARY KEY,
+            created_at TIMESTAMP NOT NULL,
+            text TEXT NOT NULL,
+            author_id TEXT NOT NULL,
+            author_username TEXT NOT NULL,
+            author_display_name TEXT,
+            media_urls TEXT,
+            link_urls TEXT,
+            available INTEGER DEFAULT 1
+        )
+    """)
+    temp_db_v5.commit()
+
+    # Seed: 1 embedded post for retweet
+    temp_db_v5.execute("""
+        INSERT INTO embedded_posts (x_post_id, created_at, text, author_id, author_username,
+            author_display_name, media_urls, link_urls, available)
+        VALUES ('emb_001', '2024-01-10T09:00:00Z', 'Original retweeted content',
+            'orig_author_001', 'orig_author', 'Original Author',
+            '["https://pbs.twimg.com/media/orig.jpg"]', '[]', 1)
+    """)
+    # Seed: 1 embedded post for quote tweet
+    temp_db_v5.execute("""
+        INSERT INTO embedded_posts (x_post_id, created_at, text, author_id, author_username,
+            author_display_name, media_urls, link_urls, available)
+        VALUES ('emb_002', '2024-01-11T10:00:00Z', 'Original quoted content',
+            'orig_author_002', 'quoted_author', 'Quoted Author',
+            '[]', '["https://example.com/article"]', 1)
+    """)
+    temp_db_v5.commit()
+
+    # Seed: 3 posts — original, retweet, quote
+    posts_data = [
+        ('post_001', '2024-01-15T10:30:00Z', 'Python is great for ML and data science',
+         'user_001', 'mldev', 'ML Developer',
+         _json.dumps(['https://pbs.twimg.com/media/post1.jpg']),
+         _json.dumps(['https://scikit-learn.org/']),
+         '2024-01-16T08:00:00Z', 'original', None),
+        ('post_002', '2024-01-20T12:00:00Z', 'RT @orig_author: Original retweeted content',
+         'user_002', 'retweeter', 'Retweeter User',
+         '[]', '[]',
+         '2024-01-21T09:00:00Z', 'retweet', 'emb_001'),
+        ('post_003', '2024-01-22T14:00:00Z', 'My commentary on the quoted post',
+         'user_003', 'quoter', 'Quoter User',
+         '[]', '[]',
+         '2024-01-23T10:00:00Z', 'quote', 'emb_002'),
+    ]
+    for p in posts_data:
+        temp_db_v5.execute("""
+            INSERT INTO posts (x_post_id, created_at, text, author_id, author_username,
+                author_display_name, media_urls, link_urls, bookmarked_at, post_type, embedded_post_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, p)
+    temp_db_v5.commit()
+
+    # Seed: 2 tags
+    temp_db_v5.execute("INSERT INTO tags (id, name) VALUES (1, 'python')")
+    temp_db_v5.execute("INSERT INTO tags (id, name) VALUES (2, 'ml')")
+    temp_db_v5.commit()
+
+    # Seed: tag assignments — post_001 gets both tags
+    temp_db_v5.execute("INSERT INTO post_tags (post_id, tag_id) VALUES ('post_001', 1)")
+    temp_db_v5.execute("INSERT INTO post_tags (post_id, tag_id) VALUES ('post_001', 2)")
+    temp_db_v5.commit()
+
+    # Seed: 2 topics
+    temp_db_v5.execute(
+        "INSERT INTO topics (id, name, description) VALUES (1, 'Programming', 'Software development')"
+    )
+    temp_db_v5.execute(
+        "INSERT INTO topics (id, name, description) VALUES (2, 'Machine Learning', 'AI/ML content')"
+    )
+    temp_db_v5.commit()
+
+    # Seed: topic assignments — post_001 assigned to both topics
+    temp_db_v5.execute(
+        "INSERT INTO post_topics (post_id, topic_id, confidence, source) VALUES ('post_001', 1, 0.9, 'user')"
+    )
+    temp_db_v5.execute(
+        "INSERT INTO post_topics (post_id, topic_id, confidence, source) VALUES ('post_001', 2, 0.8, 'user')"
+    )
+    temp_db_v5.commit()
+
+    # Seed: 2 review states (post_001 and post_002 only)
+    temp_db_v5.execute("""
+        INSERT INTO post_review_state (post_id, scheduled_for, last_reviewed, review_count,
+            stability, difficulty, state)
+        VALUES ('post_001', '2026-06-20T00:00:00', '2026-06-13T10:00:00', 5, 12.5, 0.3, 2)
+    """)
+    temp_db_v5.execute("""
+        INSERT INTO post_review_state (post_id, scheduled_for, review_count, state)
+        VALUES ('post_002', '2026-07-01T00:00:00', 0, 0)
+    """)
+    temp_db_v5.commit()
+
+    yield temp_db_v5

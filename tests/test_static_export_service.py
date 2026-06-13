@@ -1,0 +1,273 @@
+"""Tests for StaticExportService.
+
+EXPORT-01: xbm export-static generates JSON files for posts, tags, topics, review state.
+EXPORT-02: Static web app displays posts with client-side search.
+EXPORT-03: Export includes pre-built search index for instant client-side search.
+EXPORT-04: User can deploy exported files to Netlify (netlify.toml verified here).
+
+Test classes:
+    TestStaticExportService -- core service (Wave 2: JSON files)
+    TestSearchIndex         -- search-index.json structure (Wave 2)
+    TestIndexHtml           -- index.html content assertions (Wave 3 fills)
+    TestNetlifyToml         -- netlify.toml content assertions (Wave 3 fills)
+"""
+
+import json
+import pytest
+from pathlib import Path
+from src.services.static_export import StaticExportService
+
+
+class TestStaticExportService:
+    """Tests for StaticExportService JSON file generation.
+
+    EXPORT-01: JSON files created for posts, tags, topics, review_state.
+    """
+
+    def test_export_creates_output_directory(self, temp_db_v6, tmp_path):
+        """output_dir is created by export() if it does not exist."""
+        svc = StaticExportService(temp_db_v6)
+        out = tmp_path / "export"
+        svc.export(out)
+        assert out.exists()
+        assert out.is_dir()
+
+    def test_posts_json_contains_all_posts(self, temp_db_v6, tmp_path):
+        """posts.json posts array has 3 entries (all seeded posts)."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "posts.json").read_text())
+        assert data["post_count"] == 3
+        assert len(data["posts"]) == 3
+
+    def test_posts_json_schema_has_required_fields(self, temp_db_v6, tmp_path):
+        """posts.json top-level has version, exported_at, source, post_count, posts."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "posts.json").read_text())
+        assert data["version"] == "1.0"
+        assert "exported_at" in data
+        assert data["source"] == "xbm-static"
+        assert "post_count" in data
+        assert "posts" in data
+
+    def test_posts_json_post_has_tags_field(self, temp_db_v6, tmp_path):
+        """Each post in posts.json has a tags field (list of str)."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "posts.json").read_text())
+        post_001 = next(p for p in data["posts"] if p["x_post_id"] == "post_001")
+        assert isinstance(post_001["tags"], list)
+        assert "python" in post_001["tags"]
+        assert "ml" in post_001["tags"]
+
+    def test_posts_json_post_has_topics_field(self, temp_db_v6, tmp_path):
+        """Each post in posts.json has a topics field (list of {id, name} dicts)."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "posts.json").read_text())
+        post_001 = next(p for p in data["posts"] if p["x_post_id"] == "post_001")
+        assert isinstance(post_001["topics"], list)
+        topic_names = [t["name"] for t in post_001["topics"]]
+        assert "Programming" in topic_names
+
+    def test_posts_json_retweet_has_embedded_post(self, temp_db_v6, tmp_path):
+        """Retweet post in posts.json has non-null embedded_post field."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "posts.json").read_text())
+        retweet = next(p for p in data["posts"] if p["post_type"] == "retweet")
+        assert retweet["embedded_post"] is not None
+        assert retweet["embedded_post"]["x_post_id"] == "emb_001"
+
+    def test_posts_json_original_has_null_embedded_post(self, temp_db_v6, tmp_path):
+        """Original post in posts.json has embedded_post: null."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "posts.json").read_text())
+        original = next(p for p in data["posts"] if p["post_type"] == "original")
+        assert original["embedded_post"] is None
+
+    def test_tags_json_has_post_ids(self, temp_db_v6, tmp_path):
+        """Each tag in tags.json has a post_ids list."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "tags.json").read_text())
+        python_tag = next(t for t in data["tags"] if t["name"] == "python")
+        assert "post_ids" in python_tag
+        assert "post_001" in python_tag["post_ids"]
+
+    def test_topics_json_has_post_ids(self, temp_db_v6, tmp_path):
+        """Each topic in topics.json has a post_ids list."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "topics.json").read_text())
+        prog = next(t for t in data["topics"] if t["name"] == "Programming")
+        assert "post_ids" in prog
+        assert "post_001" in prog["post_ids"]
+
+    def test_review_state_json_contains_states(self, temp_db_v6, tmp_path):
+        """review_state.json review_states list has 2 entries (seeded states)."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "review_state.json").read_text())
+        assert len(data["review_states"]) == 2
+        post_ids = [s["post_id"] for s in data["review_states"]]
+        assert "post_001" in post_ids
+
+    def test_overwrite_on_rerun(self, temp_db_v6, tmp_path):
+        """Second call to export() succeeds and updates files silently."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        result = svc.export(tmp_path)
+        assert result.post_count == 3
+
+    def test_empty_database_exports_zero_posts(self, temp_db_v6, tmp_path):
+        """Export on empty DB writes posts.json with post_count=0 and no error raised."""
+        temp_db_v6.execute("DELETE FROM post_tags")
+        temp_db_v6.execute("DELETE FROM post_topics")
+        temp_db_v6.execute("DELETE FROM post_review_state")
+        temp_db_v6.execute("DELETE FROM embedded_posts")
+        temp_db_v6.execute("DELETE FROM posts")
+        temp_db_v6.commit()
+        svc = StaticExportService(temp_db_v6)
+        result = svc.export(tmp_path)
+        assert result.post_count == 0
+        data = json.loads((tmp_path / "posts.json").read_text())
+        assert data["post_count"] == 0
+        assert data["posts"] == []
+
+
+class TestSearchIndex:
+    """Tests for search-index.json structure.
+
+    EXPORT-03: Pre-built search index with denormalized fields.
+    """
+
+    def test_search_index_has_denormalized_tags(self, temp_db_v6, tmp_path):
+        """Entry for post_001 has tags='ml python' (space-joined string, sorted)."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "search-index.json").read_text())
+        entry = next(e for e in data["entries"] if e["id"] == "post_001")
+        assert "ml" in entry["tags"]
+        assert "python" in entry["tags"]
+        assert isinstance(entry["tags"], str)
+
+    def test_search_index_has_denormalized_topics(self, temp_db_v6, tmp_path):
+        """Entry for post_001 has topics string with both topic names."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "search-index.json").read_text())
+        entry = next(e for e in data["entries"] if e["id"] == "post_001")
+        assert "Programming" in entry["topics"]
+        assert "Machine Learning" in entry["topics"]
+        assert isinstance(entry["topics"], str)
+
+    def test_search_index_has_created_at_ts(self, temp_db_v6, tmp_path):
+        """Every entry has created_at_ts as an integer (Unix timestamp)."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        data = json.loads((tmp_path / "search-index.json").read_text())
+        for entry in data["entries"]:
+            assert isinstance(entry["created_at_ts"], int)
+            assert entry["created_at_ts"] > 0
+
+    def test_search_index_entry_count_matches_posts(self, temp_db_v6, tmp_path):
+        """search-index.json entries count equals posts count (3)."""
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        posts_data = json.loads((tmp_path / "posts.json").read_text())
+        index_data = json.loads((tmp_path / "search-index.json").read_text())
+        assert len(index_data["entries"]) == posts_data["post_count"]
+
+
+class TestIndexHtml:
+    """Tests for index.html content.
+
+    EXPORT-02: Static web app displays posts with client-side search.
+    """
+
+    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
+    def test_index_html_file_exists(self, temp_db_v6, tmp_path):
+        """index.html exists in output directory after export()."""
+        pass
+
+    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
+    def test_index_html_contains_fetch_calls(self, temp_db_v6, tmp_path):
+        """index.html content contains fetch('search-index.json') call."""
+        pass
+
+    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
+    def test_index_html_contains_date_filter_logic(self, temp_db_v6, tmp_path):
+        """index.html content contains 'this_week' date filter case."""
+        pass
+
+    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
+    def test_index_html_contains_dark_theme_colors(self, temp_db_v6, tmp_path):
+        """index.html contains #0f172a (dominant background) in inline CSS."""
+        pass
+
+    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
+    def test_index_html_contains_view_on_x_copy(self, temp_db_v6, tmp_path):
+        """index.html contains 'View on X' string (per UI-SPEC copywriting contract)."""
+        pass
+
+    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
+    def test_index_html_contains_esc_helper(self, temp_db_v6, tmp_path):
+        """index.html contains esc() HTML escaping helper function."""
+        pass
+
+
+class TestNetlifyToml:
+    """Tests for netlify.toml content.
+
+    EXPORT-04: netlify.toml present with cache headers for JSON files.
+    """
+
+    @pytest.mark.skip(reason="Wave 3: implement _write_netlify_toml() first")
+    def test_netlify_toml_exists(self, temp_db_v6, tmp_path):
+        """netlify.toml exists in output directory after export()."""
+        pass
+
+    @pytest.mark.skip(reason="Wave 3: implement _write_netlify_toml() first")
+    def test_netlify_toml_has_cache_headers(self, temp_db_v6, tmp_path):
+        """netlify.toml contains Cache-Control header definition."""
+        pass
+
+    @pytest.mark.skip(reason="Wave 3: implement _write_netlify_toml() first")
+    def test_netlify_toml_has_build_section(self, temp_db_v6, tmp_path):
+        """netlify.toml contains [build] section with publish = '.'."""
+        pass
+
+
+def test_get_all_with_embedded_returns_all_posts(temp_db_v6):
+    """PostsRepository.get_all_with_embedded() returns all posts with embedded data."""
+    from src.repositories.posts import PostsRepository
+    repo = PostsRepository(temp_db_v6)
+    posts = repo.get_all_with_embedded()
+    assert len(posts) == 3
+    # Ordered newest first
+    assert posts[0]['x_post_id'] == 'post_003'
+    # All have embedded_post key
+    assert all('embedded_post' in p for p in posts)
+    # Retweet has embedded post
+    retweet = next(p for p in posts if p['post_type'] == 'retweet')
+    assert retweet['embedded_post'] is not None
+    assert isinstance(retweet['embedded_post']['media_urls'], list)
+
+
+def test_get_all_review_states_returns_seeded_states(temp_db_v6):
+    """ReviewStateRepository.get_all() returns all seeded review states."""
+    from src.repositories.review_state import ReviewStateRepository
+    repo = ReviewStateRepository(temp_db_v6)
+    states = repo.get_all()
+    assert len(states) == 2
+    post_ids = [s['post_id'] for s in states]
+    assert 'post_001' in post_ids
+    assert 'post_002' in post_ids
+    post_001_state = next(s for s in states if s['post_id'] == 'post_001')
+    assert post_001_state['state'] == 2
+    assert post_001_state['stability'] == pytest.approx(12.5)
+    assert 'user_preference' not in post_001_state
+    assert 'fsrs_data' not in post_001_state

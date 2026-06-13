@@ -9,6 +9,7 @@ from .clustering import ClusteringService
 from .topic_suggester import TopicSuggesterService, TopicSuggestion, SuggestionSummary
 from .review_scheduler import ReviewScheduler
 from .review_service import ReviewService
+from .static_export import StaticExportService, StaticExportResult
 
 __all__ = [
     "SearchService",
@@ -29,4 +30,6 @@ __all__ = [
     "SuggestionSummary",
     "ReviewScheduler",
     "ReviewService",
+    "StaticExportService",
+    "StaticExportResult",
 ]

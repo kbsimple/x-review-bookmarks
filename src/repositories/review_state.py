@@ -218,6 +218,25 @@ class ReviewStateRepository:
             "reviewed_count": reviewed_count,
         }
 
+    def get_all(self) -> list[dict[str, Any]]:
+        """Get all review states for static export.
+
+        EXPORT-01: Returns all review states for review_state.json generation.
+        Excludes internal FSRS plumbing fields (user_preference, step, fsrs_data).
+
+        Returns:
+            List of dicts with keys: post_id, scheduled_for, last_reviewed,
+            review_count, stability, difficulty, state.
+            Ordered by post_id for deterministic output.
+        """
+        rows = self._conn.execute(
+            """SELECT post_id, scheduled_for, last_reviewed, review_count,
+                      stability, difficulty, state
+               FROM post_review_state
+               ORDER BY post_id"""
+        ).fetchall()
+        return [dict(row) for row in rows]
+
     def reset_state(self, post_id: str) -> None:
         """Delete review state for a post.
 

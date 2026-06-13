@@ -217,6 +217,37 @@ class PostsRepository:
 
         return [self._row_to_dict(row) for row in rows]
 
+    def get_all_with_embedded(self) -> list[dict[str, Any]]:
+        """Get all posts with embedded post data, ordered by created_at DESC.
+
+        EXPORT-01: Returns all posts for static export, including embedded post
+        data for retweets and quote tweets via LEFT JOIN.
+
+        No pagination -- returns the complete post set for export.
+
+        Returns:
+            List of post dicts, each with 'embedded_post' key.
+            embedded_post is None for original posts.
+            embedded_post is a dict for retweets/quote tweets.
+        """
+        query = """
+            SELECT p.*,
+                   e.x_post_id as embedded_id,
+                   e.created_at as embedded_created_at,
+                   e.text as embedded_text,
+                   e.author_id as embedded_author_id,
+                   e.author_username as embedded_author_username,
+                   e.author_display_name as embedded_author_display_name,
+                   e.media_urls as embedded_media_urls,
+                   e.link_urls as embedded_link_urls,
+                   e.available as embedded_available
+            FROM posts p
+            LEFT JOIN embedded_posts e ON p.embedded_post_id = e.x_post_id
+            ORDER BY p.created_at DESC
+        """
+        rows = self._conn.execute(query).fetchall()
+        return [self._row_to_dict_with_embedded(row) for row in rows]
+
     def count(self) -> int:
         """Get total post count.
 
@@ -245,6 +276,40 @@ class PostsRepository:
             'post_type': row['post_type'] if 'post_type' in row.keys() else 'original',
             'embedded_post_id': row['embedded_post_id'] if 'embedded_post_id' in row.keys() else None,
         }
+
+    def _row_to_dict_with_embedded(self, row: sqlite3.Row) -> dict[str, Any]:
+        """Convert row to dict with embedded post data.
+
+        Handles LEFT JOIN result where embedded columns may be NULL
+        for original posts (no embedded content).
+
+        Args:
+            row: SQLite Row object with post columns and embedded_ columns.
+
+        Returns:
+            Dict with post data and 'embedded_post' key.
+            embedded_post is None for original posts.
+        """
+        post = self._row_to_dict(row)
+
+        # Add embedded post if present (check for NULL, not truthy)
+        # CRITICAL: Use 'is not None' check because embedded_id could be empty string
+        if row['embedded_id'] is not None:
+            post['embedded_post'] = {
+                'x_post_id': row['embedded_id'],
+                'created_at': row['embedded_created_at'],
+                'text': row['embedded_text'],
+                'author_id': row['embedded_author_id'],
+                'author_username': row['embedded_author_username'],
+                'author_display_name': row['embedded_author_display_name'],
+                'media_urls': json.loads(row['embedded_media_urls']) if row['embedded_media_urls'] else [],
+                'link_urls': json.loads(row['embedded_link_urls']) if row['embedded_link_urls'] else [],
+                'available': bool(row['embedded_available']),
+            }
+        else:
+            post['embedded_post'] = None
+
+        return post
 
     def update_note(self, x_post_id: str, note: Optional[str]) -> None:
         """Update or clear the note for a post.
