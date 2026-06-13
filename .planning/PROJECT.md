@@ -2,115 +2,112 @@
 
 ## What This Is
 
-A Python CLI application that fetches bookmarked posts from X (Twitter) using the X Developer API, stores them in SQLite as persistent storage and cache, then organizes them into topics for scheduled resurfacing. The resurfacing follows an exponential backoff schedule based on time since publication, keeping valuable content fresh in memory.
+A Python CLI application that fetches bookmarked posts from X (Twitter) using the X Developer API, stores them in SQLite, and organizes them for scheduled resurfacing using FSRS-based spaced repetition. Also exports a self-contained static web app deployable to Netlify — with optional native X widget rendering via the oEmbed API.
 
 ## Core Value
 
 Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind — content you saved because it mattered, delivered back to you before you forget it.
 
+## Current State
+
+**Shipped:** v1.5 (2026-06-13)
+**Codebase:** ~11,000 LOC Python
+**Tests:** 622 passing
+**Live:** https://xbm-viewer-export.netlify.app
+
 ## Requirements
 
 ### Validated
 
-Milestone 1 delivered:
-- ✓ OAuth 2.0 PKCE authentication with X API
-- ✓ SQLite storage with WAL mode (posts, tags, topics, review state)
-- ✓ Bookmark sync with incremental updates and rate limit handling
-- ✓ FTS5 full-text search across post content and authors
-- ✓ Personal notes attached to posts
-- ✓ JSON/CSV export and import
-- ✓ Tags and topic taxonomy with hybrid AI suggestions
-- ✓ FSRS-based spaced repetition scheduling
-- ✓ Interactive review sessions via CLI
+Milestone v1.0 delivered:
+- ✓ OAuth 2.0 PKCE authentication with X API — v1.0
+- ✓ SQLite storage with WAL mode (posts, tags, topics, review state) — v1.0
+- ✓ Bookmark sync with incremental updates and rate limit handling — v1.0
+- ✓ FTS5 full-text search across post content and authors — v1.0
+- ✓ Personal notes attached to posts — v1.0
+- ✓ JSON/CSV export and import — v1.0
+- ✓ Tags and topic taxonomy with hybrid AI suggestions — v1.0
+- ✓ FSRS-based spaced repetition scheduling — v1.0
+- ✓ Interactive review sessions via CLI — v1.0
 
-#### Validated
+Milestone v1.1 delivered:
+- ✓ FastAPI web application running locally with HTTPS — v1.1
+- ✓ Shared authentication with CLI (same OAuth 2.0 tokens) — v1.1
+- ✓ Browse posts with cursor-based pagination — v1.1
+- ✓ Search and filter posts (FTS5, topic, author, date range) — v1.1
+- ✓ Google Cast integration for Chromecast/Smart TV viewing — v1.1
 
-Milestone 2 delivered:
-- ✓ FastAPI web application running locally with HTTPS
-- ✓ Shared authentication with CLI (same OAuth 2.0 tokens)
-- ✓ Browse posts with cursor-based pagination
-- ✓ Search and filter posts (FTS5, topic, author, date range)
-- ✓ Google Cast integration for Chromecast/Smart TV viewing
+Milestone v1.2 delivered:
+- ✓ Embedded post data stored during sync (retweets and quote tweets) — v1.2
+- ✓ Web app renders embedded posts with nested original content — v1.2
+- ✓ Cast receiver displays embedded posts on TV — v1.2
+- ✓ CLI renders embedded posts in terminal output — v1.2
+
+Milestone v1.3 delivered:
+- ✓ Generate locally-trusted SSL certificates for LAN access (mkcert) — v1.3
+- ✓ CLI command to check/generate/guide certificates — v1.3
+- ✓ Web server binds to LAN IP with proper certificate — v1.3
+- ✓ Mobile browser can access and cast to TV — v1.3
+
+Milestone v1.4 delivered:
+- ✓ `xbm export-static` exports bookmarks to static JSON + viewer HTML — v1.4
+- ✓ Self-contained `index.html` viewer with dark theme, search, filters, sort — v1.4
+- ✓ netlify-deploy skill for one-command deploy to Netlify — v1.4
+- ✓ Static viewer live at https://xbm-viewer-export.netlify.app — v1.4
+
+Milestone v1.5 delivered:
+- ✓ `xbm export-static --rich-embeds` fetches and stores native oEmbed HTML — v1.5
+- ✓ Static viewer renders oEmbed posts as native Twitter widgets (CDN) — v1.5
+- ✓ Deleted/protected posts fall back to custom card layout — v1.5
+- ✓ netlify-deploy skill updated with "deploy with rich embeds" trigger — v1.5
 
 ### Active
 
-Milestone v1.3 — LAN Casting Support:
-- [ ] Generate locally-trusted SSL certificates for LAN access
-- [ ] CLI command to set up mkcert and install CA on devices
-- [ ] Web server binds to LAN IP with proper certificate
-- [ ] Mobile browser can access and cast to TV
-
-### Validated
-
-Milestone v1.2 delivered:
-- ✓ Embedded post data stored during sync (retweets and quote tweets)
-- ✓ Web app renders embedded posts with nested original content
-- ✓ Cast receiver displays embedded posts on TV
-- ✓ CLI renders embedded posts in terminal output
+(No active requirements — all planned features complete. Start next milestone to define new requirements.)
 
 ### Out of Scope
 
 - Thread context — only individual bookmarked posts, not conversation threads
 - Real-time sync — scheduled fetches are sufficient
-- Mobile native app — web app with casting as fallback
-- Cloud hosting — local-only deployment
+- Mobile native app — web app with casting is the mobile strategy
+- Cloud server — local CLI + static export covers the use case
 
 ## Context
 
 **Background:** The user bookmarks posts on X that they find valuable. Over time, these bookmarks accumulate without a mechanism to revisit them. The goal is to transform bookmarks from a "save and forget" pattern into an active review system.
 
-**Technical context:** Milestone 1 complete with OAuth 2.0 PKCE, SQLite storage, FTS5 search, topic clustering, and FSRS-based spaced repetition. All core CLI functionality is working.
+**Technical context:** All 15 phases across 6 milestones complete. Full CLI, web app, Cast integration, LAN access, static export with rich embed support. 622 tests passing.
 
 **Scale:** 100-500 bookmarks across 20-30 topics.
 
 **Milestones:**
-- **Milestone 1 (v1.0):** CLI + SQLite — COMPLETE
-- **Milestone 2 (v1.1):** Web App with Casting — COMPLETE
-- **Milestone 3 (v1.2):** Enhanced Post Rendering — COMPLETE
-- **Milestone 4 (v1.3):** LAN Casting Support — IN PROGRESS
+- **v1.0:** CLI + SQLite — COMPLETE (Phases 1–5)
+- **v1.1:** Web App with Casting — COMPLETE (Phases 6–7)
+- **v1.2:** Enhanced Post Rendering — COMPLETE (Phases 8–11)
+- **v1.3:** LAN Casting Support — COMPLETE (Phases 12–13)
+- **v1.4:** Static Export — COMPLETE (Phase 14)
+- **v1.5:** oEmbed Rich Embeds — COMPLETE (Phase 15)
 
 ## Constraints
 
 - **Tech Stack:** Python (matching existing project pattern)
 - **API Access:** X Developer API credentials available (OAuth 2.0 PKCE)
 - **Data Model:** Posts stored with text, author, images, links, media; no thread context required
-- **Output:** Samsung Smart TV app (primary), web app with casting (fallback)
+- **Output:** Samsung Smart TV app (primary), web app with casting (fallback), static Netlify export
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Hybrid topic model | Balance control with discovery | — Pending |
-| Exponential backoff resurfacing | Spaced repetition keeps content fresh | — Pending |
-| SQLite for storage | Local-first, no infrastructure, good for 100-500 scale | — Pending |
-| Samsung TV as primary target | Matches user's viewing context | — Pending |
+| Hybrid topic model | Balance control with discovery | ✓ Good — AI suggestions with user approval works well |
+| Exponential backoff resurfacing | Spaced repetition keeps content fresh | ✓ Good — FSRS gives flexible scheduling |
+| SQLite for storage | Local-first, no infrastructure, good for 100-500 scale | ✓ Good — WAL mode handles concurrency well |
+| Samsung TV as primary target | Matches user's viewing context | ✓ Good — Cast integration works |
+| Static export to Netlify | Share/browse anywhere without local server | ✓ Good — free hosting, instant access |
+| oEmbed with `omit_script=true` | Bare blockquote HTML + single shared CDN widget.js | ✓ Good — clean separation, one script load |
+| Truthy guard `if oembed_map:` | Empty dict `{}` is falsy; prevents null injection on default path | ✓ Good — fixed critical default-path bug |
+| Lazy import OEmbedService | Avoid import overhead on default export path | ✓ Good — `from .oembed import OEmbedService` inside conditional |
+| Manual-only OEMBED-03 | Viewer JS is inline Python string; no JS test infra | ✓ Accepted — verified via Netlify deploy |
 
 ---
-*Last updated: 2026-06-07 after Milestone 3 completion*
-
-## Current Milestone: v1.3 LAN Casting Support
-
-**Goal:** Enable browsing and casting from mobile devices on the same LAN without certificate warnings.
-
-**Target features:**
-- Generate locally-trusted SSL certificates using mkcert
-- CLI command to set up LAN-accessible certificates
-- Web server binds to LAN IP with proper certificate
-- Mobile browser can access and cast to TV
-
-## Evolution
-
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
+*Last updated: 2026-06-13 after v1.5 milestone*

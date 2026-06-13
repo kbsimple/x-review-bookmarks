@@ -141,7 +141,18 @@ Phase 14 summary:
 - Wave 3 (14-03): index.html + netlify.toml + activated tests (27 tests pass)
 - Wave 4 (14-04): export-static CLI command + 4 CLI tests (31 static tests pass, 606 total pass)
 
+## Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-06-13:
+
+| Category | Item | Status |
+|----------|------|--------|
+| quick_task | 260516-limit-sync-flag | missing |
+| quick_task | 260517-fix-failing-tests | missing |
+| quick_task | 260517-stats-command | missing |
+
 ---
 *State initialized: 2026-04-18*
 *Milestone v1.3 roadmap created: 2026-06-08*
 *Milestone v1.3 complete: 2026-06-08*
+*Milestone v1.5 complete: 2026-06-13*

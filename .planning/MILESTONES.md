@@ -64,4 +64,27 @@
 **Plans:** 5 (Wave 0–4)
 
 ---
+
+## Milestone 6 (v1.5): oEmbed Rich Embeds
+
+**Status:** Complete
+**Started:** 2026-06-13
+**Completed:** 2026-06-13
+
+**Goal:** Add `--rich-embeds` option to `export-static` for native X widget rendering in the static viewer via the public oEmbed API.
+
+**Delivered:**
+- `OEmbedService` at `src/services/oembed.py` — fetches Twitter blockquote HTML per post via public oEmbed API (no auth required)
+- `--rich-embeds / --no-rich-embeds` flag on `xbm export-static` with progress reporting
+- `oembed_html` field in `posts.json` (populated only with `--rich-embeds`; null for deleted/protected posts)
+- Static viewer JS: `renderOEmbedCard()`, `loadTwitterWidget()` — native Twitter widget rendering via CDN
+- Fixed truthy guard bug: `if oembed_map:` (was `is not None`) to prevent field injection on default path
+- netlify-deploy skill updated with "deploy with rich embeds" trigger and command
+- 8 new tests (5 for OEmbedService, 3 for TestRichEmbeds in StaticExportService)
+
+**Phases:** 1 (Phase 15: oEmbed Rich Embeds)
+**Plans:** 1 (15-01)
+**Known deferred items at close:** 3 (see STATE.md Deferred Items)
+
+---
 *Last updated: 2026-06-13*
