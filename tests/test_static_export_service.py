@@ -183,62 +183,73 @@ class TestSearchIndex:
 
 
 class TestIndexHtml:
-    """Tests for index.html content.
+    """Tests for index.html content. EXPORT-02."""
 
-    EXPORT-02: Static web app displays posts with client-side search.
-    """
-
-    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
     def test_index_html_file_exists(self, temp_db_v6, tmp_path):
-        """index.html exists in output directory after export()."""
-        pass
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        assert (tmp_path / "index.html").exists()
 
-    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
     def test_index_html_contains_fetch_calls(self, temp_db_v6, tmp_path):
-        """index.html content contains fetch('search-index.json') call."""
-        pass
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "fetch('search-index.json')" in html
 
-    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
     def test_index_html_contains_date_filter_logic(self, temp_db_v6, tmp_path):
-        """index.html content contains 'this_week' date filter case."""
-        pass
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "this_week" in html
 
-    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
     def test_index_html_contains_dark_theme_colors(self, temp_db_v6, tmp_path):
-        """index.html contains #0f172a (dominant background) in inline CSS."""
-        pass
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "#0f172a" in html
 
-    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
     def test_index_html_contains_view_on_x_copy(self, temp_db_v6, tmp_path):
-        """index.html contains 'View on X' string (per UI-SPEC copywriting contract)."""
-        pass
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "View on X" in html
 
-    @pytest.mark.skip(reason="Wave 3: implement _write_index_html() first")
     def test_index_html_contains_esc_helper(self, temp_db_v6, tmp_path):
-        """index.html contains esc() HTML escaping helper function."""
-        pass
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "function esc(" in html
 
 
 class TestNetlifyToml:
-    """Tests for netlify.toml content.
+    """Tests for netlify.toml content. EXPORT-04."""
 
-    EXPORT-04: netlify.toml present with cache headers for JSON files.
-    """
-
-    @pytest.mark.skip(reason="Wave 3: implement _write_netlify_toml() first")
     def test_netlify_toml_exists(self, temp_db_v6, tmp_path):
-        """netlify.toml exists in output directory after export()."""
-        pass
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        assert (tmp_path / "netlify.toml").exists()
 
-    @pytest.mark.skip(reason="Wave 3: implement _write_netlify_toml() first")
     def test_netlify_toml_has_cache_headers(self, temp_db_v6, tmp_path):
-        """netlify.toml contains Cache-Control header definition."""
-        pass
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        content = (tmp_path / "netlify.toml").read_text()
+        assert "Cache-Control" in content
 
-    @pytest.mark.skip(reason="Wave 3: implement _write_netlify_toml() first")
     def test_netlify_toml_has_build_section(self, temp_db_v6, tmp_path):
-        """netlify.toml contains [build] section with publish = '.'."""
-        pass
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        content = (tmp_path / "netlify.toml").read_text()
+        assert "[build]" in content
+        assert 'publish = "."' in content
 
 
 def test_get_all_with_embedded_returns_all_posts(temp_db_v6):

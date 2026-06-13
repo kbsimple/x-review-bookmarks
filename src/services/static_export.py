@@ -52,6 +52,23 @@ class StaticExportService:
     VERSION = "1.0"
     SOURCE = "xbm-static"
 
+    _NETLIFY_TOML = """\
+# netlify.toml -- place in root of exported directory
+
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/*.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+"""
+
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
         self._posts_repo = PostsRepository(conn)
@@ -84,6 +101,8 @@ class StaticExportService:
         files.append(self._write_topics_json(output_dir, exported_at))
         files.append(self._write_review_state_json(output_dir, exported_at))
         files.append(self._write_search_index_json(output_dir, posts, tag_map, topic_map, exported_at))
+        files.append(self._write_index_html(output_dir))
+        files.append(self._write_netlify_toml(output_dir))
 
         return StaticExportResult(
             output_dir=output_dir,
@@ -274,3 +293,527 @@ class StaticExportService:
         path = output_dir / "search-index.json"
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
         return path
+
+    def _write_netlify_toml(self, output_dir: Path) -> Path:
+        """Write netlify.toml with cache headers for JSON files."""
+        path = output_dir / "netlify.toml"
+        path.write_text(self._NETLIFY_TOML, encoding="utf-8")
+        return path
+
+    def _write_index_html(self, output_dir: Path) -> Path:
+        """Write index.html -- single-file static viewer with inline CSS + JS."""
+        html = self._build_index_html()
+        path = output_dir / "index.html"
+        path.write_text(html, encoding="utf-8")
+        return path
+
+    def _build_index_html(self) -> str:
+        """Build the complete index.html string with inline CSS and JS."""
+        return """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X Bookmarks</title>
+<style>
+/* -- CSS Variables (Design System) -- */
+:root {
+  --color-bg:        #0f172a;
+  --color-card:      #1e293b;
+  --color-accent:    #2563eb;
+  --color-embedded:  #111827;
+  --color-border:    #334155;
+  --color-text:      #f1f5f9;
+  --color-secondary: #94a3b8;
+  --color-muted:     #64748b;
+  --color-link:      #60a5fa;
+  --color-error:     #ef4444;
+  /* Spacing tokens */
+  --xs:  4px;
+  --sm:  8px;
+  --sm2: 12px;
+  --md:  16px;
+  --lg:  24px;
+  --xl:  32px;
+  --2xl: 48px;
+  --3xl: 64px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+a { color: var(--color-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+/* -- Visually hidden (for accessible labels) -- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+/* -- Header -- */
+#header {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--md) var(--xl);
+  display: flex; align-items: center; gap: var(--sm);
+}
+#header h1 {
+  margin: 0; font-size: 18px; font-weight: 600; line-height: 1.3;
+  color: var(--color-text);
+}
+#count-badge {
+  background: var(--color-accent);
+  color: #fff; font-size: 13px; font-weight: 600;
+  padding: var(--xs) var(--sm);
+  border-radius: 12px; white-space: nowrap;
+}
+/* -- Controls row -- */
+#controls {
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--md) var(--xl);
+  display: flex; gap: var(--md); align-items: center;
+  max-width: 720px; margin: 0 auto;
+}
+#controls input, #controls select {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0 var(--md);
+  height: 40px; font-size: 13px;
+  outline: none;
+}
+#controls input { flex: 1; }
+#controls input:focus, #controls select:focus {
+  outline: 2px solid var(--color-accent);
+}
+#controls select { width: 160px; cursor: pointer; }
+/* -- Main content -- */
+#main {
+  max-width: 720px; margin: 0 auto;
+  padding: var(--xl) var(--md);
+}
+/* -- Post cards -- */
+.post-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: var(--md);
+  margin-bottom: var(--lg);
+}
+.post-meta {
+  font-size: 13px; color: var(--color-secondary);
+  line-height: 1.4; margin-bottom: var(--sm);
+}
+.post-type-label {
+  font-size: 13px; font-weight: 600; color: var(--color-muted);
+  line-height: 1.4; margin-bottom: var(--sm);
+}
+.post-text {
+  font-size: 15px; color: var(--color-text);
+  line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+  margin-bottom: var(--sm);
+}
+/* -- Embedded / nested card -- */
+.embedded-card {
+  background: var(--color-embedded);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: var(--sm2);
+  margin-top: var(--sm2);
+}
+.embedded-meta {
+  font-size: 13px; color: var(--color-secondary); margin-bottom: var(--xs);
+}
+.embedded-text {
+  font-size: 15px; color: var(--color-text); opacity: 0.9;
+  white-space: pre-wrap; word-break: break-word;
+}
+.unavailable-placeholder {
+  font-size: 13px; color: var(--color-muted); font-style: italic;
+}
+/* -- Tags and topics -- */
+.pills-row { display: flex; flex-wrap: wrap; gap: var(--xs); margin-top: var(--sm); }
+.pill {
+  display: inline-block;
+  background: var(--color-accent);
+  color: #fff; font-size: 13px; font-weight: 400;
+  padding: var(--xs) var(--sm);
+  border-radius: 12px; line-height: 1.4;
+}
+.topic-pill { opacity: 0.8; }
+/* -- Review badge -- */
+.review-badge {
+  display: inline-block; font-size: 13px; font-weight: 600;
+  color: var(--color-secondary); margin-top: var(--xs);
+}
+/* -- Media grid -- */
+.media-grid { margin-top: var(--sm); }
+.media-grid img {
+  display: block; width: 100%; object-fit: cover;
+  border-radius: 6px; cursor: pointer;
+}
+.media-grid.count-1 img { max-height: 320px; }
+.media-grid.count-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sm); }
+.media-grid.count-2 img { max-height: 240px; }
+.media-grid.count-3, .media-grid.count-4 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sm);
+}
+.media-grid.count-3 img, .media-grid.count-4 img { max-height: 200px; }
+/* -- Card footer: View on X -- */
+.card-footer { display: flex; justify-content: flex-end; margin-top: var(--sm); }
+.view-on-x {
+  color: var(--color-link); font-size: 13px; font-weight: 400;
+  text-decoration: none;
+}
+.view-on-x:hover { text-decoration: underline; }
+/* -- Loading -- */
+#loading {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: var(--2xl) 0;
+  color: var(--color-secondary); font-size: 15px;
+}
+.spinner {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  animation: spin 0.8s linear infinite;
+  margin-bottom: var(--md);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+/* -- Empty / Error states -- */
+#empty-state, #error-state {
+  text-align: center; padding: var(--2xl) 0;
+}
+#empty-state h2, #error-state h2 { font-size: 18px; font-weight: 600; margin-bottom: var(--sm); }
+#error-state h2 { color: var(--color-error); }
+#empty-state p, #error-state p { color: var(--color-secondary); font-size: 15px; }
+/* -- Footer -- */
+#footer {
+  background: var(--color-card);
+  border-top: 1px solid var(--color-border);
+  padding: var(--md) var(--xl);
+  text-align: center;
+  font-size: 13px; color: var(--color-muted);
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>X Bookmarks</h1>
+  <span id="count-badge">...</span>
+</div>
+
+<div id="controls">
+  <label for="search-input" class="sr-only">Search</label>
+  <input type="text" id="search-input"
+         placeholder="Search posts, authors, tags, topics..."
+         autocomplete="off">
+  <label for="date-filter" class="sr-only">Date filter</label>
+  <select id="date-filter">
+    <option value="">All dates</option>
+    <option value="this_week">This week</option>
+    <option value="last_week">Last week</option>
+    <option value="this_month">This month</option>
+    <option value="last_month">Last month</option>
+    <option value="last_3_months">Last 3 months</option>
+    <option value="this_year">This year</option>
+    <option value="older">Older</option>
+  </select>
+  <label for="sort-order" class="sr-only">Sort</label>
+  <select id="sort-order">
+    <option value="newest">Newest first</option>
+    <option value="oldest">Oldest first</option>
+    <option value="author">By author</option>
+  </select>
+</div>
+
+<div id="main">
+  <div id="loading">
+    <div class="spinner"></div>
+    Loading bookmarks...
+  </div>
+  <div id="error-state" style="display:none"></div>
+  <div id="empty-state" style="display:none"></div>
+  <div id="post-list"></div>
+</div>
+
+<div id="footer"></div>
+
+<script>
+'use strict';
+
+// -- HTML escaping helper (CRITICAL: all user content must be escaped) --
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// -- Global state --
+let allPosts = {};
+let searchIndex = [];
+let reviewMap = new Map();
+let totalPostCount = 0;
+let exportedDate = '';
+let debounceTimer = null;
+
+// -- Date helpers --
+function getDateRange(filter) {
+  const now = new Date();
+  const ts = Math.floor(now.getTime() / 1000);
+  switch (filter) {
+    case 'this_week':     return [ts - 7 * 86400, ts];
+    case 'last_week':     return [ts - 14 * 86400, ts - 7 * 86400];
+    case 'this_month': {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return [Math.floor(start.getTime() / 1000), ts];
+    }
+    case 'last_month': {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end   = new Date(now.getFullYear(), now.getMonth(), 1);
+      return [Math.floor(start.getTime() / 1000), Math.floor(end.getTime() / 1000)];
+    }
+    case 'last_3_months': return [ts - 90 * 86400, ts];
+    case 'this_year': {
+      const start = new Date(now.getFullYear(), 0, 1);
+      return [Math.floor(start.getTime() / 1000), ts];
+    }
+    case 'older':         return [0, ts - 365 * 86400];
+    default:              return null;
+  }
+}
+
+function formatDate(isoStr) {
+  if (!isoStr) return '';
+  try {
+    return new Date(isoStr).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'});
+  } catch(e) { return isoStr; }
+}
+
+// -- Filter + sort --
+function filterAndSort() {
+  const query = document.getElementById('search-input').value.toLowerCase().trim();
+  const dateFilter = document.getElementById('date-filter').value;
+  const sortOrder = document.getElementById('sort-order').value;
+
+  let results = searchIndex;
+  if (query) {
+    results = results.filter(e =>
+      (e.text || '').toLowerCase().includes(query) ||
+      (e.author_username || '').toLowerCase().includes(query) ||
+      (e.tags || '').toLowerCase().includes(query) ||
+      (e.topics || '').toLowerCase().includes(query)
+    );
+  }
+  if (dateFilter) {
+    const range = getDateRange(dateFilter);
+    if (range) {
+      const [from, to] = range;
+      results = results.filter(e => e.created_at_ts >= from && e.created_at_ts <= to);
+    }
+  }
+  results = [...results];
+  if (sortOrder === 'oldest') {
+    results.sort((a, b) => a.created_at_ts - b.created_at_ts);
+  } else if (sortOrder === 'author') {
+    results.sort((a, b) => (a.author_username || '').localeCompare(b.author_username || ''));
+  } else {
+    results.sort((a, b) => b.created_at_ts - a.created_at_ts);
+  }
+  return results;
+}
+
+// -- Rendering --
+function renderTagPill(tagName) {
+  return `<span class="pill">#${esc(tagName)}</span>`;
+}
+function renderTopicPill(topicName) {
+  return `<span class="pill topic-pill">Topic: ${esc(topicName)}</span>`;
+}
+function renderReviewBadge(reviewState) {
+  if (!reviewState || !reviewState.scheduled_for) return '';
+  const dateStr = (reviewState.scheduled_for || '').split('T')[0];
+  return `<span class="review-badge">Review due ${esc(dateStr)}</span>`;
+}
+function renderMediaGrid(mediaUrls) {
+  if (!mediaUrls || mediaUrls.length === 0) return '';
+  const count = Math.min(mediaUrls.length, 4);
+  const imgs = mediaUrls.slice(0, 4)
+    .map(url => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer"><img src="${esc(url)}" alt="Post image" loading="lazy"></a>`)
+    .join('');
+  return `<div class="media-grid count-${count}">${imgs}</div>`;
+}
+function renderEmbeddedCard(ep) {
+  if (!ep) return '';
+  if (!ep.available) {
+    return `<div class="embedded-card">
+      <div class="unavailable-placeholder">
+        Original post unavailable${ep.author_username ? ' &middot; @' + esc(ep.author_username) : ''}
+      </div>
+    </div>`;
+  }
+  return `<div class="embedded-card">
+    <div class="embedded-meta">@${esc(ep.author_username)} &middot; ${formatDate(ep.created_at)}</div>
+    <div class="embedded-text">${esc(ep.text || '')}</div>
+    ${renderMediaGrid(ep.media_urls)}
+  </div>`;
+}
+
+function renderCardFooter(post) {
+  const url = `https://x.com/i/web/status/${esc(post.x_post_id)}`;
+  return `<div class="card-footer">
+    <a href="${url}" target="_blank" rel="noopener noreferrer" class="view-on-x">View on X</a>
+  </div>`;
+}
+
+function renderPillsRow(tags, topics) {
+  if ((!tags || !tags.length) && (!topics || !topics.length)) return '';
+  const tagHtml = (tags || []).map(t => renderTagPill(t)).join('');
+  const topicHtml = (topics || []).map(t => renderTopicPill(t.name)).join('');
+  return `<div class="pills-row">${tagHtml}${topicHtml}</div>`;
+}
+
+function renderOriginalCard(post, reviewState) {
+  return `<div class="post-card">
+    <div class="post-meta">@${esc(post.author_username)} &middot; ${formatDate(post.created_at)}</div>
+    <div class="post-text">${esc(post.text || '')}</div>
+    ${renderMediaGrid(post.media_urls)}
+    ${renderPillsRow(post.tags, post.topics)}
+    ${renderReviewBadge(reviewState)}
+    ${renderCardFooter(post)}
+  </div>`;
+}
+
+function renderRetweetCard(post, reviewState) {
+  return `<div class="post-card">
+    <div class="post-meta">@${esc(post.author_username)} &middot; ${formatDate(post.created_at)}</div>
+    <div class="post-type-label">Reposted from @${esc(post.embedded_post ? post.embedded_post.author_username : '')}</div>
+    ${renderEmbeddedCard(post.embedded_post)}
+    ${renderPillsRow(post.tags, post.topics)}
+    ${renderReviewBadge(reviewState)}
+    ${renderCardFooter(post)}
+  </div>`;
+}
+
+function renderQuoteCard(post, reviewState) {
+  return `<div class="post-card">
+    <div class="post-meta">@${esc(post.author_username)} &middot; ${formatDate(post.created_at)}</div>
+    <div class="post-type-label">Quoting @${esc(post.embedded_post ? post.embedded_post.author_username : '')}</div>
+    <div class="post-text">${esc(post.text || '')}</div>
+    ${renderMediaGrid(post.media_urls)}
+    ${renderEmbeddedCard(post.embedded_post)}
+    ${renderPillsRow(post.tags, post.topics)}
+    ${renderReviewBadge(reviewState)}
+    ${renderCardFooter(post)}
+  </div>`;
+}
+
+function renderPost(post, reviewState) {
+  const type = post.post_type || 'original';
+  if (type === 'retweet') return renderRetweetCard(post, reviewState);
+  if (type === 'quote')   return renderQuoteCard(post, reviewState);
+  return renderOriginalCard(post, reviewState);
+}
+
+function showError(message) {
+  document.getElementById('loading').style.display = 'none';
+  const el = document.getElementById('error-state');
+  el.style.display = 'block';
+  el.innerHTML = `<h2>Could not load bookmark data</h2>
+    <p>Make sure you're viewing this file from Netlify, not by opening it directly. Direct file:// access does not support fetch().</p>
+    <p style="color:var(--color-muted);font-size:13px;">${esc(message)}</p>`;
+}
+
+function showEmptyState(reason) {
+  const el = document.getElementById('empty-state');
+  el.style.display = 'block';
+  if (reason === 'no_posts') {
+    el.innerHTML = `<h2>No bookmarks found</h2>
+      <p>Run <code>xbm sync</code> to fetch your bookmarks, then <code>xbm export-static</code> to regenerate this viewer.</p>`;
+  } else {
+    el.innerHTML = `<h2>No posts match your search</h2>
+      <p>Try different keywords or clear the date filter.</p>`;
+  }
+}
+
+function renderView() {
+  const results = filterAndSort();
+  const filtered = results.length;
+  const total = totalPostCount;
+  const badge = filtered === total
+    ? `${total} posts`
+    : `${filtered} of ${total} posts`;
+  document.getElementById('count-badge').textContent = badge;
+
+  const container = document.getElementById('post-list');
+  const emptyEl = document.getElementById('empty-state');
+  emptyEl.style.display = 'none';
+
+  if (total === 0) {
+    showEmptyState('no_posts');
+    container.innerHTML = '';
+    return;
+  }
+  if (filtered === 0) {
+    showEmptyState('no_results');
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = results
+    .map(entry => {
+      const post = allPosts[entry.id];
+      if (!post) return '';
+      const rs = reviewMap.get(entry.id) || null;
+      return renderPost(post, rs);
+    })
+    .join('');
+}
+
+// -- Event listeners --
+document.getElementById('search-input').addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(renderView, 150);
+});
+document.getElementById('date-filter').addEventListener('change', renderView);
+document.getElementById('sort-order').addEventListener('change', renderView);
+
+// -- Bootstrap: fetch all JSON files --
+Promise.all([
+  fetch('search-index.json').then(r => { if (!r.ok) throw new Error('search-index.json: ' + r.status); return r.json(); }),
+  fetch('posts.json').then(r => { if (!r.ok) throw new Error('posts.json: ' + r.status); return r.json(); }),
+  fetch('tags.json').then(r => { if (!r.ok) throw new Error('tags.json: ' + r.status); return r.json(); }),
+  fetch('topics.json').then(r => { if (!r.ok) throw new Error('topics.json: ' + r.status); return r.json(); }),
+  fetch('review_state.json').then(r => { if (!r.ok) throw new Error('review_state.json: ' + r.status); return r.json(); }),
+]).then(([indexData, postsData, tagsData, topicsData, reviewData]) => {
+  searchIndex = indexData.entries || [];
+  totalPostCount = postsData.post_count || 0;
+  exportedDate = (postsData.exported_at || '').split('T')[0];
+
+  (postsData.posts || []).forEach(p => { allPosts[p.x_post_id] = p; });
+  reviewMap = new Map((reviewData.review_states || []).map(r => [r.post_id, r]));
+
+  document.getElementById('footer').textContent =
+    `Exported ${exportedDate} · ${totalPostCount} posts`;
+
+  document.getElementById('loading').style.display = 'none';
+  renderView();
+}).catch(err => {
+  showError(err.message || String(err));
+});
+</script>
+</body>
+</html>"""
