@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: oEmbed Rich Embeds
-status: in-progress
-last_updated: "2026-06-13T05:55:00Z"
-last_activity: 2026-06-13 — Phase 16 Plan 01 (carousel implementation) complete — 628 tests pass
+milestone: v1.6
+milestone_name: Viewer Presentation Modes
+status: complete
+last_updated: "2026-06-13T06:30:00Z"
+last_activity: 2026-06-13 — Phase 16 verified PASS (6/6) — v1.6 Viewer Presentation Modes shipped — 628 tests pass
 progress:
   total_phases: 16
   completed_phases: 16
@@ -164,3 +164,4 @@ Items acknowledged and deferred at milestone close on 2026-06-13:
 *Milestone v1.3 roadmap created: 2026-06-08*
 *Milestone v1.3 complete: 2026-06-08*
 *Milestone v1.5 complete: 2026-06-13*
+*Milestone v1.6 complete: 2026-06-13*

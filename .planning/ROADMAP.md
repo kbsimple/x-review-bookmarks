@@ -107,7 +107,7 @@ Plans:
 | 13. LAN Network Access | v1.3 | 1/1 | Complete | 2026-06-08 |
 | 14. Static Export | v1.4 | 5/5 | Complete | 2026-06-13 |
 | 15. oEmbed Rich Embeds | v1.5 | 1/1 | Complete | 2026-06-13 |
-| 16. Viewer Presentation Modes | v1.6 | 1/2 | In Progress | — |
+| 16. Viewer Presentation Modes | v1.6 | 2/2 | Complete | 2026-06-13 |
 
 ---
 *Roadmap created: 2026-04-18*
@@ -115,3 +115,4 @@ Plans:
 *Roadmap updated: 2026-06-13 — Phase 16 (Viewer Presentation Modes) added*
 *Roadmap updated: 2026-06-13 — Phase 16 planned: 2 plans (Wave 0 stubs + Wave 1 implementation)*
 *Roadmap updated: 2026-06-13 — Phase 16 Plan 00 complete (Wave 0 RED stubs — TestIndexHtmlCarousel)*
+*Roadmap updated: 2026-06-13 — Phase 16 complete — v1.6 Viewer Presentation Modes shipped — 628 tests pass*
