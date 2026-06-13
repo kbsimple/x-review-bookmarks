@@ -501,8 +501,8 @@ a:hover { text-decoration: underline; }
 .view-on-x:hover { text-decoration: underline; }
 /* -- oEmbed (native Twitter widget) card -- */
 .oembed-card { padding: var(--sm) var(--sm) var(--xs); }
-.oembed-container { max-width: 550px; }
-.oembed-container .twitter-tweet { margin: 0 !important; }
+.oembed-container { max-width: 550px; margin: 0 auto; }
+.oembed-container .twitter-tweet { margin: 0 auto !important; }
 /* -- Loading -- */
 #loading {
   display: flex; flex-direction: column; align-items: center;
