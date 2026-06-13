@@ -842,6 +842,47 @@ function renderPost(post, reviewState) {
   return renderOriginalCard(post, reviewState);
 }
 
+function setMode(mode) {
+  if (mode === currentMode) return;
+  if (mode === 'carousel') { savedScrollY = window.scrollY; }
+  if (mode === 'stream')   { requestAnimationFrame(() => window.scrollTo(0, savedScrollY)); }
+  currentMode = mode;
+  localStorage.setItem('xbm_mode', mode);
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  document.body.classList.toggle('carousel-mode', mode === 'carousel');
+  renderView();
+}
+
+function renderCarousel(results, idx) {
+  const entry = results[idx];
+  const post = allPosts[entry.id];
+  const rs = reviewMap.get(entry.id) || null;
+  const cardHtml = renderPost(post, rs);
+  const total = results.length;
+  const prevDisabled = idx === 0         ? 'disabled' : '';
+  const nextDisabled = idx === total - 1 ? 'disabled' : '';
+  const nav = `<div id="carousel-nav">
+    <button class="carousel-btn" id="carousel-prev" ${prevDisabled}>&larr; Prev</button>
+    <span class="carousel-counter">${idx + 1} / ${total} posts</span>
+    <button class="carousel-btn" id="carousel-next" ${nextDisabled}>Next &rarr;</button>
+  </div>`;
+  document.getElementById('post-list').innerHTML = cardHtml + nav;
+  document.getElementById('carousel-prev').addEventListener('click', () => {
+    if (carouselIndex > 0) { carouselIndex--; renderView(); window.scrollTo(0, 0); }
+  });
+  document.getElementById('carousel-next').addEventListener('click', () => {
+    if (carouselIndex < results.length - 1) { carouselIndex++; renderView(); window.scrollTo(0, 0); }
+  });
+  if (post.oembed_html) {
+    loadTwitterWidget();
+    if (window.twttr && window.twttr.widgets) {
+      window.twttr.widgets.load(document.getElementById('post-list'));
+    }
+  }
+}
+
 function showError(message) {
   document.getElementById('loading').style.display = 'none';
   const el = document.getElementById('error-state');
@@ -887,6 +928,13 @@ function renderView() {
     return;
   }
 
+  if (currentMode === 'carousel') {
+    carouselIndex = 0;
+    renderCarousel(results, carouselIndex);
+    return;
+  }
+
+  // Stream mode (original path — unchanged)
   container.innerHTML = results
     .map(entry => {
       const post = allPosts[entry.id];
@@ -911,6 +959,18 @@ document.getElementById('search-input').addEventListener('input', () => {
 });
 document.getElementById('date-filter').addEventListener('change', renderView);
 document.getElementById('sort-order').addEventListener('change', renderView);
+document.addEventListener('keydown', (e) => {
+  if (currentMode !== 'carousel') return;
+  if (document.activeElement === document.getElementById('search-input')) return;
+  const results = filterAndSort();
+  if (e.key === 'ArrowRight' && carouselIndex < results.length - 1) {
+    carouselIndex++; renderView(); window.scrollTo(0, 0);
+  } else if (e.key === 'ArrowLeft' && carouselIndex > 0) {
+    carouselIndex--; renderView(); window.scrollTo(0, 0);
+  } else if (e.key === 'Escape') {
+    setMode('stream');
+  }
+});
 
 // -- Bootstrap: fetch all JSON files --
 Promise.all([
