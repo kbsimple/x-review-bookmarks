@@ -82,9 +82,11 @@
 5. Active mode persists across search/filter changes
 6. Both modes work with oEmbed rich embeds
 
-**Plans:** TBD
+**Plans:** 2 plans
 
-- [ ] 16-01-PLAN.md — TBD
+Plans:
+- [ ] 16-00-PLAN.md — Wave 0: TestIndexHtmlCarousel failing stubs (Nyquist compliance)
+- [ ] 16-01-PLAN.md — Wave 1: Implement carousel in _build_index_html() (CSS + HTML + JS)
 
 ## Progress
 
@@ -105,9 +107,10 @@
 | 13. LAN Network Access | v1.3 | 1/1 | Complete | 2026-06-08 |
 | 14. Static Export | v1.4 | 5/5 | Complete | 2026-06-13 |
 | 15. oEmbed Rich Embeds | v1.5 | 1/1 | Complete | 2026-06-13 |
-| 16. Viewer Presentation Modes | v1.6 | 0/? | Not started | — |
+| 16. Viewer Presentation Modes | v1.6 | 0/2 | Not started | — |
 
 ---
 *Roadmap created: 2026-04-18*
 *Roadmap updated: 2026-06-13 — v1.5 (oEmbed Rich Embeds) complete — all 15 phases done*
 *Roadmap updated: 2026-06-13 — Phase 16 (Viewer Presentation Modes) added*
+*Roadmap updated: 2026-06-13 — Phase 16 planned: 2 plans (Wave 0 stubs + Wave 1 implementation)*
