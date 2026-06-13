@@ -278,7 +278,7 @@ Plans:
   5. The netlify-deploy skill is updated to accept an optional --rich-embeds flag and passes it to xbm export-static
 **Plans:** 1 plan in 1 wave
 Plans:
-- [ ] 15-01-PLAN.md — OEmbedService, StaticExportService rich_embeds param, CLI flag, viewer rendering, netlify-deploy skill update
+- [x] 15-01-PLAN.md — OEmbedService, StaticExportService rich_embeds param, CLI flag, viewer rendering, netlify-deploy skill update
 
 ## Progress
 
@@ -397,21 +397,32 @@ Plans:
 | PLAT-04 | Phase 13 | Complete |
 | PLAT-05 | Phase 13 | Complete |
 
-### Phase 14 Requirements (Planned)
+### Phase 14 Requirements (Complete)
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EXPORT-01 | Phase 14 | Planned |
-| EXPORT-02 | Phase 14 | Planned |
-| EXPORT-03 | Phase 14 | Planned |
-| EXPORT-04 | Phase 14 | Planned |
+| EXPORT-01 | Phase 14 | Complete |
+| EXPORT-02 | Phase 14 | Complete |
+| EXPORT-03 | Phase 14 | Complete |
+| EXPORT-04 | Phase 14 | Complete |
+
+### Phase 15 Requirements (Complete)
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| OEMBED-01 | Phase 15 | Complete |
+| OEMBED-02 | Phase 15 | Complete |
+| OEMBED-03 | Phase 15 | Complete |
+| OEMBED-04 | Phase 15 | Complete |
 
 **Coverage:**
 - v1 requirements: 34 total (Complete)
 - v1.1 requirements: 14 total (Complete)
 - v1.2 requirements: 13 total (Complete)
 - v1.3 requirements: 14 total (Complete)
-- Mapped to phases: 14
+- v1.4 requirements: 4 total (Complete)
+- v1.5 requirements: 4 total (Complete)
+- Mapped to phases: 15
 - Unmapped: 0
 
 ---
