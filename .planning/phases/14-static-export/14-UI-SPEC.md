@@ -1,10 +1,11 @@
 ---
 phase: 14
 slug: static-export
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-13
+reviewed_at: 2026-06-13T00:00:00Z
 ---
 
 # Phase 14 — UI Design Contract: Static Export Viewer
@@ -52,13 +53,14 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Tag pill internal padding (vertical), icon-text gap |
 | sm | 8px | Tag pill internal padding (horizontal), meta row gap, badge gap |
+| sm2 | 12px | Embedded/nested card internal padding and top margin (4×3 — compact nested spacing) |
 | md | 16px | Card internal padding, search bar padding, control row spacing |
 | lg | 24px | Gap between post cards in the list |
 | xl | 32px | Header height padding, main content top/bottom padding |
 | 2xl | 48px | Empty state vertical centering padding |
 | 3xl | 64px | Page max-width side gutters on wide viewports |
 
-Exceptions: none
+Exceptions: sm2 (12px) — registered above. Multiple of 4 (4×3). Used exclusively for nested embedded card padding/margin to distinguish from outer card (md=16px).
 
 ---
 
@@ -117,6 +119,8 @@ principle "dark-mode-friendly" from objective.
 
 ## Layout
 
+**Primary visual anchor:** The sticky header bar ("X Bookmarks" + post count badge) — this is the user's attention baseline on every scroll position. The post card list is the primary content zone; the header anchors context above it at all times.
+
 ### Page Structure
 
 ```
@@ -169,8 +173,8 @@ principle "dark-mode-friendly" from objective.
 - Background: #111827 (embedded card surface)
 - Border: 1px solid #334155
 - Border-radius: 6px
-- Padding: 12px
-- Margin-top: 12px inside parent card
+- Padding: sm2 (12px)
+- Margin-top: sm2 (12px) inside parent card
 - Used for: quote tweet original, retweet original
 
 ### Media Grid
