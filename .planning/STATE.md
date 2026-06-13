@@ -2,40 +2,40 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Static Export
-status: in_progress
-last_updated: "2026-06-13T18:40:00Z"
-last_activity: 2026-06-13 — Phase 14 Plan 03 (index.html + netlify.toml) complete
+status: complete
+last_updated: "2026-06-13T19:00:00Z"
+last_activity: 2026-06-13 — Phase 14 Plan 04 (export-static CLI command) complete
 progress:
   total_phases: 14
-  completed_phases: 13
+  completed_phases: 14
   total_plans: 57
-  completed_plans: 56
-  percent: 98
+  completed_plans: 57
+  percent: 100
 ---
 
 # STATE: X Bookmarked Posts Organizer
 
-**Last updated:** 2026-06-08
+**Last updated:** 2026-06-13
 
 ## Project Reference
 
 **Core Value:** Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind
 
-**Current Focus:** Milestone v1.3 — LAN Casting Support — COMPLETE
+**Current Focus:** Milestone v1.4 — Static Export — COMPLETE
 
-**Milestone:** v1.3 LAN Casting Support — COMPLETE
+**Milestone:** v1.4 Static Export — COMPLETE
 
 ## Current Position
 
-Phase: 14 — Static Export (in progress — Plans 00, 01, 02, 03 complete)
-Status: Executing Phase 14 (Wave 3 Plan 03 complete, Plan 04 next)
-Last activity: 2026-06-13 — Plan 14-03 index.html + netlify.toml committed (75e3919)
+Phase: 14 — Static Export (COMPLETE — All plans 00-04 done)
+Status: Phase 14 complete — all 57 plans done across 14 phases
+Last activity: 2026-06-13 — Plan 14-04 export-static CLI command committed (0b81bc1)
 
 ## Progress
 
 ```
 Phase 14 Progress
-█████████████████████████ 98% (13/14 phases complete, plan 56/57)
+███████████████████████████ 100% (14/14 phases complete, plan 57/57)
 ```
 
 ## Milestone v1.3 Goals
@@ -54,9 +54,11 @@ Phase 14 Progress
 |-------|------|--------|
 | 12. Certificate Management | Generate and manage LAN SSL certificates | ✅ Complete |
 | 13. LAN Network Access | Bind server to LAN and enable mobile access | ✅ Complete |
+| 14. Static Export | Export bookmarks to Netlify-deployable static site | ✅ Complete |
 
 ## Key Decisions
 
+- **export-static lazy import:** StaticExportService imported inside function body to avoid circular import risk
 - **StaticExportService is standalone:** Does not extend ExportService — different shape (directory vs file, multiple outputs)
 - **source field = 'xbm-static':** Distinguishes static export from CLI export format ('xbm')
 - **Sorted search-index strings:** tags/topics strings sorted alphabetically for deterministic test output
@@ -119,13 +121,14 @@ Phase 14 Progress
 
 ### Next Actions
 
-Phase 14 (Static Export) is in progress.
+All 14 phases complete. Milestone v1.4 Static Export is DONE.
 
-Wave 0 complete (Plan 14-00: test infrastructure stubs).
-Wave 1 Plan 14-01 complete (repository extensions: get_all_with_embedded + ReviewStateRepository.get_all).
-Wave 2 Plan 14-02 complete (StaticExportService + 5 JSON writers + activated tests).
-Wave 3 Plan 14-03 complete (index.html + netlify.toml + activated tests — 27 tests pass, 0 skipped).
-Next: Plan 14-04 (Wave 4: export-static CLI command).
+Phase 14 summary:
+- Wave 0 (14-00): test infrastructure stubs
+- Wave 1 (14-01): repository extensions (get_all_with_embedded + ReviewStateRepository.get_all)
+- Wave 2 (14-02): StaticExportService + 5 JSON writers + activated tests
+- Wave 3 (14-03): index.html + netlify.toml + activated tests (27 tests pass)
+- Wave 4 (14-04): export-static CLI command + 4 CLI tests (31 static tests pass, 606 total pass)
 
 ---
 *State initialized: 2026-04-18*

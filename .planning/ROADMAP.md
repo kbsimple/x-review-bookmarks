@@ -31,7 +31,7 @@
 - [x] **Phase 11: Cast Display** - Display embedded posts on TV with TV-optimized visual styling
 - [x] **Phase 12: Certificate Management** - LAN SSL certificate generation and CLI commands
 - [x] **Phase 13: LAN Network Access** - Web server LAN binding and mobile device access
-- [ ] **Phase 14: Static Export** - Export bookmarks to static JSON for cloud hosting
+- [x] **Phase 14: Static Export** - Export bookmarks to static JSON for cloud hosting
 
 ## Phase Details
 
@@ -263,7 +263,7 @@ Plans:
 - [x] 14-01-PLAN.md — Repository extensions (PostsRepository.get_all_with_embedded, ReviewStateRepository.get_all)
 - [x] 14-02-PLAN.md — StaticExportService JSON writers (5 JSON files)
 - [x] 14-03-PLAN.md — index.html and netlify.toml generation (complete service)
-- [ ] 14-04-PLAN.md — CLI command export-static (progress bar, summary table, deployment instructions)
+- [x] 14-04-PLAN.md — CLI command export-static (progress bar, summary table, deployment instructions)
 
 ## Progress
 
@@ -282,7 +282,7 @@ Plans:
 | 11. Cast Display | 3/3 | Complete | 2026-06-07 |
 | 12. Certificate Management | 3/3 | Complete | 2026-06-08 |
 | 13. LAN Network Access | 1/1 | Complete | 2026-06-08 |
-| 14. Static Export | 4/5 | In progress | - |
+| 14. Static Export | 5/5 | Complete | 2026-06-13 |
 
 ## Coverage
 
