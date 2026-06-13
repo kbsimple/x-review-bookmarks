@@ -929,7 +929,7 @@ function renderView() {
   }
 
   if (currentMode === 'carousel') {
-    carouselIndex = 0;
+    if (carouselIndex >= results.length) carouselIndex = 0;
     renderCarousel(results, carouselIndex);
     return;
   }
