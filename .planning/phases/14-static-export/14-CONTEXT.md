@@ -115,4 +115,5 @@ This phase delivers:
 - Auto-deploy via Netlify API — would require Netlify PAT, deferred for simplicity
 - Sort by topic/tag in viewer — not requested, out of scope
 - Public shareable links to individual posts — out of scope for static viewer
+- X native embed rendering (future phase) — rather than custom post card rendering, call X's oEmbed API (https://publish.twitter.com/oembed?url=...) at export time in Python to pre-fetch rendered HTML for embedded posts (retweets/quote tweets), then inline that HTML in the static output. Gives X's native visual fidelity with no runtime external dependency. Tradeoffs: requires internet during export, rate-limited, won't work for deleted/protected originals (still needs unavailable placeholder fallback).
 </deferred>
