@@ -245,6 +245,64 @@ class TestIndexHtml:
         assert "https://x.com/" in html
 
 
+class TestIndexHtmlCarousel:
+    """Tests for carousel mode additions to index.html. VIEWER-01 through VIEWER-05."""
+
+    def test_mode_switcher_button_class_present(self, temp_db_v6, tmp_path):
+        """VIEWER-01: mode switcher button class present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "mode-btn" in html
+
+    def test_localstorage_key_present(self, temp_db_v6, tmp_path):
+        """VIEWER-02: localStorage key xbm_mode present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "xbm_mode" in html
+
+    def test_carousel_render_function_present(self, temp_db_v6, tmp_path):
+        """VIEWER-03: renderCarousel function and carouselIndex variable present."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "renderCarousel" in html
+        assert "carouselIndex" in html
+
+    def test_keyboard_nav_listener_present(self, temp_db_v6, tmp_path):
+        """VIEWER-04: keyboard nav listener with ArrowRight/ArrowLeft/Escape present."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "ArrowRight" in html
+        assert "ArrowLeft" in html
+        assert "Escape" in html
+
+    def test_carousel_nav_dom_ids_present(self, temp_db_v6, tmp_path):
+        """VIEWER-04/05: carousel-nav, carousel-prev, carousel-next, carousel-counter present."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "carousel-nav" in html
+        assert "carousel-prev" in html
+        assert "carousel-next" in html
+        assert "carousel-counter" in html
+
+    def test_oembed_reinit_called_in_carousel(self, temp_db_v6, tmp_path):
+        """VIEWER-05: twttr.widgets.load present for oEmbed re-init in carousel."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "twttr.widgets.load" in html
+
+
 class TestNetlifyToml:
     """Tests for netlify.toml content. EXPORT-04."""
 
