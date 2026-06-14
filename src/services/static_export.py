@@ -423,7 +423,7 @@ a:hover { text-decoration: underline; }
 @media (max-width: 600px) {
   #header { justify-content: center; padding: var(--sm) var(--md); }
   #header h1, #count-badge { display: none; }
-  .mode-switcher { margin-left: 0; }
+  .mode-switcher { margin: 0 auto; }
   #controls { flex-wrap: wrap; padding: var(--sm) var(--md); }
   #controls input { min-width: 100%; }
   #controls select { flex: 1; width: auto; }
