@@ -421,6 +421,9 @@ a:hover { text-decoration: underline; }
 }
 #controls select { width: 160px; cursor: pointer; }
 @media (max-width: 600px) {
+  #header { flex-wrap: wrap; padding: var(--sm) var(--md); gap: var(--xs); }
+  #header h1 { font-size: 16px; }
+  .mode-switcher { margin-left: 0; width: 100%; justify-content: center; }
   #controls { flex-wrap: wrap; padding: var(--sm) var(--md); }
   #controls input { min-width: 100%; }
   #controls select { flex: 1; width: auto; }
@@ -668,6 +671,10 @@ let debounceTimer = null;
 let currentMode = localStorage.getItem('xbm_mode') || 'carousel';
 let carouselIndex = 0;
 let savedScrollY = 0;
+document.body.classList.toggle('carousel-mode', currentMode === 'carousel');
+document.querySelectorAll('.mode-btn').forEach(b => {
+  b.classList.toggle('active', b.dataset.mode === currentMode);
+});
 
 // -- Date helpers --
 function getDateRange(filter) {
