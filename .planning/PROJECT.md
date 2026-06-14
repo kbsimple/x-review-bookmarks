@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Python CLI application that fetches bookmarked posts from X (Twitter) using the X Developer API, stores them in SQLite, and organizes them for scheduled resurfacing using FSRS-based spaced repetition. Also exports a self-contained static web app deployable to Netlify — with optional native X widget rendering via the oEmbed API.
+A Python CLI application that fetches bookmarked posts from X (Twitter) using the X Developer API, stores them in SQLite, and organizes them for scheduled resurfacing using FSRS-based spaced repetition. Also exports a self-contained static web app deployable to Netlify — with stream/carousel presentation modes, shareable deep link URLs per post, and optional native X widget rendering via the oEmbed API.
 
 ## Core Value
 
@@ -10,9 +10,9 @@ Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in
 
 ## Current State
 
-**Shipped:** v1.5 (2026-06-13)
-**Codebase:** ~11,000 LOC Python
-**Tests:** 622 passing
+**Shipped:** v1.7 (2026-06-14)
+**Codebase:** ~12,000 LOC Python
+**Tests:** 644 passing
 **Live:** https://xbm-viewer-export.netlify.app
 
 ## Requirements
@@ -61,6 +61,21 @@ Milestone v1.5 delivered:
 - ✓ Deleted/protected posts fall back to custom card layout — v1.5
 - ✓ netlify-deploy skill updated with "deploy with rich embeds" trigger — v1.5
 
+Milestone v1.6 delivered:
+- ✓ Mode switcher (Stream / Carousel) in viewer header — v1.6
+- ✓ Stream mode: existing scrollable vertical list (default, unchanged) — v1.6
+- ✓ Carousel mode: one post at a time with prev/next navigation and keyboard arrow keys — v1.6
+- ✓ Active mode persists across search/filter changes — v1.6
+- ✓ Both modes work with oEmbed rich embeds — v1.6
+
+Milestone v1.7 delivered:
+- ✓ Share icon (📤) on every post card copies `#post-{id}` URL to clipboard with visual confirmation — v1.7
+- ✓ Opening `#post-{id}` URL opens viewer in carousel mode, filters cleared, that post shown — v1.7
+- ✓ Header shows "XBM Home" button (replacing mode switcher) when arrived via deep link — v1.7
+- ✓ "XBM Home" navigates to root URL (full viewer, no filters) — v1.7
+- ✓ Post-not-found shows graceful error with "XBM Home" link — v1.7
+- ✓ Share icon works on all card types including oEmbed rich embeds — v1.7
+
 ### Active
 
 (No active requirements — all planned features complete. Start next milestone to define new requirements.)
@@ -76,7 +91,7 @@ Milestone v1.5 delivered:
 
 **Background:** The user bookmarks posts on X that they find valuable. Over time, these bookmarks accumulate without a mechanism to revisit them. The goal is to transform bookmarks from a "save and forget" pattern into an active review system.
 
-**Technical context:** All 15 phases across 6 milestones complete. Full CLI, web app, Cast integration, LAN access, static export with rich embed support. 622 tests passing.
+**Technical context:** All 17 phases across 8 milestones complete. Full CLI, web app, Cast integration, LAN access, static export with carousel/stream modes, deep linking, and rich embed support. 644 tests passing.
 
 **Scale:** 100-500 bookmarks across 20-30 topics.
 
@@ -87,6 +102,8 @@ Milestone v1.5 delivered:
 - **v1.3:** LAN Casting Support — COMPLETE (Phases 12–13)
 - **v1.4:** Static Export — COMPLETE (Phase 14)
 - **v1.5:** oEmbed Rich Embeds — COMPLETE (Phase 15)
+- **v1.6:** Viewer Presentation Modes — COMPLETE (Phase 16)
+- **v1.7:** Deep Linking — COMPLETE (Phase 17)
 
 ## Constraints
 
@@ -108,6 +125,11 @@ Milestone v1.5 delivered:
 | Truthy guard `if oembed_map:` | Empty dict `{}` is falsy; prevents null injection on default path | ✓ Good — fixed critical default-path bug |
 | Lazy import OEmbedService | Avoid import overhead on default export path | ✓ Good — `from .oembed import OEmbedService` inside conditional |
 | Manual-only OEMBED-03 | Viewer JS is inline Python string; no JS test infra | ✓ Accepted — verified via Netlify deploy |
+| CSS `body.deep-link-mode` class toggle | CSS-only mechanism to swap mode-switcher ↔ XBM Home button | ✓ Good — JS `deepLinkMode` flag is declared but inert; CSS is the actual runtime switch |
+| Hash detection after `Promise.all().then()` | Ensures `allPosts` is populated before hash lookup | ✓ Good — placed after allPosts build, before renderView() |
+| `goHome()` uses `origin + pathname` | Deliberately excludes fragment to clear deep-link state on navigation | ✓ Good — clean URL, no stale hash on return |
+| `esc(postId)` in `showDeepLinkError()` | XSS prevention even though post IDs are currently numeric | ✓ Good — defensive convention, no harm |
+| Global CSS placement (before `@media`) | Deep-link rules must apply on desktop too, not only mobile | ✓ Good — WR-01 bug caught in code review; fixed before shipping |
 
 ---
-*Last updated: 2026-06-13 after v1.5 milestone*
+*Last updated: 2026-06-14 after v1.7 milestone*

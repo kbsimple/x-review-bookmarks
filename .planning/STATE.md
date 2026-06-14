@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deep Linking
 status: complete
-last_updated: "2026-06-14T22:45:00Z"
-last_activity: 2026-06-14 — Phase 17 verified (7/7 must-haves, human UAT deferred) — v1.7 Deep Linking shipped — 644 tests pass
+last_updated: "2026-06-14T23:30:00Z"
+last_activity: 2026-06-14 — v1.7 milestone closed — 17 phases, 62 plans, 644 tests — archived to milestones/v1.7-ROADMAP.md — tagged v1.7
 progress:
   total_phases: 17
   completed_phases: 17
@@ -21,15 +21,15 @@ progress:
 
 **Core Value:** Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind
 
-**Current Focus:** Milestone v1.4 — Static Export — COMPLETE
+**Current Focus:** v1.7 milestone closed — ready for next milestone planning
 
-**Milestone:** v1.4 Static Export — COMPLETE
+**Milestone:** v1.7 Deep Linking — COMPLETE
 
 ## Current Position
 
-Phase: 16 — Viewer Presentation Modes (COMPLETE)
-Status: Phase 16 complete — all 2 plans done, 628 tests pass
-Last activity: 2026-06-13 — Plan 16-01 carousel implementation committed (78a933b)
+Phase: 17 — Deep Linking (COMPLETE)
+Status: All 17 phases done, 62 plans complete, 644 tests pass
+Last activity: 2026-06-14 — v1.7 milestone closed and archived (tagged v1.7)
 
 ## Progress
 
