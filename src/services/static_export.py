@@ -451,6 +451,18 @@ a:hover { text-decoration: underline; }
   #controls-mode-row .mode-switcher { margin: 0 auto; }
   .carousel-mode #controls { display: none; }
   .carousel-mode #controls.controls-open { display: flex; }
+  /* -- Deep link mode: hide mode switcher, show XBM Home -- */
+  #xbm-home-btn { display: none; }
+  body.deep-link-mode .mode-switcher { display: none !important; }
+  body.deep-link-mode #header-options-btn { display: none !important; }
+  body.deep-link-mode #xbm-home-btn {
+    display: inline-flex; align-items: center;
+    padding: 4px 12px; border-radius: 16px;
+    background: var(--color-link); color: #fff;
+    font-size: 13px; font-weight: 500; text-decoration: none;
+    cursor: pointer;
+  }
+  body.deep-link-mode #xbm-home-btn:hover { opacity: 0.85; }
   .carousel-mode #carousel-top-nav {
     display: flex; justify-content: space-between; align-items: center;
     padding: var(--xs) var(--md) var(--sm);
@@ -543,6 +555,12 @@ a:hover { text-decoration: underline; }
   text-decoration: none;
 }
 .view-on-x:hover { text-decoration: underline; }
+.share-btn {
+  background: none; border: none; cursor: pointer; padding: 0;
+  color: var(--color-muted); font-size: 13px; margin-right: var(--sm);
+  opacity: 0.7; transition: opacity 0.15s;
+}
+.share-btn:hover { opacity: 1; }
 /* -- oEmbed (native Twitter widget) card -- */
 .oembed-card { padding: var(--sm) var(--sm) var(--xs); }
 .oembed-container { max-width: 550px; margin: 0 auto; }
@@ -642,6 +660,7 @@ a:hover { text-decoration: underline; }
     <button class="mode-btn active" data-mode="carousel" onclick="setMode('carousel')">Carousel</button>
     <button class="mode-btn" data-mode="stream" onclick="setMode('stream')">Stream</button>
   </div>
+  <a href="javascript:void(0)" id="xbm-home-btn" class="xbm-home-btn" onclick="goHome()">XBM Home</a>
   <button class="options-toggle-btn" id="header-options-btn" onclick="toggleOptions()">Options ▾</button>
 </div>
 
@@ -730,6 +749,7 @@ let currentMode = localStorage.getItem('xbm_mode') || 'carousel';
 let carouselIndex = 0;
 let savedScrollY = 0;
 let cachedCarouselResults = null;
+let deepLinkMode = false;
 document.body.classList.toggle('carousel-mode', currentMode === 'carousel');
 document.querySelectorAll('.mode-btn').forEach(b => {
   b.classList.toggle('active', b.dataset.mode === currentMode);
@@ -843,10 +863,27 @@ function renderEmbeddedCard(ep) {
 }
 
 function renderCardFooter(post) {
-  const url = `https://x.com/i/web/status/${esc(post.x_post_id)}`;
+  const xUrl = `https://x.com/i/web/status/${esc(post.x_post_id)}`;
+  const shareId = `share-${esc(post.x_post_id)}`;
   return `<div class="card-footer">
-    <a href="${url}" target="_blank" rel="noopener noreferrer" class="view-on-x">View on X</a>
+    <button class="share-btn" id="${shareId}"
+      onclick="copyDeepLink('${esc(post.x_post_id)}', '${shareId}')"
+      title="Copy link to this post">📤</button>
+    <a href="${xUrl}" target="_blank" rel="noopener noreferrer" class="view-on-x">View on X</a>
   </div>`;
+}
+
+function copyDeepLink(postId, btnId) {
+  const url = window.location.origin + window.location.pathname + '#post-' + postId;
+  navigator.clipboard.writeText(url).then(function() {
+    const btn = document.getElementById(btnId);
+    if (btn) {
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.innerHTML = '📤'; }, 1500);
+    }
+  }).catch(function() {
+    // clipboard denied in non-HTTPS context — silent fail
+  });
 }
 
 function renderPillsRow(tags, topics) {
@@ -908,6 +945,7 @@ function renderOEmbedCard(post, reviewState) {
     <div class="oembed-container">${post.oembed_html}</div>
     ${renderPillsRow(post.tags, post.topics)}
     ${renderReviewBadge(reviewState)}
+    ${renderCardFooter(post)}
   </div>`;
 }
 
@@ -930,6 +968,10 @@ function setMode(mode) {
   });
   document.body.classList.toggle('carousel-mode', mode === 'carousel');
   renderView();
+}
+
+function goHome() {
+  window.location.href = window.location.origin + window.location.pathname;
 }
 
 function toggleOptions() {
@@ -990,6 +1032,15 @@ function showError(message) {
   el.innerHTML = `<h2>Could not load bookmark data</h2>
     <p>Make sure you're viewing this file from Netlify, not by opening it directly. Direct file:// access does not support fetch().</p>
     <p style="color:var(--color-muted);font-size:13px;">${esc(message)}</p>`;
+}
+
+function showDeepLinkError(postId) {
+  document.getElementById('loading').style.display = 'none';
+  const el = document.getElementById('error-state');
+  el.style.display = 'block';
+  el.innerHTML = `<h2>Post not found</h2>
+    <p>The linked post (ID: ${esc(postId)}) is no longer in this export.</p>
+    <p><a href="${esc(window.location.origin + window.location.pathname)}" class="view-on-x">XBM Home</a></p>`;
 }
 
 function showEmptyState(reason) {
@@ -1117,6 +1168,25 @@ Promise.all([
     `Exported ${exportedDate} · ${totalPostCount} posts`;
 
   document.getElementById('loading').style.display = 'none';
+  const hash = window.location.hash;
+  if (hash && hash.startsWith('#post-')) {
+    const postId = hash.slice(6);
+    if (allPosts[postId]) {
+      deepLinkMode = true;
+      document.body.classList.add('deep-link-mode');
+      document.getElementById('search-input').value = '';
+      document.getElementById('date-filter').value = '';
+      document.getElementById('sort-order').value = 'newest';
+      const idx = searchIndex.findIndex(function(e) { return e.id === postId; });
+      carouselIndex = idx >= 0 ? idx : 0;
+      currentMode = 'carousel';
+      localStorage.setItem('xbm_mode', 'carousel');
+      document.body.classList.add('carousel-mode');
+    } else {
+      showDeepLinkError(postId);
+      return;
+    }
+  }
   renderView();
 }).catch(err => {
   showError(err.message || String(err));
