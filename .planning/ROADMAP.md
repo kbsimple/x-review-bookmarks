@@ -103,7 +103,11 @@ Plans:
 6. If post ID not found, show graceful error with "XBM Home" link
 7. Share icon works in both carousel and stream modes
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 17-00-PLAN.md — Wave 0: TestIndexHtmlDeepLink failing stubs (Nyquist compliance, 11 RED tests)
+- [ ] 17-01-PLAN.md — Wave 1: Implement deep linking in _build_index_html() (CSS + HTML + JS, 6 integration points)
 
 ## Progress
 
@@ -125,7 +129,7 @@ Plans:
 | 14. Static Export | v1.4 | 5/5 | Complete | 2026-06-13 |
 | 15. oEmbed Rich Embeds | v1.5 | 1/1 | Complete | 2026-06-13 |
 | 16. Viewer Presentation Modes | v1.6 | 2/2 | Complete | 2026-06-13 |
-| 17. Deep Linking | v1.7 | 0/? | Not started | — |
+| 17. Deep Linking | v1.7 | 0/2 | Not started | — |
 
 ---
 *Roadmap created: 2026-04-18*
@@ -134,3 +138,4 @@ Plans:
 *Roadmap updated: 2026-06-13 — Phase 16 planned: 2 plans (Wave 0 stubs + Wave 1 implementation)*
 *Roadmap updated: 2026-06-13 — Phase 16 Plan 00 complete (Wave 0 RED stubs — TestIndexHtmlCarousel)*
 *Roadmap updated: 2026-06-13 — Phase 16 complete — v1.6 Viewer Presentation Modes shipped — 628 tests pass*
+*Roadmap updated: 2026-06-14 — Phase 17 planned: 2 plans (Wave 0 stubs + Wave 1 implementation)*
