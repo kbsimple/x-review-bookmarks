@@ -420,6 +420,11 @@ a:hover { text-decoration: underline; }
   outline: 2px solid var(--color-accent);
 }
 #controls select { width: 160px; cursor: pointer; }
+@media (max-width: 600px) {
+  #controls { flex-wrap: wrap; padding: var(--sm) var(--md); }
+  #controls input { min-width: 100%; }
+  #controls select { flex: 1; width: auto; }
+}
 /* -- Main content -- */
 #main {
   max-width: 720px; margin: 0 auto;
