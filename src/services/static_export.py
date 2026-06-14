@@ -451,6 +451,18 @@ a:hover { text-decoration: underline; }
   #controls-mode-row .mode-switcher { margin: 0 auto; }
   .carousel-mode #controls { display: none; }
   .carousel-mode #controls.controls-open { display: flex; }
+  /* -- Deep link mode: hide mode switcher, show XBM Home -- */
+  #xbm-home-btn { display: none; }
+  body.deep-link-mode .mode-switcher { display: none !important; }
+  body.deep-link-mode #header-options-btn { display: none !important; }
+  body.deep-link-mode #xbm-home-btn {
+    display: inline-flex; align-items: center;
+    padding: 4px 12px; border-radius: 16px;
+    background: var(--color-link); color: #fff;
+    font-size: 13px; font-weight: 500; text-decoration: none;
+    cursor: pointer;
+  }
+  body.deep-link-mode #xbm-home-btn:hover { opacity: 0.85; }
   .carousel-mode #carousel-top-nav {
     display: flex; justify-content: space-between; align-items: center;
     padding: var(--xs) var(--md) var(--sm);
@@ -543,6 +555,12 @@ a:hover { text-decoration: underline; }
   text-decoration: none;
 }
 .view-on-x:hover { text-decoration: underline; }
+.share-btn {
+  background: none; border: none; cursor: pointer; padding: 0;
+  color: var(--color-muted); font-size: 13px; margin-right: var(--sm);
+  opacity: 0.7; transition: opacity 0.15s;
+}
+.share-btn:hover { opacity: 1; }
 /* -- oEmbed (native Twitter widget) card -- */
 .oembed-card { padding: var(--sm) var(--sm) var(--xs); }
 .oembed-container { max-width: 550px; margin: 0 auto; }
@@ -642,6 +660,7 @@ a:hover { text-decoration: underline; }
     <button class="mode-btn active" data-mode="carousel" onclick="setMode('carousel')">Carousel</button>
     <button class="mode-btn" data-mode="stream" onclick="setMode('stream')">Stream</button>
   </div>
+  <a href="javascript:void(0)" id="xbm-home-btn" class="xbm-home-btn" onclick="goHome()">XBM Home</a>
   <button class="options-toggle-btn" id="header-options-btn" onclick="toggleOptions()">Options ▾</button>
 </div>
 
