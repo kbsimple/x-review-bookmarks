@@ -671,6 +671,7 @@ let debounceTimer = null;
 let currentMode = localStorage.getItem('xbm_mode') || 'carousel';
 let carouselIndex = 0;
 let savedScrollY = 0;
+let cachedCarouselResults = null;
 document.body.classList.toggle('carousel-mode', currentMode === 'carousel');
 document.querySelectorAll('.mode-btn').forEach(b => {
   b.classList.toggle('active', b.dataset.mode === currentMode);
@@ -888,10 +889,10 @@ function renderCarousel(results, idx) {
   </div>`;
   document.getElementById('post-list').innerHTML = cardHtml + nav;
   document.getElementById('carousel-prev').addEventListener('click', () => {
-    if (carouselIndex > 0) { carouselIndex--; renderView(); window.scrollTo(0, 0); }
+    if (carouselIndex > 0) { carouselIndex--; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
   });
   document.getElementById('carousel-next').addEventListener('click', () => {
-    if (carouselIndex < results.length - 1) { carouselIndex++; renderView(); window.scrollTo(0, 0); }
+    if (carouselIndex < results.length - 1) { carouselIndex++; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
   });
   if (post.oembed_html) {
     loadTwitterWidget();
@@ -948,6 +949,7 @@ function renderView() {
 
   if (currentMode === 'carousel') {
     if (carouselIndex >= results.length) carouselIndex = 0;
+    cachedCarouselResults = results;
     renderCarousel(results, carouselIndex);
     return;
   }
@@ -980,11 +982,12 @@ document.getElementById('sort-order').addEventListener('change', renderView);
 document.addEventListener('keydown', (e) => {
   if (currentMode !== 'carousel') return;
   if (document.activeElement === document.getElementById('search-input')) return;
-  const results = filterAndSort();
+  const results = cachedCarouselResults;
+  if (!results) return;
   if (e.key === 'ArrowRight' && carouselIndex < results.length - 1) {
-    carouselIndex++; renderView(); window.scrollTo(0, 0);
+    carouselIndex++; renderCarousel(results, carouselIndex); window.scrollTo(0, 0);
   } else if (e.key === 'ArrowLeft' && carouselIndex > 0) {
-    carouselIndex--; renderView(); window.scrollTo(0, 0);
+    carouselIndex--; renderCarousel(results, carouselIndex); window.scrollTo(0, 0);
   } else if (e.key === 'Escape') {
     setMode('stream');
   }
