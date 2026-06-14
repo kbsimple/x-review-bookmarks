@@ -351,6 +351,98 @@ class TestIndexHtmlCarousel:
         assert "carouselIndex >= results.length" in html
 
 
+class TestIndexHtmlDeepLink:
+    """Tests for deep linking additions to index.html. DL-01 through DL-11."""
+
+    def test_share_btn_present(self, temp_db_v6, tmp_path):
+        """DL-01: share button element present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "share-btn" in html
+
+    def test_copy_deep_link_function_present(self, temp_db_v6, tmp_path):
+        """DL-02: copyDeepLink function present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "copyDeepLink" in html
+
+    def test_clipboard_write_present(self, temp_db_v6, tmp_path):
+        """DL-03: navigator.clipboard.writeText call present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "navigator.clipboard.writeText" in html
+
+    def test_hash_detection_present(self, temp_db_v6, tmp_path):
+        """DL-04: window.location.hash read present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "window.location.hash" in html
+
+    def test_post_hash_prefix_present(self, temp_db_v6, tmp_path):
+        """DL-05: #post- prefix string present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "#post-" in html
+
+    def test_deep_link_mode_flag_present(self, temp_db_v6, tmp_path):
+        """DL-06: deepLinkMode flag declared in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "deepLinkMode" in html
+
+    def test_deep_link_mode_css_class_present(self, temp_db_v6, tmp_path):
+        """DL-07: deep-link-mode CSS class present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "deep-link-mode" in html
+
+    def test_xbm_home_btn_present(self, temp_db_v6, tmp_path):
+        """DL-08: xbm-home-btn element present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "xbm-home-btn" in html
+
+    def test_go_home_function_present(self, temp_db_v6, tmp_path):
+        """DL-09: goHome function present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "goHome" in html
+
+    def test_show_deep_link_error_present(self, temp_db_v6, tmp_path):
+        """DL-10: showDeepLinkError function present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "showDeepLinkError" in html
+
+    def test_xbm_home_text_present(self, temp_db_v6, tmp_path):
+        """DL-11: 'XBM Home' text present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "XBM Home" in html
+
+
 class TestNetlifyToml:
     """Tests for netlify.toml content. EXPORT-04."""
 
