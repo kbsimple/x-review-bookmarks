@@ -421,12 +421,26 @@ a:hover { text-decoration: underline; }
 }
 #controls select { width: 160px; cursor: pointer; }
 @media (max-width: 600px) {
-  #header { justify-content: center; padding: var(--sm) var(--md); }
+  #header { justify-content: center; padding: var(--sm) var(--md); transition: padding 0.15s; }
   #header h1, #count-badge { display: none; }
-  .mode-switcher { margin: 0 auto; }
+  #header .mode-switcher { display: none; }
+  #header-options-btn {
+    display: inline-flex; align-items: center;
+    background: transparent; color: var(--color-muted);
+    border: 1px solid var(--color-border); border-radius: 6px;
+    padding: var(--xs) var(--md); font-size: 13px; min-height: 32px; cursor: pointer;
+  }
+  .carousel-mode #header-options-btn { display: none; }
+  .scrolled #header { padding: 2px var(--md); }
   #controls { flex-wrap: wrap; padding: var(--sm) var(--md); }
   #controls input { min-width: 100%; }
   #controls select { flex: 1; width: auto; }
+  #controls-mode-row {
+    display: flex; justify-content: center;
+    width: 100%; padding-bottom: var(--sm);
+    border-bottom: 1px solid var(--color-border); margin-bottom: var(--xs);
+  }
+  #controls-mode-row .mode-switcher { margin: 0 auto; }
   .carousel-mode #controls { display: none; }
   .carousel-mode #controls.controls-open { display: flex; }
   .carousel-mode #carousel-top-nav {
@@ -589,7 +603,7 @@ a:hover { text-decoration: underline; }
 }
 /* -- Carousel top nav (mobile only) -- */
 #carousel-top-nav { display: none; }
-.carousel-filter-toggle {
+.options-toggle-btn {
   background: transparent;
   color: var(--color-secondary);
   border: 1px solid var(--color-border);
@@ -597,6 +611,9 @@ a:hover { text-decoration: underline; }
   padding: var(--xs) var(--md);
   font-size: 13px; min-height: 44px; cursor: pointer;
 }
+/* -- Mobile-only controls additions -- */
+#header-options-btn { display: none; }
+#controls-mode-row { display: none; }
 </style>
 </head>
 <body>
@@ -608,9 +625,16 @@ a:hover { text-decoration: underline; }
     <button class="mode-btn active" data-mode="carousel" onclick="setMode('carousel')">Carousel</button>
     <button class="mode-btn" data-mode="stream" onclick="setMode('stream')">Stream</button>
   </div>
+  <button class="options-toggle-btn" id="header-options-btn" onclick="toggleOptions()">Options ▾</button>
 </div>
 
 <div id="controls">
+  <div id="controls-mode-row">
+    <div class="mode-switcher">
+      <button class="mode-btn" data-mode="carousel" onclick="setMode('carousel')">Carousel</button>
+      <button class="mode-btn" data-mode="stream" onclick="setMode('stream')">Stream</button>
+    </div>
+  </div>
   <label for="search-input" class="sr-only">Search</label>
   <input type="text" id="search-input"
          placeholder="Search posts, authors, tags, topics..."
@@ -890,6 +914,15 @@ function setMode(mode) {
   renderView();
 }
 
+function toggleOptions() {
+  const controls = document.getElementById('controls');
+  controls.classList.toggle('controls-open');
+  const open = controls.classList.contains('controls-open');
+  document.querySelectorAll('.options-toggle-btn').forEach(btn => {
+    btn.textContent = open ? 'Options ▴' : 'Options ▾';
+  });
+}
+
 function renderCarousel(results, idx) {
   const entry = results[idx];
   const post = allPosts[entry.id];
@@ -899,10 +932,10 @@ function renderCarousel(results, idx) {
   const prevDisabled = idx === 0         ? 'disabled' : '';
   const nextDisabled = idx === total - 1 ? 'disabled' : '';
   const controlsOpen = document.getElementById('controls').classList.contains('controls-open');
-  const filterLabel = controlsOpen ? 'Filters ▴' : 'Filters ▾';
+  const optionsLabel = controlsOpen ? 'Options ▴' : 'Options ▾';
   const topNav = `<div id="carousel-top-nav">
     <button class="carousel-btn" id="carousel-top-prev" ${prevDisabled}>&larr; Prev</button>
-    <button class="carousel-filter-toggle" id="carousel-filter-toggle">${filterLabel}</button>
+    <button class="options-toggle-btn" id="carousel-options-toggle">${optionsLabel}</button>
     <button class="carousel-btn" id="carousel-top-next" ${nextDisabled}>Next &rarr;</button>
   </div>`;
   const nav = `<div id="carousel-nav">
@@ -917,12 +950,7 @@ function renderCarousel(results, idx) {
   document.getElementById('carousel-top-next').addEventListener('click', () => {
     if (carouselIndex < results.length - 1) { carouselIndex++; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
   });
-  document.getElementById('carousel-filter-toggle').addEventListener('click', () => {
-    const controls = document.getElementById('controls');
-    controls.classList.toggle('controls-open');
-    document.getElementById('carousel-filter-toggle').textContent =
-      controls.classList.contains('controls-open') ? 'Filters ▴' : 'Filters ▾';
-  });
+  document.getElementById('carousel-options-toggle').addEventListener('click', toggleOptions);
   document.getElementById('carousel-prev').addEventListener('click', () => {
     if (carouselIndex > 0) { carouselIndex--; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
   });
@@ -1027,6 +1055,10 @@ document.addEventListener('keydown', (e) => {
     setMode('stream');
   }
 });
+
+window.addEventListener('scroll', () => {
+  document.body.classList.toggle('scrolled', window.scrollY > 30);
+}, { passive: true });
 
 // -- Swipe navigation (mobile carousel) --
 let _touchStartX = 0, _touchStartY = 0;
