@@ -88,6 +88,23 @@ Plans:
 - [x] 16-00-PLAN.md — Wave 0: TestIndexHtmlCarousel failing stubs (Nyquist compliance)
 - [x] 16-01-PLAN.md — Wave 1: Implement carousel in _build_index_html() (CSS + HTML + JS)
 
+### Phase 17: Deep Linking
+
+**Goal:** Add shareable deep link URLs to the static viewer. A share icon (📤) on each post card copies a `#post-{id}` hash URL to the clipboard. Opening that URL opens the viewer in a focused carousel view (filters cleared, that post shown) with an "XBM Home" button in the header to return to the full viewer.
+
+**Depends on:** Phase 16 (Viewer Presentation Modes)
+
+**Success Criteria:**
+1. Share icon on every post card copies `#post-{x_post_id}` URL to clipboard
+2. Clipboard copy shows brief visual confirmation
+3. Opening `#post-{id}` URL opens viewer in carousel mode, filters cleared, showing that post
+4. Header shows "XBM Home" button (replacing mode switcher) when in deep-link mode
+5. "XBM Home" navigates to root URL (full viewer, no filters)
+6. If post ID not found, show graceful error with "XBM Home" link
+7. Share icon works in both carousel and stream modes
+
+**Plans:** TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -108,6 +125,7 @@ Plans:
 | 14. Static Export | v1.4 | 5/5 | Complete | 2026-06-13 |
 | 15. oEmbed Rich Embeds | v1.5 | 1/1 | Complete | 2026-06-13 |
 | 16. Viewer Presentation Modes | v1.6 | 2/2 | Complete | 2026-06-13 |
+| 17. Deep Linking | v1.7 | 0/? | Not started | — |
 
 ---
 *Roadmap created: 2026-04-18*
