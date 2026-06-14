@@ -380,11 +380,14 @@ a:hover { text-decoration: underline; }
   padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0,0,0,0); white-space: nowrap; border: 0;
 }
-/* -- Header -- */
-#header {
+/* -- Header wrapper (sticky container) -- */
+#header-wrapper {
   position: sticky; top: 0; z-index: 10;
   background: var(--color-card);
   border-bottom: 1px solid var(--color-border);
+}
+/* -- Header -- */
+#header {
   padding: var(--md) var(--xl);
   display: flex; align-items: center; gap: var(--sm);
 }
@@ -421,7 +424,12 @@ a:hover { text-decoration: underline; }
 }
 #controls select { width: 160px; cursor: pointer; }
 @media (max-width: 600px) {
-  #header { justify-content: center; padding: var(--sm) var(--md); transition: padding 0.15s; }
+  #header-wrapper { position: static; background: none; border: none; }
+  #header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--color-card); border-bottom: 1px solid var(--color-border);
+    justify-content: center; padding: var(--sm) var(--md); transition: padding 0.15s;
+  }
   #header h1, #count-badge { display: none; }
   #header .mode-switcher { display: none; }
   #header-options-btn {
@@ -450,6 +458,11 @@ a:hover { text-decoration: underline; }
     background: var(--color-bg);
     border-bottom: 1px solid var(--color-border);
   }
+}
+@media (min-width: 601px) {
+  #header-wrapper { display: flex; align-items: center; padding: 0 var(--xl); }
+  #header { flex-shrink: 0; padding: var(--md) var(--lg) var(--md) 0; border-right: 1px solid var(--color-border); }
+  #controls { flex: 1; padding: 0 0 0 var(--lg); margin: 0; max-width: none; background: none; border: none; }
 }
 /* -- Main content -- */
 #main {
@@ -621,6 +634,7 @@ a:hover { text-decoration: underline; }
 </head>
 <body>
 
+<div id="header-wrapper">
 <div id="header">
   <h1>X Bookmarks</h1>
   <span id="count-badge">...</span>
@@ -660,6 +674,7 @@ a:hover { text-decoration: underline; }
     <option value="random">Random</option>
     <option value="author">By author</option>
   </select>
+</div>
 </div>
 
 <div id="main">
