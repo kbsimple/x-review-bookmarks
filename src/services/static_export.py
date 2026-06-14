@@ -446,6 +446,9 @@ a:hover { text-decoration: underline; }
   .carousel-mode #carousel-top-nav {
     display: flex; justify-content: space-between; align-items: center;
     padding: var(--xs) var(--md) var(--sm);
+    position: sticky; top: 0; z-index: 9;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
   }
 }
 /* -- Main content -- */
