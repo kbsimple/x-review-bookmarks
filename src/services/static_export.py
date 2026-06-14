@@ -427,6 +427,12 @@ a:hover { text-decoration: underline; }
   #controls { flex-wrap: wrap; padding: var(--sm) var(--md); }
   #controls input { min-width: 100%; }
   #controls select { flex: 1; width: auto; }
+  .carousel-mode #controls { display: none; }
+  .carousel-mode #controls.controls-open { display: flex; }
+  .carousel-mode #carousel-top-nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: var(--xs) var(--md) var(--sm);
+  }
 }
 /* -- Main content -- */
 #main {
@@ -580,6 +586,16 @@ a:hover { text-decoration: underline; }
 /* -- Carousel mode: wider max-width -- */
 .carousel-mode #main {
   max-width: 860px;
+}
+/* -- Carousel top nav (mobile only) -- */
+#carousel-top-nav { display: none; }
+.carousel-filter-toggle {
+  background: transparent;
+  color: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: var(--xs) var(--md);
+  font-size: 13px; min-height: 44px; cursor: pointer;
 }
 </style>
 </head>
@@ -882,12 +898,31 @@ function renderCarousel(results, idx) {
   const total = results.length;
   const prevDisabled = idx === 0         ? 'disabled' : '';
   const nextDisabled = idx === total - 1 ? 'disabled' : '';
+  const controlsOpen = document.getElementById('controls').classList.contains('controls-open');
+  const filterLabel = controlsOpen ? 'Filters ▴' : 'Filters ▾';
+  const topNav = `<div id="carousel-top-nav">
+    <button class="carousel-btn" id="carousel-top-prev" ${prevDisabled}>&larr; Prev</button>
+    <button class="carousel-filter-toggle" id="carousel-filter-toggle">${filterLabel}</button>
+    <button class="carousel-btn" id="carousel-top-next" ${nextDisabled}>Next &rarr;</button>
+  </div>`;
   const nav = `<div id="carousel-nav">
     <button class="carousel-btn" id="carousel-prev" ${prevDisabled}>&larr; Prev</button>
     <span class="carousel-counter">${idx + 1} / ${total} posts</span>
     <button class="carousel-btn" id="carousel-next" ${nextDisabled}>Next &rarr;</button>
   </div>`;
-  document.getElementById('post-list').innerHTML = cardHtml + nav;
+  document.getElementById('post-list').innerHTML = topNav + cardHtml + nav;
+  document.getElementById('carousel-top-prev').addEventListener('click', () => {
+    if (carouselIndex > 0) { carouselIndex--; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
+  });
+  document.getElementById('carousel-top-next').addEventListener('click', () => {
+    if (carouselIndex < results.length - 1) { carouselIndex++; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
+  });
+  document.getElementById('carousel-filter-toggle').addEventListener('click', () => {
+    const controls = document.getElementById('controls');
+    controls.classList.toggle('controls-open');
+    document.getElementById('carousel-filter-toggle').textContent =
+      controls.classList.contains('controls-open') ? 'Filters ▴' : 'Filters ▾';
+  });
   document.getElementById('carousel-prev').addEventListener('click', () => {
     if (carouselIndex > 0) { carouselIndex--; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
   });
