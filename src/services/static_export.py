@@ -993,6 +993,26 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// -- Swipe navigation (mobile carousel) --
+let _touchStartX = 0, _touchStartY = 0;
+document.getElementById('post-list').addEventListener('touchstart', (e) => {
+  _touchStartX = e.touches[0].clientX;
+  _touchStartY = e.touches[0].clientY;
+}, { passive: true });
+document.getElementById('post-list').addEventListener('touchend', (e) => {
+  if (currentMode !== 'carousel') return;
+  const results = cachedCarouselResults;
+  if (!results) return;
+  const dx = e.changedTouches[0].clientX - _touchStartX;
+  const dy = e.changedTouches[0].clientY - _touchStartY;
+  if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return;
+  if (dx < 0 && carouselIndex < results.length - 1) {
+    carouselIndex++; renderCarousel(results, carouselIndex); window.scrollTo(0, 0);
+  } else if (dx > 0 && carouselIndex > 0) {
+    carouselIndex--; renderCarousel(results, carouselIndex); window.scrollTo(0, 0);
+  }
+}, { passive: true });
+
 // -- Bootstrap: fetch all JSON files --
 Promise.all([
   fetch('search-index.json').then(r => { if (!r.ok) throw new Error('search-index.json: ' + r.status); return r.json(); }),
