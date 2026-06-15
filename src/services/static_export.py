@@ -438,7 +438,9 @@ a:hover { text-decoration: underline; }
 }
 body.deep-link-mode #deep-link-header { display: flex; }
 body.deep-link-mode #header-wrapper { display: none !important; }
-body.deep-link-mode #footer { display: none; }
+body.deep-link-mode #footer { display: none !important; }
+body.deep-link-mode #carousel-nav { display: none !important; }
+body.deep-link-mode #carousel-top-nav { display: none !important; }
 @media (max-width: 600px) {
   #header-wrapper { position: static; background: none; border: none; }
   #header { display: none; }
@@ -730,6 +732,11 @@ body.deep-link-mode #footer { display: none; }
 
 <script>
 'use strict';
+
+// -- Early deep-link detection: apply class before any data loads to prevent flash --
+if (window.location.hash && window.location.hash.startsWith('#post-')) {
+  document.body.classList.add('deep-link-mode');
+}
 
 // -- HTML escaping helper (CRITICAL: all user content must be escaped) --
 function esc(s) {
