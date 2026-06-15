@@ -410,13 +410,14 @@ class TestIndexHtmlDeepLink:
         html = (tmp_path / "index.html").read_text()
         assert "deep-link-mode" in html
 
-    def test_xbm_home_btn_present(self, temp_db_v6, tmp_path):
-        """DL-08: xbm-home-btn element present in generated HTML."""
+    def test_deep_link_header_present(self, temp_db_v6, tmp_path):
+        """DL-08: deep-link-header element present for standalone deep link page."""
         from src.services.static_export import StaticExportService
         svc = StaticExportService(temp_db_v6)
         svc.export(tmp_path)
         html = (tmp_path / "index.html").read_text()
-        assert "xbm-home-btn" in html
+        assert "deep-link-header" in html
+        assert "xbm-brand" in html
 
     def test_go_home_function_present(self, temp_db_v6, tmp_path):
         """DL-09: goHome function present in generated HTML."""

@@ -423,26 +423,25 @@ a:hover { text-decoration: underline; }
   outline: 2px solid var(--color-accent);
 }
 #controls select { width: 160px; cursor: pointer; }
-/* -- Deep link mode: hide mode switcher, show XBM Home (global — not media-scoped) -- */
-#xbm-home-btn { display: none; }
-body.deep-link-mode .mode-switcher { display: none !important; }
-body.deep-link-mode #header-options-btn { display: none !important; }
-body.deep-link-mode #xbm-home-btn {
-  display: inline-flex; align-items: center;
-  padding: 4px 12px; border-radius: 16px;
-  background: var(--color-link); color: #fff;
-  font-size: 13px; font-weight: 500; text-decoration: none;
-  cursor: pointer;
+/* -- Deep link mode: standalone page — minimal branding header only -- */
+#deep-link-header {
+  display: none;
+  position: sticky; top: 0; z-index: 10;
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+  justify-content: center; align-items: center;
+  padding: var(--md) var(--xl);
 }
-body.deep-link-mode #xbm-home-btn:hover { opacity: 0.85; }
+.xbm-brand {
+  font-size: 18px; font-weight: 700;
+  color: var(--color-text); letter-spacing: 0.5px;
+}
+body.deep-link-mode #deep-link-header { display: flex; }
+body.deep-link-mode #header-wrapper { display: none !important; }
+body.deep-link-mode #footer { display: none; }
 @media (max-width: 600px) {
   #header-wrapper { position: static; background: none; border: none; }
   #header { display: none; }
-  body.deep-link-mode #header {
-    display: flex; position: sticky; top: 0; z-index: 10;
-    background: var(--color-card); border-bottom: 1px solid var(--color-border);
-    justify-content: center; padding: var(--sm) var(--md);
-  }
   #controls { flex-wrap: wrap; padding: var(--sm) var(--md); }
   #controls input { min-width: 100%; }
   #controls select { flex: 1; width: auto; }
@@ -672,6 +671,8 @@ body.deep-link-mode #xbm-home-btn:hover { opacity: 0.85; }
 </head>
 <body>
 
+<div id="deep-link-header"><span class="xbm-brand">XBM</span></div>
+
 <div id="header-wrapper">
 <div id="header">
   <h1>X Bookmarks</h1>
@@ -680,7 +681,6 @@ body.deep-link-mode #xbm-home-btn:hover { opacity: 0.85; }
     <button class="mode-btn active" data-mode="carousel" onclick="setMode('carousel')">Carousel</button>
     <button class="mode-btn" data-mode="stream" onclick="setMode('stream')">Stream</button>
   </div>
-  <a href="javascript:void(0)" id="xbm-home-btn" class="xbm-home-btn" onclick="goHome()">XBM Home</a>
   <button class="options-toggle-btn" id="header-options-btn" onclick="toggleOptions()">Options ▾</button>
 </div>
 
