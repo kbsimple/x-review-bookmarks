@@ -563,8 +563,31 @@ body.deep-link-mode #xbm-home-btn:hover { opacity: 0.85; }
 .share-btn:hover { opacity: 1; }
 /* -- oEmbed (native Twitter widget) card -- */
 .oembed-card { padding: var(--sm) var(--sm) var(--xs); }
-.oembed-container { max-width: 550px; margin: 0 auto; }
+.oembed-container {
+  max-width: 550px; margin: 0 auto;
+  opacity: 0; transition: opacity 0.4s ease;
+}
+.oembed-container.widget-ready { opacity: 1; }
 .oembed-container .twitter-tweet { margin: 0 auto !important; }
+/* -- oEmbed skeleton shimmer -- */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+.tweet-skeleton {
+  min-height: 140px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(
+    90deg,
+    var(--color-card) 25%,
+    rgba(255,255,255,0.07) 50%,
+    var(--color-card) 75%
+  );
+  background-size: 1200px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
 /* -- Loading -- */
 #loading {
   display: flex; flex-direction: column; align-items: center;
@@ -930,19 +953,75 @@ function renderQuoteCard(post, reviewState) {
 
 // -- oEmbed (native Twitter widget) rendering --
 let _twitterWidgetLoaded = false;
+let _twitterRenderedBound = false;
+
+function _onWidgetRendered(el) {
+  // el is the rendered iframe; walk up to find .oembed-container
+  var container = el.closest ? el.closest('.oembed-container') : null;
+  if (!container) {
+    var p = el.parentNode;
+    while (p && !p.classList.contains('oembed-container')) p = p.parentNode;
+    container = p;
+  }
+  if (container) {
+    container.classList.add('widget-ready');
+    var skeleton = container.previousElementSibling;
+    if (skeleton && skeleton.classList.contains('tweet-skeleton')) {
+      skeleton.style.display = 'none';
+    }
+  }
+}
+
+function _setupSkeletonFallback(container) {
+  // Reveal blockquote fallback if widget never fires 'rendered' within 5s
+  setTimeout(function() {
+    if (!container.classList.contains('widget-ready')) {
+      container.classList.add('widget-ready');
+      var skeleton = container.previousElementSibling;
+      if (skeleton && skeleton.classList.contains('tweet-skeleton')) {
+        skeleton.style.display = 'none';
+      }
+    }
+  }, 5000);
+}
+
 function loadTwitterWidget() {
+  // Set up 5s fallbacks for all current oembed-containers
+  document.querySelectorAll('.oembed-container').forEach(_setupSkeletonFallback);
+
+  if (window.twttr && window.twttr.widgets) {
+    if (!_twitterRenderedBound) {
+      _twitterRenderedBound = true;
+      twttr.events.bind('rendered', _onWidgetRendered);
+    }
+    twttr.widgets.load(document.getElementById('post-list'));
+    return;
+  }
+
   if (_twitterWidgetLoaded) return;
   _twitterWidgetLoaded = true;
   const s = document.createElement('script');
   s.src = 'https://platform.twitter.com/widgets.js';
   s.async = true;
   s.charset = 'utf-8';
+  s.onload = function() {
+    if (window.twttr && window.twttr.events && !_twitterRenderedBound) {
+      _twitterRenderedBound = true;
+      twttr.events.bind('rendered', _onWidgetRendered);
+    }
+    if (window.twttr && window.twttr.widgets) {
+      twttr.widgets.load(document.getElementById('post-list'));
+    }
+  };
   document.head.appendChild(s);
 }
 
 function renderOEmbedCard(post, reviewState) {
+  const oembedId  = 'oembed-'   + esc(post.x_post_id);
+  const skeletonId = 'skeleton-' + esc(post.x_post_id);
   return `<div class="post-card oembed-card">
-    <div class="oembed-container">${post.oembed_html}</div>
+    <div class="tweet-skeleton" id="${skeletonId}"></div>
+    <div class="oembed-container" id="${oembedId}">${post.oembed_html}</div>
     ${renderPillsRow(post.tags, post.topics)}
     ${renderReviewBadge(reviewState)}
     ${renderCardFooter(post)}
@@ -1019,9 +1098,6 @@ function renderCarousel(results, idx) {
   });
   if (post.oembed_html) {
     loadTwitterWidget();
-    if (window.twttr && window.twttr.widgets) {
-      window.twttr.widgets.load(document.getElementById('post-list'));
-    }
   }
 }
 
@@ -1098,9 +1174,6 @@ function renderView() {
 
   if (results.some(e => allPosts[e.id] && allPosts[e.id].oembed_html)) {
     loadTwitterWidget();
-    if (window.twttr && window.twttr.widgets) {
-      window.twttr.widgets.load(container);
-    }
   }
 }
 
