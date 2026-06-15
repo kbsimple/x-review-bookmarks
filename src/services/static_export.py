@@ -437,21 +437,12 @@ body.deep-link-mode #xbm-home-btn {
 body.deep-link-mode #xbm-home-btn:hover { opacity: 0.85; }
 @media (max-width: 600px) {
   #header-wrapper { position: static; background: none; border: none; }
-  #header {
-    position: sticky; top: 0; z-index: 10;
+  #header { display: none; }
+  body.deep-link-mode #header {
+    display: flex; position: sticky; top: 0; z-index: 10;
     background: var(--color-card); border-bottom: 1px solid var(--color-border);
-    justify-content: center; padding: var(--sm) var(--md); transition: padding 0.15s;
+    justify-content: center; padding: var(--sm) var(--md);
   }
-  #header h1, #count-badge { display: none; }
-  #header .mode-switcher { display: none; }
-  #header-options-btn {
-    display: inline-flex; align-items: center;
-    background: transparent; color: var(--color-muted);
-    border: 1px solid var(--color-border); border-radius: 6px;
-    padding: var(--xs) var(--md); font-size: 13px; min-height: 32px; cursor: pointer;
-  }
-  .carousel-mode #header-options-btn { display: none; }
-  .scrolled #header { padding: 2px var(--md); }
   #controls { flex-wrap: wrap; padding: var(--sm) var(--md); }
   #controls input { min-width: 100%; }
   #controls select { flex: 1; width: auto; }
