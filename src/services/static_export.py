@@ -557,9 +557,9 @@ body.deep-link-mode #xbm-home-btn:hover { opacity: 0.85; }
 .view-on-x:hover { text-decoration: underline; }
 .share-btn {
   background: none; border: none; cursor: pointer; padding: 0;
-  color: var(--color-muted); margin-right: var(--sm);
+  color: var(--color-muted); font-size: 13px; margin-right: var(--sm);
   opacity: 0.7; transition: opacity 0.15s; line-height: 1;
-  display: inline-flex; align-items: center;
+  display: inline-flex; align-items: center; gap: 4px;
 }
 .share-btn:hover { opacity: 1; }
 .share-btn svg { display: block; }
@@ -865,14 +865,16 @@ function renderEmbeddedCard(ep) {
 }
 
 const SHARE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>';
-function renderCardFooter(post) {
+const SHARE_BTN_CONTENT = 'Share a deep link ' + SHARE_ICON;
+function renderCardFooter(post, showViewOnX = true) {
   const xUrl = `https://x.com/i/web/status/${esc(post.x_post_id)}`;
   const shareId = `share-${esc(post.x_post_id)}`;
+  const viewOnX = showViewOnX ? `<a href="${xUrl}" target="_blank" rel="noopener noreferrer" class="view-on-x">View on X</a>` : '';
   return `<div class="card-footer">
     <button class="share-btn" id="${shareId}"
       onclick="copyDeepLink('${esc(post.x_post_id)}', '${shareId}')"
-      title="Copy link to this post">${SHARE_ICON}</button>
-    <a href="${xUrl}" target="_blank" rel="noopener noreferrer" class="view-on-x">View on X</a>
+      title="Copy link to this post">${SHARE_BTN_CONTENT}</button>
+    ${viewOnX}
   </div>`;
 }
 
@@ -882,7 +884,7 @@ function copyDeepLink(postId, btnId) {
     const btn = document.getElementById(btnId);
     if (btn) {
       btn.textContent = 'Copied!';
-      setTimeout(function() { btn.innerHTML = SHARE_ICON; }, 1500);
+      setTimeout(function() { btn.innerHTML = SHARE_BTN_CONTENT; }, 1500);
     }
   }).catch(function() {
     // clipboard denied in non-HTTPS context — silent fail
@@ -948,7 +950,7 @@ function renderOEmbedCard(post, reviewState) {
     <div class="oembed-container">${post.oembed_html}</div>
     ${renderPillsRow(post.tags, post.topics)}
     ${renderReviewBadge(reviewState)}
-    ${renderCardFooter(post)}
+    ${renderCardFooter(post, false)}
   </div>`;
 }
 
