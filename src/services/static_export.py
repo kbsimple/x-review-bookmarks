@@ -567,11 +567,15 @@ body.deep-link-mode #xbm-home-btn:hover { opacity: 0.85; }
   0%   { background-position: -600px 0; }
   100% { background-position:  600px 0; }
 }
-.tweet-skeleton {
-  min-height: 140px;
-  border-radius: 12px;
-  overflow: hidden;
+.oembed-loading-wrapper {
   position: relative;
+  min-height: 300px;
+}
+.tweet-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 12px;
   background: linear-gradient(
     90deg,
     var(--color-card) 25%,
@@ -1016,8 +1020,10 @@ function renderOEmbedCard(post, reviewState) {
   const oembedId  = 'oembed-'   + esc(post.x_post_id);
   const skeletonId = 'skeleton-' + esc(post.x_post_id);
   return `<div class="post-card oembed-card">
-    <div class="tweet-skeleton" id="${skeletonId}"></div>
-    <div class="oembed-container" id="${oembedId}">${post.oembed_html}</div>
+    <div class="oembed-loading-wrapper">
+      <div class="tweet-skeleton" id="${skeletonId}"></div>
+      <div class="oembed-container" id="${oembedId}">${post.oembed_html}</div>
+    </div>
     ${renderPillsRow(post.tags, post.topics)}
     ${renderReviewBadge(reviewState)}
     ${renderCardFooter(post, false)}
