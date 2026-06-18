@@ -738,6 +738,15 @@ if (window.location.hash && window.location.hash.startsWith('#post-')) {
   document.body.classList.add('deep-link-mode');
 }
 
+// -- Apply view options from hash params on load (e.g. #sort=random&date=this_week) --
+(function() {
+  if (!window.location.hash || window.location.hash.startsWith('#post-')) return;
+  var hp = new URLSearchParams(window.location.hash.slice(1));
+  var hs = hp.get('sort'), hd = hp.get('date');
+  if (hs) document.getElementById('sort-order').value = hs;
+  if (hd) document.getElementById('date-filter').value = hd;
+})();
+
 // -- HTML escaping helper (CRITICAL: all user content must be escaped) --
 function esc(s) {
   return String(s == null ? '' : s)
@@ -1140,7 +1149,19 @@ function showEmptyState(reason) {
   }
 }
 
+function _syncViewHash() {
+  if (deepLinkMode) return;
+  var sort = document.getElementById('sort-order').value;
+  var date = document.getElementById('date-filter').value;
+  var params = new URLSearchParams();
+  if (sort && sort !== 'newest') params.set('sort', sort);
+  if (date) params.set('date', date);
+  var qs = params.toString();
+  history.replaceState(null, '', qs ? ('#' + qs) : (window.location.pathname + window.location.search));
+}
+
 function renderView() {
+  _syncViewHash();
   const results = filterAndSort();
   const filtered = results.length;
   const total = totalPostCount;
