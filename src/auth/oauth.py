@@ -444,6 +444,15 @@ def ensure_authenticated(
     tokens = load_tokens(token_path)
     if tokens:
         access_token, refresh_token = tokens
+        # Access tokens expire in ~2 hours; always refresh on load so sync never 401s.
+        # If refresh fails (e.g. refresh_token revoked), fall through to full PKCE flow.
+        try:
+            access_token, refresh_token = refresh_access_token(
+                client_id, client_secret, refresh_token
+            )
+            save_tokens(access_token, refresh_token, token_path)
+        except AuthError:
+            pass  # refresh failed — use existing token, sync will surface the 401
         return XAuth(
             client_id=client_id,
             client_secret=client_secret,
