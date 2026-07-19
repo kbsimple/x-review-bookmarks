@@ -85,7 +85,7 @@
 
 ## Milestone: v1.8 Background Prefetch (Phase 18)
 
-- [ ] Phase 18: Background Prefetch (0/2 plans) — in progress
+- [x] Phase 18: Background Prefetch (2/2 plans) — completed 2026-07-18
 
 Plans:
 - [ ] 18-00-PLAN.md — RED test stubs: TestIndexHtmlPrefetch (6 failing tests)
@@ -129,7 +129,7 @@ Success criteria:
 | 15. oEmbed Rich Embeds | v1.5 | 1/1 | Complete | 2026-06-13 |
 | 16. Viewer Presentation Modes | v1.6 | 2/2 | Complete | 2026-06-13 |
 | 17. Deep Linking | v1.7 | 2/2 | Complete | 2026-06-14 |
-| 18. Background Prefetch | v1.8 | 0/2 | In Progress | — |
+| 18. Background Prefetch | v1.8 | 2/2 | Complete | 2026-07-18 |
 
 ---
 *Roadmap created: 2026-04-18*
