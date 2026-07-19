@@ -74,14 +74,78 @@ Output files written to `data/static-export/` (or `--output` path):
 
 ```bash
 # Option 1: Netlify CLI (recommended for repeat deploys)
-netlify deploy --dir data/static-export/ --prod
+source .env.local   # loads NETLIFY_AUTH_TOKEN
+NETLIFY_AUTH_TOKEN=$NETLIFY_AUTH_TOKEN netlify deploy --dir data/static-export/ --prod
 
-# Option 2: Drag-and-drop
+# Option 2: Drag-and-drop (no account or CLI needed)
 # Open netlify.com/drop and drag the data/static-export/ folder
 ```
 
 > **Note:** Open the viewer via Netlify, not by double-clicking `index.html`.
 > Direct `file://` access blocks `fetch()` so the JSON data files won't load.
+
+### Netlify setup (first time)
+
+If you have never deployed to Netlify from this machine, complete these steps once before running `netlify deploy`.
+
+**1. Install the Netlify CLI**
+
+```bash
+brew install netlify-cli      # macOS
+# or:
+npm install -g netlify-cli    # any platform with Node
+```
+
+**2. Create a Netlify account**
+
+Sign up at [netlify.com](https://netlify.com) if you don't have one.
+
+**3. Generate a personal access token**
+
+1. Go to **User settings → Applications → Personal access tokens**
+   ([app.netlify.com/user/applications#personal-access-tokens](https://app.netlify.com/user/applications#personal-access-tokens))
+2. Click **New access token**, give it a name (e.g. `xbm-cli`), copy the value
+3. Save it to `.env.local` (this file is gitignored — never commit it):
+
+```bash
+echo 'NETLIFY_AUTH_TOKEN=nfp_your_token_here' >> .env.local
+```
+
+**4. Create a Netlify site and link it**
+
+```bash
+source .env.local
+netlify sites:create --name my-bookmarks-viewer
+# Netlify prints a Site ID — copy it
+```
+
+Then write the site ID into the link file so `netlify deploy` knows where to publish:
+
+```bash
+mkdir -p .netlify
+echo '{"siteId":"PASTE_SITE_ID_HERE"}' > .netlify/state.json
+```
+
+**5. First deploy**
+
+```bash
+xbm export-static --rich-embeds
+source .env.local
+NETLIFY_AUTH_TOKEN=$NETLIFY_AUTH_TOKEN netlify deploy --dir data/static-export/ --prod
+```
+
+Netlify prints the production URL when the deploy completes.
+
+**Re-deploying after a sync**
+
+```bash
+xbm sync
+xbm export-static --rich-embeds
+source .env.local
+NETLIFY_AUTH_TOKEN=$NETLIFY_AUTH_TOKEN netlify deploy --dir data/static-export/ --prod
+```
+
+Or just say **"deploy to netlify"** — the project skill handles all three steps automatically.
 
 ### Other browsing options
 
