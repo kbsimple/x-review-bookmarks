@@ -444,6 +444,59 @@ class TestIndexHtmlDeepLink:
         assert "XBM Home" in html
 
 
+class TestIndexHtmlPrefetch:
+    """Tests for prefetch pool additions to index.html. PREFETCH-01 through PREFETCH-08."""
+
+    def test_schedule_prefetch_function_present(self, temp_db_v6, tmp_path):
+        """PREFETCH-01, PREFETCH-08: schedulePrefetch function present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "schedulePrefetch" in html
+
+    def test_prefetch_window_constants_present(self, temp_db_v6, tmp_path):
+        """PREFETCH-02: PREFETCH_AHEAD and PREFETCH_BEHIND constants present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "PREFETCH_AHEAD" in html
+        assert "PREFETCH_BEHIND" in html
+
+    def test_request_idle_callback_present(self, temp_db_v6, tmp_path):
+        """PREFETCH-04: requestIdleCallback present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "requestIdleCallback" in html
+
+    def test_prefetch_pool_hit_check_present(self, temp_db_v6, tmp_path):
+        """PREFETCH-05: prefetchPool.has pool-hit check present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "prefetchPool.has" in html
+
+    def test_clear_prefetch_pool_present(self, temp_db_v6, tmp_path):
+        """PREFETCH-06: clearPrefetchPool call present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "clearPrefetchPool" in html
+
+    def test_prefetch_pool_eviction_present(self, temp_db_v6, tmp_path):
+        """PREFETCH-07: prefetchPool.delete eviction call present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "prefetchPool.delete" in html
+
+
 class TestNetlifyToml:
     """Tests for netlify.toml content. EXPORT-04."""
 
