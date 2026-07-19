@@ -797,8 +797,8 @@ let savedScrollY = 0;
 let cachedCarouselResults = null;
 let deepLinkMode = false;
 // -- Prefetch pool globals --
-const PREFETCH_AHEAD = 5;
-const PREFETCH_BEHIND = 2;
+const PREFETCH_AHEAD = 2;
+const PREFETCH_BEHIND = 1;
 let prefetchPool = new Map();
 let _prefetchContainer = null;
 let _prefetchTimerId = null;
@@ -1085,7 +1085,6 @@ function _runPrefetch(results, idx) {
     }
   }
   const container = _getPrefetchContainer();
-  let hasOEmbed = false;
   for (let i = windowStart; i <= windowEnd; i++) {
     if (i === idx) continue;
     const entry = results[i];
@@ -1098,10 +1097,6 @@ function _runPrefetch(results, idx) {
     const cardNode = tmp.firstElementChild;
     container.appendChild(cardNode);
     prefetchPool.set(entry.id, cardNode);
-    if (post.oembed_html) hasOEmbed = true;
-  }
-  if (hasOEmbed && window.twttr && window.twttr.widgets) {
-    twttr.widgets.load(container);
   }
 }
 
@@ -1116,9 +1111,9 @@ function schedulePrefetch(results, idx) {
   }
   const cb = function() { _runPrefetch(results, idx); };
   if (typeof requestIdleCallback !== 'undefined') {
-    _prefetchTimerId = requestIdleCallback(cb, { timeout: 200 });
+    _prefetchTimerId = requestIdleCallback(cb, { timeout: 500 });
   } else {
-    _prefetchTimerId = setTimeout(cb, 200);
+    _prefetchTimerId = setTimeout(cb, 500);
   }
 }
 
