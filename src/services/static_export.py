@@ -744,6 +744,10 @@ body.deep-link-mode #carousel-top-nav { display: none !important; }
 if (window.location.hash && (window.location.hash.startsWith('#post-') || window.location.hash === '#statusz')) {
   document.body.classList.add('deep-link-mode');
 }
+// #debug: enable console logging for all events from page load
+if (window.location.hash === '#debug') {
+  console.log('[XBM:DEBUG] debug panel active — navigate to posts to trace widget loading');
+}
 
 // -- Apply view options from hash params on load (e.g. #sort=random&date=this_week) --
 (function() {
@@ -802,6 +806,20 @@ const PREFETCH_BEHIND = 1;
 let prefetchPool = new Map();
 let _prefetchContainer = null;
 let _prefetchTimerId = null;
+
+// Debug telemetry — activated by navigating to #debug
+const _xbmLog = { entries: [], panel: null };
+function _log(cat, msg) {
+  const ts = new Date().toISOString().slice(11, 23);
+  const line = '[' + ts + '] [' + cat + '] ' + msg;
+  _xbmLog.entries.push(line);
+  if (_xbmLog.entries.length > 300) _xbmLog.entries.shift();
+  console.log(line);
+  if (_xbmLog.panel) {
+    _xbmLog.panel.textContent = _xbmLog.entries.slice().reverse().join('\\n');
+  }
+}
+
 document.body.classList.toggle('carousel-mode', currentMode === 'carousel');
 document.querySelectorAll('.mode-btn').forEach(b => {
   b.classList.toggle('active', b.dataset.mode === currentMode);
@@ -996,18 +1014,25 @@ function _onWidgetRendered(el) {
     container = p;
   }
   if (container) {
+    const inPrefetch = !!container.closest('#prefetch-container');
+    _log('WIDGET', 'rendered id=' + container.id + ' in_prefetch=' + inPrefetch);
     container.classList.add('widget-ready');
     var skeleton = container.previousElementSibling;
     if (skeleton && skeleton.classList.contains('tweet-skeleton')) {
       skeleton.style.display = 'none';
     }
+  } else {
+    _log('WIDGET', 'rendered no-container el=' + el.tagName);
   }
 }
 
 function _setupSkeletonFallback(container) {
   // After 5s, reveal only if the iframe is actually present — never expose raw blockquote text.
   setTimeout(function() {
-    if (!container.classList.contains('widget-ready') && container.querySelector('iframe')) {
+    const hasIframe = !!container.querySelector('iframe');
+    const alreadyReady = container.classList.contains('widget-ready');
+    _log('SKELETON', 'fallback id=' + container.id + ' iframe=' + hasIframe + ' already_ready=' + alreadyReady);
+    if (!alreadyReady && hasIframe) {
       container.classList.add('widget-ready');
       var skeleton = container.previousElementSibling;
       if (skeleton && skeleton.classList.contains('tweet-skeleton')) {
@@ -1018,6 +1043,9 @@ function _setupSkeletonFallback(container) {
 }
 
 function loadTwitterWidget() {
+  const twttrReady = !!(window.twttr && window.twttr.widgets);
+  _log('WIDGET', 'loadTwitterWidget twttr_ready=' + twttrReady + ' script_loaded=' + _twitterWidgetLoaded);
+
   // Set up 5s fallbacks for all current oembed-containers
   document.querySelectorAll('.oembed-container').forEach(_setupSkeletonFallback);
 
@@ -1026,22 +1054,26 @@ function loadTwitterWidget() {
       _twitterRenderedBound = true;
       twttr.events.bind('rendered', _onWidgetRendered);
     }
+    _log('WIDGET', 'calling twttr.widgets.load(post-list)');
     twttr.widgets.load(document.getElementById('post-list'));
     return;
   }
 
   if (_twitterWidgetLoaded) return;
   _twitterWidgetLoaded = true;
+  _log('WIDGET', 'injecting widgets.js script');
   const s = document.createElement('script');
   s.src = 'https://platform.twitter.com/widgets.js';
   s.async = true;
   s.charset = 'utf-8';
   s.onload = function() {
+    _log('WIDGET', 'widgets.js loaded');
     if (window.twttr && window.twttr.events && !_twitterRenderedBound) {
       _twitterRenderedBound = true;
       twttr.events.bind('rendered', _onWidgetRendered);
     }
     if (window.twttr && window.twttr.widgets) {
+      _log('WIDGET', 'calling twttr.widgets.load(post-list) from onload');
       twttr.widgets.load(document.getElementById('post-list'));
     }
   };
@@ -1052,8 +1084,11 @@ function _getPrefetchContainer() {
   if (_prefetchContainer) return _prefetchContainer;
   _prefetchContainer = document.createElement('div');
   _prefetchContainer.id = 'prefetch-container';
+  // opacity:0 keeps it invisible without inheriting visibility:hidden to children.
+  // visibility:hidden is inherited by blockquote.twitter-tweet, causing twttr.widgets.js
+  // to skip those elements entirely — widgets never render, widget-ready never fires.
   _prefetchContainer.style.cssText =
-    'position:absolute;left:-9999px;top:-9999px;width:500px;visibility:hidden;pointer-events:none;';
+    'position:absolute;left:-9999px;top:-9999px;width:500px;opacity:0;pointer-events:none;';
   document.body.appendChild(_prefetchContainer);
   return _prefetchContainer;
 }
@@ -1077,6 +1112,7 @@ function _runPrefetch(results, idx) {
   _prefetchTimerId = null;
   const windowStart = Math.max(0, idx - PREFETCH_BEHIND);
   const windowEnd   = Math.min(results.length - 1, idx + PREFETCH_AHEAD);
+  _log('PREFETCH', 'run idx=' + idx + ' window=[' + windowStart + ',' + windowEnd + '] pool_size=' + prefetchPool.size);
   const windowIds   = new Set(results.slice(windowStart, windowEnd + 1).map(function(e) { return e.id; }));
   for (const [id, node] of prefetchPool) {
     if (!windowIds.has(id)) {
@@ -1089,7 +1125,11 @@ function _runPrefetch(results, idx) {
   for (let i = windowStart; i <= windowEnd; i++) {
     if (i === idx) continue;
     const entry = results[i];
-    if (prefetchPool.has(entry.id)) continue;
+    if (prefetchPool.has(entry.id)) {
+      const wr = !!prefetchPool.get(entry.id).querySelector('.oembed-container.widget-ready');
+      _log('PREFETCH', 'already_pooled id=' + entry.id + ' widget_ready=' + wr);
+      continue;
+    }
     const post = allPosts[entry.id];
     if (!post) continue;
     const rs = reviewMap.get(entry.id) || null;
@@ -1098,9 +1138,13 @@ function _runPrefetch(results, idx) {
     const cardNode = tmp.firstElementChild;
     container.appendChild(cardNode);
     prefetchPool.set(entry.id, cardNode);
+    _log('PREFETCH', 'warming id=' + entry.id + ' oembed=' + !!post.oembed_html);
     if (post.oembed_html) hasOEmbed = true;
   }
+  const twttrReady = !!(window.twttr && window.twttr.widgets);
+  _log('PREFETCH', 'done hasOEmbed=' + hasOEmbed + ' twttr_ready=' + twttrReady);
   if (hasOEmbed && window.twttr && window.twttr.widgets) {
+    _log('PREFETCH', 'calling twttr.widgets.load(prefetch-container)');
     twttr.widgets.load(container);
   }
 }
@@ -1222,11 +1266,15 @@ function renderCarousel(results, idx) {
     if (carouselIndex < results.length - 1) { carouselIndex++; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
   });
   if (post.oembed_html) {
-    if (fromPool && poolCardNode && poolCardNode.querySelector('.oembed-container.widget-ready')) {
+    const widgetReady = fromPool && poolCardNode && !!poolCardNode.querySelector('.oembed-container.widget-ready');
+    _log('RENDER', 'idx=' + idx + ' id=' + entry.id + ' pool_hit=' + fromPool + ' widget_ready=' + widgetReady);
+    if (widgetReady) {
       // Widget already warmed — widget-ready persists after DOM move, skip loadTwitterWidget()
     } else {
       loadTwitterWidget();
     }
+  } else {
+    _log('RENDER', 'idx=' + idx + ' id=' + entry.id + ' no_oembed');
   }
   schedulePrefetch(results, idx);
 }
@@ -1282,6 +1330,37 @@ function renderStatusz() {
     history.replaceState(null, '', window.location.pathname + window.location.search);
     renderView();
   });
+}
+
+function renderDebugPanel() {
+  deepLinkMode = true;
+  document.getElementById('loading').style.display = 'none';
+  document.body.classList.add('deep-link-mode');
+  const panel = document.createElement('div');
+  panel.id = 'xbm-debug-panel';
+  panel.style.cssText = [
+    'position:fixed;bottom:0;left:0;right:0;height:45vh',
+    'background:rgba(0,0,0,0.93);color:#0f0;font:11px/1.45 monospace',
+    'overflow-y:auto;padding:10px;z-index:9999;white-space:pre',
+    'border-top:2px solid #0f0'
+  ].join(';');
+  document.body.appendChild(panel);
+  _xbmLog.panel = panel;
+  panel.textContent = _xbmLog.entries.length
+    ? _xbmLog.entries.slice().reverse().join('\\n')
+    : '(no log entries yet — navigate posts to see events)';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕ close';
+  closeBtn.style.cssText = 'position:absolute;top:6px;right:10px;background:none;border:1px solid #0f0;color:#0f0;cursor:pointer;font:11px monospace;padding:2px 6px;';
+  closeBtn.onclick = function() {
+    _xbmLog.panel = null;
+    panel.remove();
+    deepLinkMode = false;
+    document.body.classList.remove('deep-link-mode');
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    renderView();
+  };
+  panel.appendChild(closeBtn);
 }
 
 function showEmptyState(reason) {
@@ -1423,6 +1502,10 @@ Promise.all([
   if (hash === '#statusz') {
     renderStatusz();
     return;
+  }
+  if (hash === '#debug') {
+    renderDebugPanel();
+    // Don't return — continue rendering the normal view underneath the panel
   }
   if (hash && hash.startsWith('#post-')) {
     const postId = hash.slice(6);
