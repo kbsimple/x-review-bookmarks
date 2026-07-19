@@ -30,7 +30,7 @@ progress:
 Phase: Not started (defining requirements)
 Plan: —
 Status: Defining requirements
-Last activity: 2026-07-18 — Milestone v1.8 started
+Last activity: 2026-07-18 — Phase 18 context gathered
 
 ## Progress
 
