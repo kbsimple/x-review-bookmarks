@@ -669,6 +669,13 @@ body.deep-link-mode #carousel-top-nav { display: none !important; }
 /* -- Mobile-only controls additions -- */
 #header-options-btn { display: none; }
 #controls-mode-row { display: none; }
+/* -- Status page -- */
+.statusz-page { max-width: 560px; margin: 2rem auto; padding: var(--md); }
+.statusz-page h2 { font-size: 1.25rem; margin-bottom: var(--md); color: var(--color-text); }
+.statusz-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.statusz-table td { padding: 0.45rem var(--sm); border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.statusz-table td:first-child { font-weight: 600; color: var(--color-muted); width: 46%; }
+.statusz-home-link { display: inline-block; margin-top: var(--md); font-size: 13px; color: var(--color-secondary); }
 </style>
 </head>
 <body>
@@ -734,7 +741,7 @@ body.deep-link-mode #carousel-top-nav { display: none !important; }
 'use strict';
 
 // -- Early deep-link detection: apply class before any data loads to prevent flash --
-if (window.location.hash && window.location.hash.startsWith('#post-')) {
+if (window.location.hash && (window.location.hash.startsWith('#post-') || window.location.hash === '#statusz')) {
   document.body.classList.add('deep-link-mode');
 }
 
@@ -773,6 +780,9 @@ function profileLink(username) {
   if (!username) return '';
   return `<a href="https://x.com/${esc(username)}" target="_blank" rel="noopener noreferrer">@${esc(username)}</a>`;
 }
+
+// -- App metadata --
+const XBM_VERSION = '0.1.0';
 
 // -- Global state --
 let allPosts = {};
@@ -1239,6 +1249,41 @@ function showDeepLinkError(postId) {
     <p><a href="${esc(window.location.origin + window.location.pathname)}" class="view-on-x">XBM Home</a></p>`;
 }
 
+function renderStatusz() {
+  deepLinkMode = true;
+  document.getElementById('loading').style.display = 'none';
+  document.body.classList.add('deep-link-mode');
+  const richEmbeds = Object.values(allPosts).some(function(p) { return !!p.oembed_html; });
+  const rows = [
+    ['Version', XBM_VERSION],
+    ['Exported', exportedDate || '—'],
+    ['Total posts', String(totalPostCount)],
+    ['Rich embeds', richEmbeds ? 'enabled' : 'disabled'],
+    ['Prefetch window', 'ahead ' + PREFETCH_AHEAD + ' · behind ' + PREFETCH_BEHIND],
+    ['View mode', currentMode],
+    ['Posts loaded', String(Object.keys(allPosts).length)],
+    ['Search index', searchIndex.length + ' entries'],
+    ['Review states', String(reviewMap.size)],
+    ['Prefetch pool', prefetchPool.size + ' cached'],
+  ];
+  const tableRows = rows.map(function(r) {
+    return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+  }).join('');
+  document.getElementById('post-list').innerHTML =
+    '<div class="statusz-page">'
+    + '<h2>XBM Status</h2>'
+    + '<table class="statusz-table"><tbody>' + tableRows + '</tbody></table>'
+    + '<a href="#" class="statusz-home-link" id="statusz-home-link">← XBM Home</a>'
+    + '</div>';
+  document.getElementById('statusz-home-link').addEventListener('click', function(e) {
+    e.preventDefault();
+    deepLinkMode = false;
+    document.body.classList.remove('deep-link-mode');
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    renderView();
+  });
+}
+
 function showEmptyState(reason) {
   const el = document.getElementById('empty-state');
   el.style.display = 'block';
@@ -1375,6 +1420,10 @@ Promise.all([
 
   document.getElementById('loading').style.display = 'none';
   const hash = window.location.hash;
+  if (hash === '#statusz') {
+    renderStatusz();
+    return;
+  }
   if (hash && hash.startsWith('#post-')) {
     const postId = hash.slice(6);
     if (allPosts[postId]) {

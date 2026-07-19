@@ -497,6 +497,42 @@ class TestIndexHtmlPrefetch:
         assert "prefetchPool.delete" in html
 
 
+class TestIndexHtmlStatusz:
+    """Tests for #statusz hash route additions to index.html."""
+
+    def test_render_statusz_function_present(self, temp_db_v6, tmp_path):
+        """renderStatusz function present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "renderStatusz" in html
+
+    def test_xbm_version_constant_present(self, temp_db_v6, tmp_path):
+        """XBM_VERSION constant present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "XBM_VERSION" in html
+
+    def test_statusz_table_class_present(self, temp_db_v6, tmp_path):
+        """statusz-table CSS class present in generated HTML."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "statusz-table" in html
+
+    def test_statusz_hash_check_present(self, temp_db_v6, tmp_path):
+        """#statusz hash check present in bootstrap section."""
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "'#statusz'" in html
+
+
 class TestNetlifyToml:
     """Tests for netlify.toml content. EXPORT-04."""
 
