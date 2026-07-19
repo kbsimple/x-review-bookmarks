@@ -50,14 +50,14 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| PREFETCH-01 | — | Pending |
-| PREFETCH-02 | — | Pending |
-| PREFETCH-03 | — | Pending |
-| PREFETCH-04 | — | Pending |
-| PREFETCH-05 | — | Pending |
-| PREFETCH-06 | — | Pending |
-| PREFETCH-07 | — | Pending |
-| PREFETCH-08 | — | Pending |
+| PREFETCH-01 | Phase 18 | Pending |
+| PREFETCH-02 | Phase 18 | Pending |
+| PREFETCH-03 | Phase 18 | Pending |
+| PREFETCH-04 | Phase 18 | Pending |
+| PREFETCH-05 | Phase 18 | Pending |
+| PREFETCH-06 | Phase 18 | Pending |
+| PREFETCH-07 | Phase 18 | Pending |
+| PREFETCH-08 | Phase 18 | Pending |
 
 ---
 *Requirements created: 2026-07-18*

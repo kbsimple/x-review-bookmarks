@@ -83,6 +83,27 @@
 
 </details>
 
+## Milestone: v1.8 Background Prefetch (Phase 18)
+
+- [ ] Phase 18: Background Prefetch (0/0 plans) — pending
+
+### Phase Details
+
+**Phase 18: Background Prefetch**
+
+Goal: Add a forward-weighted prefetch pool to carousel mode — pre-render 5 posts ahead and 2 behind with Twitter widget pre-initialization so carousel navigation never waits for widget load.
+
+Requirements: PREFETCH-01, PREFETCH-02, PREFETCH-03, PREFETCH-04, PREFETCH-05, PREFETCH-06, PREFETCH-07, PREFETCH-08
+
+Canonical refs: `src/services/static_export.py` (inline JS), existing `renderCarousel`, `loadTwitterWidget`, `twttr.widgets.load` patterns
+
+Success criteria:
+1. Navigating to the next/prev carousel post within the prefetch window shows content with no visible delay or blank flash
+2. oEmbed Twitter widgets are already rendered (not loading) when navigating to a prefetched post
+3. Changing search, filter, or sort clears the prefetch pool and rebuilds from the new carousel position
+4. Prefetch never delays first-post render (requestIdleCallback guard in place)
+5. Generated `index.html` contains `schedulePrefetch` and `prefetchPool` identifiers (verified by string-grep tests)
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -104,6 +125,7 @@
 | 15. oEmbed Rich Embeds | v1.5 | 1/1 | Complete | 2026-06-13 |
 | 16. Viewer Presentation Modes | v1.6 | 2/2 | Complete | 2026-06-13 |
 | 17. Deep Linking | v1.7 | 2/2 | Complete | 2026-06-14 |
+| 18. Background Prefetch | v1.8 | 0/0 | Pending | — |
 
 ---
 *Roadmap created: 2026-04-18*
@@ -111,3 +133,4 @@
 *Roadmap updated: 2026-06-13 — Phase 16 complete — v1.6 Viewer Presentation Modes shipped — 628 tests pass*
 *Roadmap updated: 2026-06-14 — Phase 17 complete — v1.7 Deep Linking shipped — 644 tests pass*
 *Roadmap updated: 2026-06-14 — v1.7 milestone closed — archive at milestones/v1.7-ROADMAP.md*
+*Roadmap updated: 2026-07-18 — v1.8 milestone started — Phase 18: Background Prefetch*
