@@ -496,21 +496,24 @@ class TestIndexHtmlPrefetch:
         html = (tmp_path / "index.html").read_text()
         assert "prefetchPool.delete" in html
 
-    def test_run_prefetch_does_not_call_twitter_widgets_load(self, temp_db_v6, tmp_path):
-        """_runPrefetch must not call twttr.widgets.load in the hidden prefetch container.
+    def test_prefetch_window_size_is_small(self, temp_db_v6, tmp_path):
+        """PREFETCH_AHEAD must be ≤ 2 and PREFETCH_BEHIND must be ≤ 1.
 
-        Regression guard: background widget loading triggers network requests and iframe
-        creation for posts the user may never view, choking navigation performance.
-        Widgets are loaded on display instead via renderCarousel's pool path.
+        Regression guard: the original window of PREFETCH_AHEAD=5 / PREFETCH_BEHIND=2
+        caused background widget warming of up to 7 posts simultaneously, choking
+        navigation performance with concurrent network requests and iframe creation.
+        Background warming itself is intentional (avoids foreground blocking on navigation);
+        the window must stay small enough not to overwhelm the browser.
         """
+        import re
         from src.services.static_export import StaticExportService
         svc = StaticExportService(temp_db_v6)
         svc.export(tmp_path)
         html = (tmp_path / "index.html").read_text()
-        prefetch_start = html.index("function _runPrefetch(")
-        schedule_start = html.index("function schedulePrefetch(")
-        prefetch_body = html[prefetch_start:schedule_start]
-        assert "twttr.widgets.load" not in prefetch_body
+        ahead = int(re.search(r'PREFETCH_AHEAD\s*=\s*(\d+)', html).group(1))
+        behind = int(re.search(r'PREFETCH_BEHIND\s*=\s*(\d+)', html).group(1))
+        assert ahead <= 2, f"PREFETCH_AHEAD={ahead} is too large; keep ≤ 2"
+        assert behind <= 1, f"PREFETCH_BEHIND={behind} is too large; keep ≤ 1"
 
 
 class TestIndexHtmlOEmbedSkeleton:
