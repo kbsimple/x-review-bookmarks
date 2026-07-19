@@ -8,9 +8,21 @@ A Python CLI application that fetches bookmarked posts from X (Twitter) using th
 
 Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind — content you saved because it mattered, delivered back to you before you forget it.
 
+## Current Milestone: v1.8 Background Prefetch
+
+**Goal:** Make carousel navigation feel instant by pre-rendering a forward-weighted window of posts so Twitter widgets are initialized before the user navigates to them.
+
+**Target features:**
+- Prefetch pool rendering 5 posts ahead + 2 behind into detached DOM elements
+- Pre-initialized Twitter widgets via twttr.widgets.load() on prefetched elements
+- requestIdleCallback scheduling so prefetch never blocks first-post render
+- Node reuse on navigation (swap pre-rendered node instead of re-render)
+- Cache invalidation when search/filter/sort changes the result set
+
 ## Current State
 
 **Shipped:** v1.7 (2026-06-14)
+**In progress:** v1.8 Background Prefetch
 **Codebase:** ~12,000 LOC Python
 **Tests:** 644 passing
 **Live:** https://xbm-viewer-export.netlify.app
@@ -132,4 +144,22 @@ Milestone v1.7 delivered:
 | Global CSS placement (before `@media`) | Deep-link rules must apply on desktop too, not only mobile | ✓ Good — WR-01 bug caught in code review; fixed before shipping |
 
 ---
-*Last updated: 2026-06-14 after v1.7 milestone*
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
+---
+*Last updated: 2026-07-18 — v1.8 milestone started (Background Prefetch)*

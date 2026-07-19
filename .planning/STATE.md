@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.7
-milestone_name: Deep Linking
-status: complete
-last_updated: "2026-06-15T11:45:00Z"
-last_activity: 2026-06-15 — quick task 260615-b2k complete: oEmbed skeleton shimmer placeholder
+milestone: v1.8
+milestone_name: Background Prefetch
+status: in_progress
+last_updated: "2026-07-18T00:00:00Z"
+last_activity: 2026-07-18 — Milestone v1.8 started (Background Prefetch)
 progress:
   total_phases: 17
   completed_phases: 17
@@ -15,21 +15,22 @@ progress:
 
 # STATE: X Bookmarked Posts Organizer
 
-**Last updated:** 2026-06-14
+**Last updated:** 2026-07-18
 
 ## Project Reference
 
 **Core Value:** Resurface bookmarked posts on a spaced-repetition schedule so they stay fresh in mind
 
-**Current Focus:** v1.7 milestone closed — ready for next milestone planning
+**Current Focus:** v1.8 Background Prefetch — defining requirements and roadmap
 
-**Milestone:** v1.7 Deep Linking — COMPLETE
+**Milestone:** v1.8 Background Prefetch — IN PROGRESS
 
 ## Current Position
 
-Phase: 17 — Deep Linking (COMPLETE)
-Status: All 17 phases done, 62 plans complete, 644 tests pass
-Last activity: 2026-06-14 — v1.7 milestone closed and archived (tagged v1.7)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-18 — Milestone v1.8 started
 
 ## Progress
 
