@@ -2,12 +2,15 @@
 
 A CLI tool that syncs your X (Twitter) bookmarks and resurfaces them on a spaced-repetition schedule so valuable content stays fresh in mind.
 
+**Live viewer:** [xbm-viewer-export.netlify.app](https://xbm-viewer-export.netlify.app)
+
 ## Features
 
 - **Sync bookmarks** from X API to local SQLite storage
 - **Spaced repetition** resurfaces posts at optimal intervals (FSRS algorithm)
 - **Full-text search** with FTS5 (search by content, author, date range)
 - **Topic organization** with AI-powered suggestions
+- **Static export** — publish to Netlify as a browsable web app
 - **Web interface** for browsing on desktop or TV via Google Cast
 - **Data portability** — export/import JSON or CSV
 
@@ -31,17 +34,70 @@ xbm init
 # 3. Sync your bookmarks
 xbm sync
 
-# 4. Browse your posts
+# 4. Export to a static site and publish to Netlify
+xbm export-static --rich-embeds        # builds data/static-export/
+netlify deploy --dir data/static-export/ --prod
+```
+
+### Export to Netlify (preferred publishing method)
+
+`xbm export-static` generates a self-contained static web app — no server required.
+Deploy it once and re-deploy after each sync to keep the site current.
+
+```bash
+# Basic export (no Twitter widgets, fastest)
+xbm export-static
+
+# Rich export: fetches native X embed HTML — renders native tweet widgets in the viewer
+xbm export-static --rich-embeds
+
+# Limit to most recent N posts
+xbm export-static --rich-embeds --limit 200
+
+# Custom output directory
+xbm export-static --output ~/Desktop/bookmarks-site
+```
+
+Output files written to `data/static-export/` (or `--output` path):
+
+| File | Purpose |
+|------|---------|
+| `index.html` | Single-file viewer — carousel + stream modes, search, date filter |
+| `posts.json` | All post data |
+| `search-index.json` | Denormalized search index for client-side filtering |
+| `tags.json` | Tag definitions |
+| `topics.json` | Topic taxonomy |
+| `review_state.json` | Spaced-repetition scheduling state |
+| `netlify.toml` | Cache headers for JSON files |
+
+**Deploy to Netlify:**
+
+```bash
+# Option 1: Netlify CLI (recommended for repeat deploys)
+netlify deploy --dir data/static-export/ --prod
+
+# Option 2: Drag-and-drop
+# Open netlify.com/drop and drag the data/static-export/ folder
+```
+
+> **Note:** Open the viewer via Netlify, not by double-clicking `index.html`.
+> Direct `file://` access blocks `fetch()` so the JSON data files won't load.
+
+### Other browsing options
+
+```bash
+# Browse posts in the terminal
 xbm browse
 xbm browse --order random    # random order
 xbm browse --order oldest    # oldest first
 
-# 5. Review posts due for spaced repetition
+# Review posts due for spaced repetition
 xbm due      # see what's due
 xbm review   # interactive review session
 
-# 6. Start the web app
+# Start the local web app (HTTPS, works with Google Cast)
 xbm web      # opens https://localhost:8000
+xbm web --lan  # expose on local network (TV, phone)
 ```
 
 ## CLI Commands
@@ -63,6 +119,14 @@ xbm web      # opens https://localhost:8000
 | `xbm search <query>` | Full-text search posts |
 | `xbm due` | View posts due for review |
 | `xbm stats` | View post statistics |
+
+### Publishing
+
+| Command | Description |
+|---------|-------------|
+| `xbm export-static` | Export to static files for Netlify deployment |
+| `xbm export-static --rich-embeds` | Include native X widget HTML |
+| `xbm export-static --limit N` | Export only the N most recent posts |
 
 ### Organization
 
@@ -98,22 +162,9 @@ xbm web      # opens https://localhost:8000
 | `xbm web` | Start web server (https://localhost:8000) |
 | `xbm web --port 3000` | Use custom port |
 | `xbm web --no-open` | Don't auto-open browser |
-
-## Web Interface
-
-Start the web app to browse posts in your browser:
-
-```bash
-xbm web
-```
-
-Features:
-- **HTTPS server** (self-signed certificate for Google Cast compatibility)
-- **Infinite scroll** pagination
-- **Search with filters** — by topic, author, date range
-- **Google Cast integration** — view posts on your TV
-
-The web app shares authentication with the CLI via `data/tokens.json`.
+| `xbm web --lan` | Expose on LAN (for TV / mobile access) |
+| `xbm lan-cert --generate` | Generate LAN SSL certificates |
+| `xbm lan-cert --guide` | CA installation guide for mobile |
 
 ## Configuration
 
@@ -145,6 +196,7 @@ All data stored locally in SQLite:
 | `data/tokens.json` | OAuth tokens (auto-managed) |
 | `data/localhost.crt` | HTTPS certificate (auto-generated) |
 | `data/localhost.key` | HTTPS private key (auto-generated) |
+| `data/static-export/` | Static export output for Netlify |
 
 ## Requirements
 
