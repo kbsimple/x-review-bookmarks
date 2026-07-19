@@ -85,7 +85,11 @@
 
 ## Milestone: v1.8 Background Prefetch (Phase 18)
 
-- [ ] Phase 18: Background Prefetch (0/0 plans) — pending
+- [ ] Phase 18: Background Prefetch (0/2 plans) — in progress
+
+Plans:
+- [ ] 18-00-PLAN.md — RED test stubs: TestIndexHtmlPrefetch (6 failing tests)
+- [ ] 18-01-PLAN.md — Implementation: prefetch globals, 4 new JS functions, modified renderCarousel and renderView
 
 ### Phase Details
 
@@ -125,7 +129,7 @@ Success criteria:
 | 15. oEmbed Rich Embeds | v1.5 | 1/1 | Complete | 2026-06-13 |
 | 16. Viewer Presentation Modes | v1.6 | 2/2 | Complete | 2026-06-13 |
 | 17. Deep Linking | v1.7 | 2/2 | Complete | 2026-06-14 |
-| 18. Background Prefetch | v1.8 | 0/0 | Pending | — |
+| 18. Background Prefetch | v1.8 | 0/2 | In Progress | — |
 
 ---
 *Roadmap created: 2026-04-18*
@@ -134,3 +138,4 @@ Success criteria:
 *Roadmap updated: 2026-06-14 — Phase 17 complete — v1.7 Deep Linking shipped — 644 tests pass*
 *Roadmap updated: 2026-06-14 — v1.7 milestone closed — archive at milestones/v1.7-ROADMAP.md*
 *Roadmap updated: 2026-07-18 — v1.8 milestone started — Phase 18: Background Prefetch*
+*Roadmap updated: 2026-07-18 — Phase 18 planned — 2 plans in 2 waves*
