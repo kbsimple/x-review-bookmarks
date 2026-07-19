@@ -83,13 +83,16 @@
 
 </details>
 
-## Milestone: v1.8 Background Prefetch (Phase 18)
+<details>
+<summary>✅ v1.8 Background Prefetch (Phase 18) — SHIPPED 2026-07-18</summary>
 
 - [x] Phase 18: Background Prefetch (2/2 plans) — completed 2026-07-18
 
 Plans:
-- [ ] 18-00-PLAN.md — RED test stubs: TestIndexHtmlPrefetch (6 failing tests)
-- [ ] 18-01-PLAN.md — Implementation: prefetch globals, 4 new JS functions, modified renderCarousel and renderView
+- [x] 18-00-PLAN.md — RED test stubs: TestIndexHtmlPrefetch (6 failing tests)
+- [x] 18-01-PLAN.md — Implementation: prefetch globals, 4 new JS functions, modified renderCarousel and renderView
+
+</details>
 
 ### Phase Details
 
@@ -137,5 +140,6 @@ Success criteria:
 *Roadmap updated: 2026-06-13 — Phase 16 complete — v1.6 Viewer Presentation Modes shipped — 628 tests pass*
 *Roadmap updated: 2026-06-14 — Phase 17 complete — v1.7 Deep Linking shipped — 644 tests pass*
 *Roadmap updated: 2026-06-14 — v1.7 milestone closed — archive at milestones/v1.7-ROADMAP.md*
+*Roadmap updated: 2026-07-18 — v1.8 milestone closed — Phase 18 complete, #statusz quick task shipped, deployed to Netlify — 654 tests pass*
 *Roadmap updated: 2026-07-18 — v1.8 milestone started — Phase 18: Background Prefetch*
 *Roadmap updated: 2026-07-18 — Phase 18 planned — 2 plans in 2 waves*

@@ -4,7 +4,7 @@ milestone: v1.8
 milestone_name: Background Prefetch
 status: complete
 last_updated: "2026-07-18T00:00:00Z"
-last_activity: 2026-07-18 — Quick task 260718-s4z: #statusz hash route (654 tests pass)
+last_activity: 2026-07-18 — v1.8 closed: Phase 18 + #statusz deployed to Netlify (654 tests pass)
 progress:
   total_phases: 18
   completed_phases: 18
