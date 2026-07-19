@@ -563,8 +563,6 @@ body.deep-link-mode #carousel-top-nav { display: none !important; }
 }
 .oembed-container.widget-ready { opacity: 1; }
 .oembed-container .twitter-tweet { margin: 0 auto !important; }
-/* -- oEmbed: hide raw blockquote until iframe is ready -- */
-.oembed-container:not(.widget-ready) blockquote { visibility: hidden; }
 /* -- oEmbed skeleton shimmer -- */
 @keyframes shimmer {
   0%   { background-position: -600px 0; }
