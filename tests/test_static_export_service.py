@@ -550,6 +550,26 @@ class TestIndexHtmlOEmbedSkeleton:
         assert "blockquote { visibility: hidden" not in html
         assert "blockquote{visibility:hidden" not in html
 
+    def test_pool_skip_condition_uses_widget_ready_class(self, temp_db_v6, tmp_path):
+        """renderCarousel must gate on .oembed-container.widget-ready, not blockquote absence.
+
+        Regression guard: Twitter's widgets.js hides the blockquote with CSS but never
+        removes it from the DOM. Checking !querySelector('blockquote.twitter-tweet') is
+        always False, so loadTwitterWidget() was always called even for pre-warmed pool
+        hits, making background prefetch useless and causing blocking navigation latency.
+        The correct check is querySelector('.oembed-container.widget-ready'), which is
+        only truthy after _onWidgetRendered fires the 'rendered' event.
+        """
+        from src.services.static_export import StaticExportService
+        import re
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        # Must use widget-ready class, not blockquote absence
+        assert "querySelector('.oembed-container.widget-ready')" in html
+        # Must NOT use the broken blockquote absence check
+        assert "!poolCardNode.querySelector('blockquote.twitter-tweet')" not in html
+
 
 class TestIndexHtmlStatusz:
     """Tests for #statusz hash route additions to index.html."""

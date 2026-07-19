@@ -1222,8 +1222,8 @@ function renderCarousel(results, idx) {
     if (carouselIndex < results.length - 1) { carouselIndex++; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
   });
   if (post.oembed_html) {
-    if (fromPool && poolCardNode && !poolCardNode.querySelector('blockquote.twitter-tweet')) {
-      // Widget already warmed in prefetch container — iframe present, skip loadTwitterWidget()
+    if (fromPool && poolCardNode && poolCardNode.querySelector('.oembed-container.widget-ready')) {
+      // Widget already warmed — widget-ready persists after DOM move, skip loadTwitterWidget()
     } else {
       loadTwitterWidget();
     }
