@@ -496,6 +496,57 @@ class TestIndexHtmlPrefetch:
         html = (tmp_path / "index.html").read_text()
         assert "prefetchPool.delete" in html
 
+    def test_run_prefetch_does_not_call_twitter_widgets_load(self, temp_db_v6, tmp_path):
+        """_runPrefetch must not call twttr.widgets.load in the hidden prefetch container.
+
+        Regression guard: background widget loading triggers network requests and iframe
+        creation for posts the user may never view, choking navigation performance.
+        Widgets are loaded on display instead via renderCarousel's pool path.
+        """
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        prefetch_start = html.index("function _runPrefetch(")
+        schedule_start = html.index("function schedulePrefetch(")
+        prefetch_body = html[prefetch_start:schedule_start]
+        assert "twttr.widgets.load" not in prefetch_body
+
+
+class TestIndexHtmlOEmbedSkeleton:
+    """Regression tests for oEmbed skeleton/widget-ready behaviour."""
+
+    def test_skeleton_fallback_gates_on_iframe_presence(self, temp_db_v6, tmp_path):
+        """_setupSkeletonFallback must check for an iframe before adding widget-ready.
+
+        Regression guard: without the iframe check, the fallback adds widget-ready after
+        5s unconditionally, making the oembed-container opacity:1 and exposing the raw
+        blockquote text while Twitter's widget is still loading.
+        """
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        fallback_start = html.index("function _setupSkeletonFallback(")
+        next_fn_start = html.index("function loadTwitterWidget(")
+        fallback_body = html[fallback_start:next_fn_start]
+        assert "querySelector('iframe')" in fallback_body
+
+    def test_oembed_blockquote_not_visibility_hidden(self, temp_db_v6, tmp_path):
+        """CSS must not apply visibility:hidden to blockquotes inside oembed-container.
+
+        Regression guard: twttr.widgets.js skips elements with visibility:hidden,
+        causing the widget to never fire 'rendered' and the carousel to stall 15-30s
+        before displaying the next post. The parent oembed-container's opacity:0
+        already hides the blockquote visually while the widget is loading.
+        """
+        from src.services.static_export import StaticExportService
+        svc = StaticExportService(temp_db_v6)
+        svc.export(tmp_path)
+        html = (tmp_path / "index.html").read_text()
+        assert "blockquote { visibility: hidden" not in html
+        assert "blockquote{visibility:hidden" not in html
+
 
 class TestIndexHtmlStatusz:
     """Tests for #statusz hash route additions to index.html."""
