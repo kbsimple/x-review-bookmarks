@@ -4,7 +4,7 @@ milestone: v1.8
 milestone_name: Background Prefetch
 status: complete
 last_updated: "2026-07-18T00:00:00Z"
-last_activity: 2026-07-18 — Phase 18 complete (Background Prefetch) — 650 tests pass
+last_activity: 2026-07-18 — Quick task 260718-s4z: #statusz hash route (654 tests pass)
 progress:
   total_phases: 18
   completed_phases: 18
@@ -155,6 +155,7 @@ Phase 14 summary:
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260615-b2k | oEmbed skeleton shimmer placeholder | 2026-06-15 | 8595816 | [260615-b2k-oembed-skeleton-shimmer](.planning/quick/260615-b2k-oembed-skeleton-shimmer/) |
+| 260718-s4z | #statusz hash route — live status table in static viewer | 2026-07-18 | 5eb4ab6 | [260718-s4z-statusz-hash-route](.planning/quick/260718-s4z-statusz-hash-route/) |
 
 ## Deferred Items
 
