@@ -786,6 +786,12 @@ let carouselIndex = 0;
 let savedScrollY = 0;
 let cachedCarouselResults = null;
 let deepLinkMode = false;
+// -- Prefetch pool globals --
+const PREFETCH_AHEAD = 5;
+const PREFETCH_BEHIND = 2;
+let prefetchPool = new Map();
+let _prefetchContainer = null;
+let _prefetchTimerId = null;
 document.body.classList.toggle('carousel-mode', currentMode === 'carousel');
 document.querySelectorAll('.mode-btn').forEach(b => {
   b.classList.toggle('active', b.dataset.mode === currentMode);
@@ -1032,6 +1038,80 @@ function loadTwitterWidget() {
   document.head.appendChild(s);
 }
 
+function _getPrefetchContainer() {
+  if (_prefetchContainer) return _prefetchContainer;
+  _prefetchContainer = document.createElement('div');
+  _prefetchContainer.id = 'prefetch-container';
+  _prefetchContainer.style.cssText =
+    'position:absolute;left:-9999px;top:-9999px;width:500px;visibility:hidden;pointer-events:none;';
+  document.body.appendChild(_prefetchContainer);
+  return _prefetchContainer;
+}
+
+function clearPrefetchPool() {
+  if (_prefetchTimerId !== null) {
+    if (typeof cancelIdleCallback !== 'undefined') {
+      cancelIdleCallback(_prefetchTimerId);
+    } else {
+      clearTimeout(_prefetchTimerId);
+    }
+    _prefetchTimerId = null;
+  }
+  for (const node of prefetchPool.values()) {
+    node.remove();
+  }
+  prefetchPool.clear();
+}
+
+function _runPrefetch(results, idx) {
+  _prefetchTimerId = null;
+  const windowStart = Math.max(0, idx - PREFETCH_BEHIND);
+  const windowEnd   = Math.min(results.length - 1, idx + PREFETCH_AHEAD);
+  const windowIds   = new Set(results.slice(windowStart, windowEnd + 1).map(function(e) { return e.id; }));
+  for (const [id, node] of prefetchPool) {
+    if (!windowIds.has(id)) {
+      node.remove();
+      prefetchPool.delete(id);
+    }
+  }
+  const container = _getPrefetchContainer();
+  let hasOEmbed = false;
+  for (let i = windowStart; i <= windowEnd; i++) {
+    if (i === idx) continue;
+    const entry = results[i];
+    if (prefetchPool.has(entry.id)) continue;
+    const post = allPosts[entry.id];
+    if (!post) continue;
+    const rs = reviewMap.get(entry.id) || null;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderPost(post, rs);
+    const cardNode = tmp.firstElementChild;
+    container.appendChild(cardNode);
+    prefetchPool.set(entry.id, cardNode);
+    if (post.oembed_html) hasOEmbed = true;
+  }
+  if (hasOEmbed && window.twttr && window.twttr.widgets) {
+    twttr.widgets.load(container);
+  }
+}
+
+function schedulePrefetch(results, idx) {
+  if (_prefetchTimerId !== null) {
+    if (typeof cancelIdleCallback !== 'undefined') {
+      cancelIdleCallback(_prefetchTimerId);
+    } else {
+      clearTimeout(_prefetchTimerId);
+    }
+    _prefetchTimerId = null;
+  }
+  const cb = function() { _runPrefetch(results, idx); };
+  if (typeof requestIdleCallback !== 'undefined') {
+    _prefetchTimerId = requestIdleCallback(cb, { timeout: 200 });
+  } else {
+    _prefetchTimerId = setTimeout(cb, 200);
+  }
+}
+
 function renderOEmbedCard(post, reviewState) {
   const oembedId  = 'oembed-'   + esc(post.x_post_id);
   const skeletonId = 'skeleton-' + esc(post.x_post_id);
@@ -1084,7 +1164,6 @@ function renderCarousel(results, idx) {
   const entry = results[idx];
   const post = allPosts[entry.id];
   const rs = reviewMap.get(entry.id) || null;
-  const cardHtml = renderPost(post, rs);
   const total = results.length;
   const prevDisabled = idx === 0         ? 'disabled' : '';
   const nextDisabled = idx === total - 1 ? 'disabled' : '';
@@ -1100,7 +1179,25 @@ function renderCarousel(results, idx) {
     <span class="carousel-counter">${idx + 1} / ${total} posts</span>
     <button class="carousel-btn" id="carousel-next" ${nextDisabled}>Next &rarr;</button>
   </div>`;
-  document.getElementById('post-list').innerHTML = topNav + cardHtml + nav;
+  var fromPool = false;
+  var poolCardNode = null;
+  const container = document.getElementById('post-list');
+  if (prefetchPool.has(entry.id)) {
+    fromPool = true;
+    poolCardNode = prefetchPool.get(entry.id);
+    prefetchPool.delete(entry.id);
+    const t = document.createElement('div');
+    t.innerHTML = topNav + '<div></div>' + nav;
+    const topNavNode = t.children[0];
+    const navNode    = t.children[2];
+    container.innerHTML = '';
+    container.appendChild(topNavNode);
+    container.appendChild(poolCardNode);
+    container.appendChild(navNode);
+  } else {
+    const cardHtml = renderPost(post, rs);
+    container.innerHTML = topNav + cardHtml + nav;
+  }
   document.getElementById('carousel-top-prev').addEventListener('click', () => {
     if (carouselIndex > 0) { carouselIndex--; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
   });
@@ -1115,8 +1212,13 @@ function renderCarousel(results, idx) {
     if (carouselIndex < results.length - 1) { carouselIndex++; renderCarousel(results, carouselIndex); window.scrollTo(0, 0); }
   });
   if (post.oembed_html) {
-    loadTwitterWidget();
+    if (fromPool && poolCardNode && !poolCardNode.querySelector('blockquote.twitter-tweet')) {
+      // Widget already warmed in prefetch container — iframe present, skip loadTwitterWidget()
+    } else {
+      loadTwitterWidget();
+    }
   }
+  schedulePrefetch(results, idx);
 }
 
 function showError(message) {
@@ -1186,6 +1288,7 @@ function renderView() {
   }
 
   if (currentMode === 'carousel') {
+    clearPrefetchPool();
     if (carouselIndex >= results.length) carouselIndex = 0;
     cachedCarouselResults = results;
     renderCarousel(results, carouselIndex);
