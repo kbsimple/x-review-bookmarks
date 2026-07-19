@@ -1005,10 +1005,12 @@ function renderQuoteCard(post, reviewState) {
 let _twitterWidgetLoaded = false;
 let _twitterRenderedBound = false;
 
-function _onWidgetRendered(el) {
-  // el is the rendered iframe; walk up to find .oembed-container
-  var container = el.closest ? el.closest('.oembed-container') : null;
-  if (!container) {
+function _onWidgetRendered(eventOrEl) {
+  // Twitter passes an event object {target, type, ...}; extract .target (the iframe).
+  // Guard with fallback in case a future version passes the element directly.
+  var el = (eventOrEl && eventOrEl.target) ? eventOrEl.target : eventOrEl;
+  var container = el && el.closest ? el.closest('.oembed-container') : null;
+  if (!container && el) {
     var p = el.parentNode;
     while (p && !p.classList.contains('oembed-container')) p = p.parentNode;
     container = p;
@@ -1022,7 +1024,8 @@ function _onWidgetRendered(el) {
       skeleton.style.display = 'none';
     }
   } else {
-    _log('WIDGET', 'rendered no-container el=' + el.tagName);
+    const tag = el ? (el.tagName || typeof el) : 'null';
+    _log('WIDGET', 'rendered no-container el=' + tag);
   }
 }
 
@@ -1075,6 +1078,11 @@ function loadTwitterWidget() {
     if (window.twttr && window.twttr.widgets) {
       _log('WIDGET', 'calling twttr.widgets.load(post-list) from onload');
       twttr.widgets.load(document.getElementById('post-list'));
+      // Also process any pool nodes that were warmed before twttr was ready
+      if (prefetchPool.size > 0 && _prefetchContainer) {
+        _log('WIDGET', 'backfill twttr.widgets.load(prefetch-container) pool_size=' + prefetchPool.size);
+        twttr.widgets.load(_prefetchContainer);
+      }
     }
   };
   document.head.appendChild(s);
